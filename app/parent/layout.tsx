@@ -1,7 +1,4 @@
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import { lockParentMode } from "@/app/actions/parent";
 import { Separator } from "@/components/ui/separator";
 import {
   LayoutDashboard,
@@ -12,7 +9,7 @@ import {
   Award,
   Box,
   Settings,
-  LogOut,
+  Home,
 } from "lucide-react";
 
 const NAV = [
@@ -26,14 +23,11 @@ const NAV = [
   { href: "/parent/settings", label: "Settings", icon: Settings },
 ];
 
-export default async function ParentLayout({
+export default function ParentLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const jar = await cookies();
-  if (jar.get("cubeverse_parent")?.value !== "1") redirect("/");
-
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950">
       {/* Top bar */}
@@ -59,15 +53,13 @@ export default async function ParentLayout({
             ))}
           </nav>
 
-          <form action={lockParentMode}>
-            <button
-              type="submit"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-50 transition-colors"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Kid mode</span>
-            </button>
-          </form>
+          <Link
+            href="/"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-50 transition-colors"
+          >
+            <Home className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Kid mode</span>
+          </Link>
         </div>
 
         {/* Mobile nav */}

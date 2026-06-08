@@ -47,22 +47,6 @@ export default function SetupPage() {
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="pin">Parent PIN</Label>
-            <Input
-              id="pin"
-              name="pin"
-              type="password"
-              inputMode="numeric"
-              maxLength={4}
-              required
-              placeholder="4-digit PIN"
-            />
-            <p className="text-xs text-zinc-400">
-              Used to access parent analytics. Must be 4 digits.
-            </p>
-          </div>
-
           <SubmitButton />
         </form>
       </div>

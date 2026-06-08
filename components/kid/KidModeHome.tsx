@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Lock, Flame, Timer } from "lucide-react";
-import { PinDialog } from "./PinDialog";
+import { Settings, Flame, Timer } from "lucide-react";
+import Link from "next/link";
 import { setSelectedEvent } from "@/app/actions/parent";
 
 interface Event {
@@ -43,7 +43,6 @@ export function KidModeHome({
   defaultEventId,
 }: KidModeHomeProps) {
   const [selectedId, setSelectedId] = useState(defaultEventId);
-  const [pinOpen, setPinOpen] = useState(false);
   const [, startTransition] = useTransition();
 
   const selected = events.find((e) => e.id === selectedId) ?? events[0];
@@ -66,13 +65,13 @@ export function KidModeHome({
           <p className="text-white/70 text-sm font-medium">Hey,</p>
           <h1 className="text-3xl font-bold tracking-tight">{cuberName}!</h1>
         </div>
-        <button
-          onClick={() => setPinOpen(true)}
+        <Link
+          href="/parent"
           className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
           aria-label="Parent mode"
         >
-          <Lock className="w-5 h-5" />
-        </button>
+          <Settings className="w-5 h-5" />
+        </Link>
       </div>
 
       {/* Event picker */}
@@ -143,8 +142,6 @@ export function KidModeHome({
           </div>
         </div>
       </div>
-
-      <PinDialog open={pinOpen} onClose={() => setPinOpen(false)} />
     </div>
   );
 }
