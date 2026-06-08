@@ -48,6 +48,16 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // /parent/* requires the parent-mode cookie (PIN verified)
+  if (pathname.startsWith("/parent")) {
+    const parentCookie = request.cookies.get("cubeverse_parent");
+    if (parentCookie?.value !== "1") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
+  }
+
   return supabaseResponse;
 }
 

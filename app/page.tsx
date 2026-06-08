@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { signOut } from "@/app/actions/auth";
+import { cookies } from "next/headers";
+import { KidModeHome } from "@/components/kid/KidModeHome";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -12,33 +13,35 @@ export default async function Home() {
 
   const { data: settings } = await supabase
     .from("app_settings")
-    .select("owner_id, default_cuber_id")
+    .select("default_cuber_id")
     .maybeSingle();
 
   if (!settings) redirect("/setup");
 
-  const { data: cuber } = await supabase
-    .from("cubers")
-    .select("name")
-    .eq("id", settings.default_cuber_id)
-    .single();
+  const [{ data: cuber }, { data: events }] = await Promise.all([
+    supabase
+      .from("cubers")
+      .select("name, display_name")
+      .eq("id", settings.default_cuber_id)
+      .single(),
+    supabase
+      .from("events")
+      .select("id, name, format")
+      .gte("sort_order", 1)
+      .lte("sort_order", 7)
+      .order("sort_order"),
+  ]);
+
+  const jar = await cookies();
+  const savedEvent = jar.get("cubeverse_event")?.value ?? "333";
+  const validEventId =
+    events?.some((e) => e.id === savedEvent) ? savedEvent : "333";
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-white dark:bg-black gap-4">
-      <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-        Cubeverse
-      </h1>
-      <p className="text-zinc-500 dark:text-zinc-400">
-        Welcome, {cuber?.name ?? "cuber"}! Kid mode coming in Phase 4.
-      </p>
-      <form action={signOut}>
-        <button
-          type="submit"
-          className="text-sm text-zinc-400 hover:text-zinc-600 underline"
-        >
-          Sign out
-        </button>
-      </form>
-    </main>
+    <KidModeHome
+      cuberName={cuber?.display_name ?? cuber?.name ?? "Cuber"}
+      events={events ?? []}
+      defaultEventId={validEventId}
+    />
   );
 }
