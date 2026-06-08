@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Settings, Flame, Timer } from "lucide-react";
+import { Settings, Flame, Timer, Play } from "lucide-react";
 import Link from "next/link";
 import { setSelectedEvent } from "@/app/actions/parent";
 
@@ -103,18 +103,16 @@ export function KidModeHome({
           <p className="text-white/50 text-sm mt-2">Ready to solve</p>
         </div>
 
-        {/* START button — wired up in Phase 5 */}
-        <button
-          disabled
+        {/* START button */}
+        <Link
+          href="/timer"
           className="w-48 h-48 rounded-full bg-white text-zinc-900 font-black text-3xl shadow-2xl
-                     disabled:opacity-80 disabled:cursor-not-allowed
-                     active:scale-95 transition-transform select-none"
-          aria-label="Start timer (Phase 5)"
+                     flex items-center justify-center gap-2
+                     active:scale-95 transition-transform select-none hover:shadow-3xl"
+          aria-label="Start timer"
         >
-          START
-        </button>
-
-        <p className="text-white/40 text-xs">Timer coming in Phase 5</p>
+          <Play className="w-10 h-10 fill-zinc-900" />
+        </Link>
       </div>
 
       {/* Stats bar */}
