@@ -1,14 +1,16 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { getServiceClient } from "@/lib/supabase/service";
+import { getOwnerId } from "@/lib/owner";
 import { verifyPin } from "@/lib/pin";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import type { FormState } from "./auth";
 
 const PARENT_COOKIE = "cubeverse_parent";
 const EVENT_COOKIE = "cubeverse_event";
 const COOKIE_MAX_AGE = 60 * 60 * 8; // 8 hours
+
+export type FormState = { error: string | null };
 
 export async function verifyParentPin(
   _prev: FormState,
@@ -17,16 +19,11 @@ export async function verifyParentPin(
   const pin = (formData.get("pin") as string)?.trim();
   if (!pin) return { error: "PIN is required." };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { data: settings } = await supabase
+  const db = getServiceClient();
+  const { data: settings } = await db
     .from("app_settings")
     .select("parent_pin_hash")
-    .eq("owner_id", user.id)
+    .eq("owner_id", getOwnerId())
     .single();
 
   if (!settings?.parent_pin_hash) return { error: "No PIN set." };
@@ -55,7 +52,7 @@ export async function lockParentMode(): Promise<void> {
 export async function setSelectedEvent(eventId: string): Promise<void> {
   const jar = await cookies();
   jar.set(EVENT_COOKIE, eventId, {
-    httpOnly: false, // readable client-side for optimistic UI
+    httpOnly: false,
     sameSite: "lax",
     maxAge: 60 * 60 * 24 * 365,
     path: "/",
