@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useScramble } from "@/lib/useScramble";
-import { formatCs } from "@/lib/cubing";
+import { formatCs, DNF } from "@/lib/cubing";
+import { recordSolve, type SessionStats } from "@/app/actions/solve";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -53,7 +54,13 @@ function makeRefs(): TimerRefs {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function TimerView({ event }: { event: TimerEvent }) {
+export function TimerView({
+  event,
+  cuberId,
+}: {
+  event: TimerEvent;
+  cuberId: string;
+}) {
   const { scramble, next: nextScramble } = useScramble(event.id);
 
   const [phase, setPhase] = useState<Phase>("idle");
@@ -61,6 +68,7 @@ export function TimerView({ event }: { event: TimerEvent }) {
   const [penalty, setPenalty] = useState<Penalty>("none");
   const [inspSec, setInspSec] = useState(15);
   const [inspectionOn, setInspectionOn] = useState(false);
+  const [stats, setStats] = useState<SessionStats | null>(null);
 
   const t = useRef<TimerRefs>(makeRefs());
 
@@ -215,12 +223,33 @@ export function TimerView({ event }: { event: TimerEvent }) {
 
   function applyPenalty(p: Penalty) { setPenalty(p); }
 
-  function nextSolve() {
+  function deleteSolve() {
     go("idle");
     setDisplayCs(0);
     setPenalty("none");
     setInspSec(15);
     nextScramble();
+    // Solve was not yet persisted (we save on Next →), so nothing to delete.
+  }
+
+  function saveAndNext(chosenPenalty: Penalty) {
+    const cs = t.current.finalCs;
+    go("idle");
+    setDisplayCs(0);
+    setPenalty("none");
+    setInspSec(15);
+    nextScramble();
+
+    // Persist in the background — don't block the UI.
+    recordSolve({
+      cuberId,
+      eventId: event.id,
+      timeCs: cs,
+      penalty: chosenPenalty,
+      scramble: scramble,
+    })
+      .then(setStats)
+      .catch((err) => console.error("Failed to save solve:", err));
   }
 
   // ── Derived display ────────────────────────────────────────────────────────
@@ -329,6 +358,22 @@ export function TimerView({ event }: { event: TimerEvent }) {
         )}
       </div>
 
+      {/* Session stats bar */}
+      {stats && phase !== "running" && (
+        <div className="shrink-0 px-5 pb-2 flex justify-center gap-5 text-xs text-white/35">
+          <span>{stats.count} solve{stats.count !== 1 ? "s" : ""}</span>
+          {stats.bestCs !== null && (
+            <span>Best {stats.bestCs === DNF ? "DNF" : formatCs(stats.bestCs)}</span>
+          )}
+          {stats.ao5 !== null && (
+            <span>Ao5 {stats.ao5 === DNF ? "DNF" : formatCs(stats.ao5)}</span>
+          )}
+          {stats.ao12 !== null && (
+            <span>Ao12 {stats.ao12 === DNF ? "DNF" : formatCs(stats.ao12)}</span>
+          )}
+        </div>
+      )}
+
       {/* Penalty bar */}
       {showPenaltyBar && (
         <div className="shrink-0 px-5 pb-10 space-y-3">
@@ -351,7 +396,7 @@ export function TimerView({ event }: { event: TimerEvent }) {
             <button
               onPointerDown={(e) => e.stopPropagation()}
               onPointerUp={(e) => e.stopPropagation()}
-              onClick={nextSolve}
+              onClick={deleteSolve}
               className="flex-1 py-4 rounded-2xl text-sm font-bold bg-white/10 text-red-400 hover:bg-red-500/20 transition-all"
             >
               Delete
@@ -361,10 +406,10 @@ export function TimerView({ event }: { event: TimerEvent }) {
           <button
             onPointerDown={(e) => e.stopPropagation()}
             onPointerUp={(e) => e.stopPropagation()}
-            onClick={nextSolve}
+            onClick={() => saveAndNext(penalty)}
             className="w-full py-3 rounded-xl bg-white/5 text-white/30 text-sm hover:bg-white/10 transition-colors"
           >
-            Next scramble →
+            Next →
           </button>
         </div>
       )}

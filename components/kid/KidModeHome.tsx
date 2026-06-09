@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Settings, Flame, Timer, Play } from "lucide-react";
 import Link from "next/link";
 import { setSelectedEvent } from "@/app/actions/parent";
+import { formatCs, DNF } from "@/lib/cubing";
 
 interface Event {
   id: string;
@@ -15,6 +16,8 @@ interface KidModeHomeProps {
   cuberName: string;
   events: Event[];
   defaultEventId: string;
+  todayCount: number;
+  todayBestCs: number | null; // null = no solves, -1 = all DNF
 }
 
 const EVENT_COLORS: Record<string, string> = {
@@ -41,6 +44,8 @@ export function KidModeHome({
   cuberName,
   events,
   defaultEventId,
+  todayCount,
+  todayBestCs,
 }: KidModeHomeProps) {
   const [selectedId, setSelectedId] = useState(defaultEventId);
   const [, startTransition] = useTransition();
@@ -129,13 +134,21 @@ export function KidModeHome({
           <div className="text-center">
             <div className="flex items-center justify-center gap-1">
               <Timer className="w-4 h-4 text-white/70" />
-              <span className="font-bold text-lg">—</span>
+              <span className="font-bold text-lg">
+                {todayCount > 0 ? todayCount : "—"}
+              </span>
             </div>
             <p className="text-white/60 text-xs mt-0.5">today</p>
           </div>
           <div className="w-px bg-white/20" />
           <div className="text-center">
-            <span className="font-bold text-lg">—</span>
+            <span className="font-bold text-lg">
+              {todayBestCs === null
+                ? "—"
+                : todayBestCs === DNF
+                ? "DNF"
+                : formatCs(todayBestCs)}
+            </span>
             <p className="text-white/60 text-xs mt-0.5">best today</p>
           </div>
         </div>

@@ -54,6 +54,27 @@ export function wcaAverage(times: readonly number[]): number | null {
 }
 
 /**
+ * General average of N (N ≥ 3): drop best and worst, mean the rest.
+ * Any DNF in the middle → DNF. Handles Ao12, Ao50, Ao100, etc.
+ * For N=5, gives identical results to ao5().
+ */
+export function aoN(times: readonly number[]): number {
+  const n = times.length;
+  if (n < 3) throw new Error(`aoN requires at least 3 times, got ${n}`);
+
+  const sorted = [...times].sort((a, b) => {
+    const av = a === DNF ? 2_147_483_647 : a;
+    const bv = b === DNF ? 2_147_483_647 : b;
+    return av - bv;
+  });
+
+  const middle = sorted.slice(1, n - 1);
+  if (middle.some((t) => t === DNF)) return DNF;
+  const sum = middle.reduce((a, b) => a + b, 0);
+  return Math.round(sum / middle.length);
+}
+
+/**
  * Format centiseconds as a display string.
  *   -1       → "DNF"
  *   1234     → "12.34"

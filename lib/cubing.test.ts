@@ -5,6 +5,7 @@ import {
   ao5,
   mo3,
   wcaAverage,
+  aoN,
   formatCs,
   parseToCs,
 } from "./cubing";
@@ -123,5 +124,38 @@ describe("rounding", () => {
     expect(mo3([1000, 1000, 1001])).toBe(1000);
     // mean(1001, 1001, 1001) = 1001
     expect(mo3([1001, 1001, 1001])).toBe(1001);
+  });
+});
+
+// ─── aoN ─────────────────────────────────────────────────────────────────────
+
+describe("aoN", () => {
+  it("Ao5 matches ao5() for identical inputs", () => {
+    expect(aoN([1000, 1100, 1200, 1300, 1400])).toBe(ao5([1000, 1100, 1200, 1300, 1400]));
+    expect(aoN([1000, DNF, 1200, 1300, 1400])).toBe(ao5([1000, DNF, 1200, 1300, 1400]));
+    expect(aoN([1000, DNF, DNF, 1300, 1400])).toBe(DNF);
+  });
+
+  it("Ao12 clean — drops best+worst, means middle 10", () => {
+    // 12 identical times → average = that time
+    const times = Array(12).fill(1000);
+    expect(aoN(times)).toBe(1000);
+  });
+
+  it("Ao12 with 1 DNF — DNF becomes worst, is dropped", () => {
+    // 11 times of 1000 + 1 DNF; DNF is worst and gets dropped → mean of middle 10 = 1000
+    const times = [...Array(11).fill(1000), DNF];
+    expect(aoN(times)).toBe(1000);
+  });
+
+  it("Ao12 with 2 DNFs — one DNF remains in middle → DNF average", () => {
+    const times = [...Array(10).fill(1000), DNF, DNF];
+    expect(aoN(times)).toBe(DNF);
+  });
+
+  it("Ao12 rounds correctly", () => {
+    // 10 middle times of 1001 + best 900 + worst 1100 → mean(10 × 1001) = 1001
+    const times = [...Array(10).fill(1001), 900, 1100];
+    expect(aoN(times)).toBe(1001);
   });
 });
