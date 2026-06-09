@@ -8,7 +8,6 @@ import { KidModeHome } from "@/components/kid/KidModeHome";
 import { effectiveTime, DNF } from "@/lib/cubing";
 import type { Penalty } from "@/lib/cubing";
 import { computeStreak } from "@/lib/streak";
-import { getBadgeInfo } from "@/lib/badges";
 
 export default async function Home() {
   const db = getServiceClient();
@@ -27,7 +26,7 @@ export default async function Home() {
 
   const cuberId = settings.default_cuber_id as string;
 
-  const [{ data: cuber }, { data: events }, { data: todaySolves }, streak, { data: trophies }] =
+  const [{ data: cuber }, { data: events }, { data: todaySolves }, streak] =
     await Promise.all([
       db
         .from("cubers")
@@ -48,12 +47,6 @@ export default async function Home() {
         .eq("context", "practice")
         .gte("solved_at", new Date().toISOString().slice(0, 10)), // today
       computeStreak(db, cuberId),
-      db
-        .from("achievements")
-        .select("badge_key, unlocked_at")
-        .eq("cuber_id", cuberId)
-        .order("unlocked_at", { ascending: false })
-        .limit(6),
     ]);
 
   const validEventId =
@@ -67,11 +60,6 @@ export default async function Home() {
   const todayBestCs =
     todayCount === 0 ? null : nonDnf.length > 0 ? Math.min(...nonDnf) : DNF;
 
-  const recentTrophies = (trophies ?? []).map((t) => {
-    const info = getBadgeInfo(t.badge_key as string);
-    return { ...info, unlockedAt: t.unlocked_at as string };
-  });
-
   return (
     <KidModeHome
       cuberName={cuber?.display_name ?? cuber?.name ?? "Cuber"}
@@ -80,7 +68,6 @@ export default async function Home() {
       todayCount={todayCount}
       todayBestCs={todayBestCs}
       streak={streak}
-      trophies={recentTrophies}
     />
   );
 }

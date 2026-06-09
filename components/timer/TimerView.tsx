@@ -367,9 +367,11 @@ export function TimerView({
       <div
         className={`px-6 min-h-[5rem] flex items-center justify-center transition-opacity duration-300 ${
           scrambleVisible ? "opacity-100" : "opacity-0"
-        }`}
+        } ${phase === "idle" ? "bg-white/5 rounded-lg py-4" : ""}`}
       >
-        <p className="font-mono-time text-center text-sm leading-loose tracking-wide text-white/55">
+        <p className={`font-mono-time text-center leading-loose tracking-wide ${
+          phase === "idle" ? "text-base text-white/80" : "text-sm text-white/55"
+        }`}>
           {scramble ?? "Generating scramble…"}
         </p>
       </div>

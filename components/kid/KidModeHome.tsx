@@ -13,12 +13,6 @@ interface Event {
   format: string;
 }
 
-interface Trophy {
-  key: string;
-  label: string;
-  emoji: string;
-}
-
 interface KidModeHomeProps {
   cuberName: string;
   events: Event[];
@@ -26,7 +20,6 @@ interface KidModeHomeProps {
   todayCount: number;
   todayBestCs: number | null;
   streak: number;
-  trophies: Trophy[];
 }
 
 export function KidModeHome({
@@ -36,7 +29,6 @@ export function KidModeHome({
   todayCount,
   todayBestCs,
   streak,
-  trophies,
 }: KidModeHomeProps) {
   const [selectedId, setSelectedId] = useState(defaultEventId);
   const [, startTransition] = useTransition();
@@ -134,31 +126,8 @@ export function KidModeHome({
         </div>
       </div>
 
-      {/* Trophies — sticker strip */}
-      {trophies.length > 0 && (
-        <div className="relative z-10 px-5 pb-2 kid-animate-in" style={{ animationDelay: "200ms" }}>
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">
-            Trophy shelf
-          </p>
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {trophies.map((t) => (
-              <div
-                key={t.key}
-                className="sticker flex min-w-[4.75rem] shrink-0 flex-col items-center gap-1 rounded-xl bg-[#FFFCF7] px-2.5 py-2 text-[#1A1208]"
-                title={t.label}
-              >
-                <span className="text-xl leading-none">{t.emoji}</span>
-                <span className="line-clamp-2 text-center text-[9px] font-bold leading-tight">
-                  {t.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Stats dock */}
-      <div className="relative z-10 px-5 pb-[max(1.75rem,env(safe-area-inset-bottom))] kid-animate-in" style={{ animationDelay: "240ms" }}>
+      <div className="relative z-10 px-5 pb-[max(1.75rem,env(safe-area-inset-bottom))] kid-animate-in" style={{ animationDelay: "200ms" }}>
         <div className="grid grid-cols-3 gap-2.5">
           <StatSticker
             icon={<Flame className="size-4" style={{ color: "#FF5800" }} />}
