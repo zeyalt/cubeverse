@@ -12,7 +12,7 @@ import { PbStaircase } from "@/components/analytics/PbStaircase";
 import { SolvesOverTime } from "@/components/analytics/SolvesOverTime";
 import { SolveDistribution } from "@/components/analytics/SolveDistribution";
 import { Consistency } from "@/components/analytics/Consistency";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ListOrdered } from "lucide-react";
 
 const ACTIVE_EVENTS: Record<string, string> = {
   "333": "3×3×3 Cube",
@@ -84,8 +84,17 @@ export default async function EventAnalyticsPage({
           </p>
         </div>
 
-        {/* Event switcher */}
-        <div className="ml-auto flex flex-wrap gap-1.5">
+        {/* History + Event switcher */}
+        <div className="ml-auto flex items-center gap-3 flex-wrap">
+          <Link
+            href={`/parent/event/${id}/history`}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+            title="View all practice solves"
+          >
+            <ListOrdered className="w-4 h-4" />
+            <span className="text-xs font-medium">History</span>
+          </Link>
+          <div className="flex flex-wrap gap-1.5">
           {Object.entries(ACTIVE_EVENTS).map(([eid, name]) => (
             <Link
               key={eid}
@@ -99,6 +108,7 @@ export default async function EventAnalyticsPage({
               {name.split(" ")[0]}
             </Link>
           ))}
+          </div>
         </div>
       </div>
 
