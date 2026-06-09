@@ -6,6 +6,9 @@ import { ArrowLeft } from "lucide-react";
 import { useScramble } from "@/lib/useScramble";
 import { formatCs, DNF } from "@/lib/cubing";
 import { recordSolve, type SessionStats } from "@/app/actions/solve";
+import { enqueueSolve } from "@/lib/offline/queue";
+import { getEventSticker } from "@/lib/event-theme";
+import { SyncIndicator } from "@/components/SyncIndicator";
 import { PbCelebration } from "./PbCelebration";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -244,14 +247,32 @@ export function TimerView({
     setInspSec(15);
     nextScramble();
 
-    // Persist in the background — don't block the UI.
-    recordSolve({
+    const solveInput = {
       cuberId,
       eventId: event.id,
       timeCs: cs,
       penalty: chosenPenalty,
       scramble: scramble,
-    })
+    };
+
+    // Offline: queue locally; online: persist via server action.
+    if (!navigator.onLine) {
+      enqueueSolve(solveInput).catch((err) =>
+        console.error("Failed to queue solve:", err)
+      );
+      setStats((prev) => ({
+        sessionId: prev?.sessionId ?? "offline",
+        count: (prev?.count ?? 0) + 1,
+        bestCs: prev?.bestCs ?? null,
+        ao5: prev?.ao5 ?? null,
+        ao12: prev?.ao12 ?? null,
+        isPb: false,
+        newBadges: [],
+      }));
+      return;
+    }
+
+    recordSolve(solveInput)
       .then((result) => {
         setStats(result);
         if (result.isPb && chosenPenalty !== "dnf") {
@@ -259,7 +280,10 @@ export function TimerView({
           setPbSolve({ timeCs: effCs, badges: result.newBadges });
         }
       })
-      .catch((err) => console.error("Failed to save solve:", err));
+      .catch((err) => {
+        console.error("Failed to save solve, queuing offline:", err);
+        enqueueSolve(solveInput).catch(console.error);
+      });
   }
 
   // ── Derived display ────────────────────────────────────────────────────────
@@ -282,6 +306,7 @@ export function TimerView({
     phase === "inspecting" && inspSec <= 7 ? "text-orange-400" :
     "text-white";
 
+  const sticker = getEventSticker(event.id);
   const scrambleVisible = phase !== "running";
   const showPenaltyBar  = phase === "stopped";
   const showHint        = phase === "idle" || phase === "holding" || phase === "ready";
@@ -293,7 +318,7 @@ export function TimerView({
 
   return (
     <div
-      className="min-h-screen bg-zinc-900 text-white flex flex-col select-none overflow-hidden"
+      className="kid-canvas min-h-screen flex flex-col select-none overflow-hidden text-white"
       onPointerDown={(e) => {
         if ((e.target as HTMLElement).closest("a, button")) return;
         e.preventDefault();
@@ -309,25 +334,33 @@ export function TimerView({
       <div className="flex items-center justify-between px-5 pt-6 pb-3 shrink-0">
         <Link
           href="/"
-          className="p-2 -m-2 rounded-lg hover:bg-white/10 transition-colors"
+          className="sticker-ghost -m-1 rounded-lg bg-white/10 p-2.5 transition-transform active:scale-95"
           onPointerDown={(e) => e.stopPropagation()}
           onPointerUp={(e) => e.stopPropagation()}
         >
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <span className="font-semibold text-sm text-white/70">{event.name}</span>
-        <button
-          className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-            inspectionOn
-              ? "bg-white/20 border-white/40 text-white"
-              : "border-white/20 text-white/40 hover:border-white/40"
-          }`}
-          onPointerDown={(e) => e.stopPropagation()}
-          onPointerUp={(e) => e.stopPropagation()}
-          onClick={() => setInspectionOn((v) => !v)}
+        <span
+          className="rounded-md border-2 border-black px-2.5 py-1 text-xs font-bold uppercase tracking-wide"
+          style={{ backgroundColor: sticker.face, color: sticker.ink, boxShadow: "2px 2px 0 #0A0A0A" }}
         >
-          Inspect
-        </button>
+          {event.name}
+        </span>
+        <div className="flex items-center gap-2">
+          <SyncIndicator />
+          <button
+            className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+              inspectionOn
+                ? "bg-white/20 border-white/40 text-white"
+                : "border-white/20 text-white/40 hover:border-white/40"
+            }`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onClick={() => setInspectionOn((v) => !v)}
+          >
+            Inspect
+          </button>
+        </div>
       </div>
 
       {/* Scramble */}
@@ -336,7 +369,7 @@ export function TimerView({
           scrambleVisible ? "opacity-100" : "opacity-0"
         }`}
       >
-        <p className="text-white/55 text-sm text-center font-mono leading-loose tracking-wide">
+        <p className="font-mono-time text-center text-sm leading-loose tracking-wide text-white/55">
           {scramble ?? "Generating scramble…"}
         </p>
       </div>
@@ -344,10 +377,10 @@ export function TimerView({
       {/* Timer display */}
       <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6">
         <p
-          className={`font-black tabular-nums transition-colors duration-75 ${timeColour}`}
+          className={`font-mono-time font-bold transition-colors duration-75 ${timeColour}`}
           style={{
             fontSize: "clamp(4rem, 20vw, 7rem)",
-            letterSpacing: "-0.03em",
+            letterSpacing: "-0.04em",
           }}
         >
           {timeText}
@@ -370,7 +403,7 @@ export function TimerView({
 
       {/* Session stats bar */}
       {stats && phase !== "running" && (
-        <div className="shrink-0 px-5 pb-2 flex justify-center gap-5 text-xs text-white/35">
+        <div className="shrink-0 flex justify-center gap-5 px-5 pb-2 font-mono-time text-xs text-white/40">
           <span>{stats.count} solve{stats.count !== 1 ? "s" : ""}</span>
           {stats.bestCs !== null && (
             <span>Best {stats.bestCs === DNF ? "DNF" : formatCs(stats.bestCs)}</span>
@@ -397,28 +430,37 @@ export function TimerView({
 
       {/* Penalty bar */}
       {showPenaltyBar && (
-        <div className="shrink-0 px-5 pb-10 space-y-3">
-          <div className="flex gap-3">
-            {(["none", "plus2", "dnf"] as Penalty[]).map((p) => (
+        <div className="shrink-0 space-y-3 px-5 pb-[max(2rem,env(safe-area-inset-bottom))]">
+          <div className="grid grid-cols-4 gap-2">
+            {(
+              [
+                { p: "none" as Penalty, label: "OK", face: "#009B48", ink: "#FFF" },
+                { p: "plus2" as Penalty, label: "+2", face: "#FFD500", ink: "#1A1200" },
+                { p: "dnf" as Penalty, label: "DNF", face: "#B71234", ink: "#FFF" },
+              ] as const
+            ).map(({ p, label, face, ink }) => (
               <button
                 key={p}
                 onPointerDown={(e) => e.stopPropagation()}
                 onPointerUp={(e) => e.stopPropagation()}
                 onClick={() => applyPenalty(p)}
-                className={`flex-1 py-4 rounded-2xl text-sm font-bold transition-all ${
-                  penalty === p
-                    ? "bg-white text-zinc-900 scale-105 shadow-lg"
-                    : "bg-white/10 text-white hover:bg-white/15"
+                className={`rounded-xl border-2 py-4 text-sm font-bold transition-all ${
+                  penalty === p ? "sticker -translate-y-0.5" : "border-white/20 bg-white/5 text-white"
                 }`}
+                style={
+                  penalty === p
+                    ? { backgroundColor: face, color: ink, borderColor: "#0A0A0A", boxShadow: "4px 4px 0 #0A0A0A" }
+                    : undefined
+                }
               >
-                {p === "none" ? "OK" : p === "plus2" ? "+2" : "DNF"}
+                {label}
               </button>
             ))}
             <button
               onPointerDown={(e) => e.stopPropagation()}
               onPointerUp={(e) => e.stopPropagation()}
               onClick={deleteSolve}
-              className="flex-1 py-4 rounded-2xl text-sm font-bold bg-white/10 text-red-400 hover:bg-red-500/20 transition-all"
+              className="rounded-xl border-2 border-white/20 py-4 text-sm font-bold text-white/60 hover:bg-white/10"
             >
               Delete
             </button>
@@ -428,9 +470,15 @@ export function TimerView({
             onPointerDown={(e) => e.stopPropagation()}
             onPointerUp={(e) => e.stopPropagation()}
             onClick={() => saveAndNext(penalty)}
-            className="w-full py-3 rounded-xl bg-white/5 text-white/30 text-sm hover:bg-white/10 transition-colors"
+            className="sticker w-full rounded-xl py-4 font-display text-lg font-extrabold"
+            style={{
+              backgroundColor: sticker.face,
+              color: sticker.ink,
+              borderColor: "#0A0A0A",
+              boxShadow: "4px 4px 0 #0A0A0A",
+            }}
           >
-            Next →
+            Next solve →
           </button>
         </div>
       )}

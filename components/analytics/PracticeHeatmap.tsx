@@ -37,14 +37,14 @@ function buildGrid(counts: HeatmapCounts, weeks: number) {
 }
 
 function cellColor(count: number, max: number): string {
-  if (count === 0) return "bg-zinc-100 dark:bg-zinc-800";
+  if (count === 0) return "bg-[#EDE6DA]";
   const intensity = Math.ceil((count / Math.max(max, 1)) * 4);
   return [
-    "bg-indigo-200 dark:bg-indigo-900",
-    "bg-indigo-300 dark:bg-indigo-700",
-    "bg-indigo-500 dark:bg-indigo-500",
-    "bg-indigo-700 dark:bg-indigo-300",
-  ][intensity - 1] ?? "bg-indigo-700";
+    "bg-[#A8C4F0]",
+    "bg-[#6B9AE8]",
+    "bg-[#0046AD]",
+    "bg-[#002D6E]",
+  ][intensity - 1] ?? "bg-[#002D6E]";
 }
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];

@@ -7,7 +7,9 @@ import { getOrCreateSession } from "@/lib/session";
 import { effectiveTime, aoN, DNF } from "@/lib/cubing";
 import type { Penalty } from "@/lib/cubing";
 import { checkAndRecordPb } from "@/lib/pb";
-import { checkAndUnlockBadges } from "@/lib/badges";
+import { checkAndUnlockBadges, checkActivityBadges } from "@/lib/badges";
+import { checkAndAchieveGoals } from "@/lib/goals";
+import { computeStreak } from "@/lib/streak";
 
 export interface SolveInput {
   cuberId: string;
@@ -118,13 +120,28 @@ export async function recordSolve(input: SolveInput): Promise<SessionStats> {
       db, ownerId, input.cuberId, input.eventId, "single", effCs
     );
     newBadges.push(...unlocked);
+    await checkAndAchieveGoals(db, input.cuberId, input.eventId, "single", effCs);
   }
   if (isPbAverage && stats.ao5 !== null && stats.ao5 > 0) {
     const unlocked = await checkAndUnlockBadges(
       db, ownerId, input.cuberId, input.eventId, "average", stats.ao5
     );
     newBadges.push(...unlocked);
+    await checkAndAchieveGoals(db, input.cuberId, input.eventId, "average", stats.ao5);
   }
+
+  // Activity badges (count + streak)
+  const [{ count: totalSolves }, streak] = await Promise.all([
+    db.from("solves").select("id", { count: "exact", head: true })
+      .eq("cuber_id", input.cuberId).eq("context", "practice"),
+    computeStreak(db, input.cuberId),
+  ]);
+  const activityBadges = await checkActivityBadges(db, ownerId, input.cuberId, {
+    solveCount: totalSolves ?? 0,
+    streak,
+    newPb: isPb,
+  });
+  newBadges.push(...activityBadges);
 
   return { sessionId, ...stats, isPb, newBadges };
 }

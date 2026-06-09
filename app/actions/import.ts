@@ -13,7 +13,8 @@ import {
   meaningfulAttempts,
 } from "@/lib/wca";
 import { checkAndRecordPb } from "@/lib/pb";
-import { checkAndUnlockBadges } from "@/lib/badges";
+import { checkAndUnlockBadges, checkActivityBadges } from "@/lib/badges";
+import { checkAndAchieveGoals } from "@/lib/goals";
 
 export interface ImportState {
   error: string | null;
@@ -195,8 +196,15 @@ export async function importWcaResults(
         timeCs: avg, achievedAt: compDate,
       });
       await checkAndUnlockBadges(db, ownerId, cuberId, result.event_id, "average", avg);
+      await checkAndAchieveGoals(db, cuberId, result.event_id, "average", avg);
     }
   }
+
+  // Activity badges: comp count
+  const { count: compCount } = await db
+    .from("competitions").select("id", { count: "exact", head: true })
+    .eq("cuber_id", cuberId);
+  await checkActivityBadges(db, ownerId, cuberId, { compCount: compCount ?? 0 });
 
   return { error: null, compsImported, resultsImported };
 }

@@ -1,0 +1,24 @@
+{
+  "name": "Cubeverse",
+  "short_name": "Cubeverse",
+  "description": "Track and celebrate a child's speedcubing journey",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#14110E",
+  "theme_color": "#14110E",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

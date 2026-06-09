@@ -14,29 +14,17 @@ interface PbCelebrationProps {
 }
 
 function fireConfetti() {
-  // Dynamic import keeps canvas-confetti out of the server bundle.
   import("canvas-confetti").then(({ default: confetti }) => {
     confetti({
-      particleCount: 160,
-      spread: 80,
-      origin: { y: 0.5 },
-      colors: ["#FFD700", "#FF6B6B", "#4ECDC4", "#A78BFA", "#34D399"],
+      particleCount: 180,
+      spread: 100,
+      origin: { y: 0.55 },
+      colors: ["#FFD500", "#0046AD", "#009B48", "#FF5800", "#B71234", "#FFFCF7"],
     });
-    // Second burst for extra celebration
     setTimeout(() => {
-      confetti({
-        particleCount: 80,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0, y: 0.6 },
-      });
-      confetti({
-        particleCount: 80,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1, y: 0.6 },
-      });
-    }, 300);
+      confetti({ particleCount: 60, angle: 60, spread: 50, origin: { x: 0, y: 0.65 } });
+      confetti({ particleCount: 60, angle: 120, spread: 50, origin: { x: 1, y: 0.65 } });
+    }, 250);
   });
 }
 
@@ -51,7 +39,6 @@ export function PbCelebration({
 
   useEffect(() => {
     fireConfetti();
-    // Auto-dismiss after 8 seconds
     const t = setTimeout(onDismiss, 8000);
     return () => clearTimeout(t);
   }, [onDismiss]);
@@ -75,62 +62,59 @@ export function PbCelebration({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-sm">
-        {/* Dismiss button */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+      <div className="relative w-full max-w-sm kid-animate-in">
         <button
           onClick={onDismiss}
-          className="absolute -top-3 -right-3 z-10 p-1.5 rounded-full bg-zinc-800 text-white/60 hover:text-white transition-colors"
+          className="absolute -right-2 -top-2 z-10 rounded-full border-2 border-black bg-[#FFFCF7] p-1.5 text-[#1A1208] shadow-[3px_3px_0_#000]"
         >
-          <X className="w-4 h-4" />
+          <X className="size-4" />
         </button>
 
-        {/* Share card (captured as PNG) */}
         <div
           ref={cardRef}
-          className="rounded-2xl overflow-hidden bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 p-6 text-white"
-          style={{ fontFamily: "system-ui, sans-serif" }}
+          className="sticker overflow-hidden rounded-2xl border-[3px] border-black bg-[#FFFCF7] p-6 text-[#1A1208]"
+          style={{ boxShadow: "8px 8px 0 #0A0A0A" }}
         >
-          <div className="text-xs font-semibold tracking-widest text-white/60 uppercase mb-1">
-            Personal Best
+          <div className="inline-flex rounded-md bg-[#FFD500] px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[#1A1200]">
+            New PB!
           </div>
           <div
-            className="font-black tabular-nums leading-none my-3"
+            className="font-mono-time my-4 font-semibold leading-none"
             style={{ fontSize: "clamp(3rem, 16vw, 4.5rem)", letterSpacing: "-0.04em" }}
           >
             {formattedTime}
           </div>
-          <div className="text-lg font-semibold text-white/90 mb-4">{eventName}</div>
-          <div className="flex items-center justify-between text-sm text-white/60">
-            <span>{cuberName}</span>
+          <div className="font-display text-xl font-bold">{eventName}</div>
+          <div className="mt-4 flex items-center justify-between border-t-2 border-[#1A1208]/10 pt-3 text-sm text-[#6B5E4C]">
+            <span className="font-semibold text-[#1A1208]">{cuberName}</span>
             <span>{today}</span>
           </div>
-          <div className="mt-3 text-xs text-white/40 text-right">Cubeverse</div>
+          <div className="mt-2 text-right text-[10px] font-bold uppercase tracking-widest text-[#B8860B]">
+            Cubeverse
+          </div>
         </div>
 
-        {/* Action buttons */}
         <div className="mt-3 flex gap-2">
           <button
             onClick={downloadCard}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/10 text-white text-sm font-medium hover:bg-white/20 transition-colors"
+            className="sticker flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#FFFCF7] py-3 text-sm font-bold text-[#1A1208]"
           >
-            <Download className="w-4 h-4" />
+            <Download className="size-4" />
             Save card
           </button>
           <button
             onClick={onDismiss}
-            className="flex-1 py-2.5 rounded-xl bg-white text-zinc-900 text-sm font-bold hover:bg-white/90 transition-colors"
+            className="sticker flex-1 rounded-xl py-3 font-display text-sm font-extrabold"
+            style={{ backgroundColor: "#0046AD", color: "#FFF" }}
           >
-            Keep going! 🔥
+            Keep going!
           </button>
         </div>
 
-        {/* Badge unlocks */}
         {newBadges.length > 0 && (
-          <div className="mt-2 px-3 py-2 rounded-xl bg-yellow-500/20 border border-yellow-500/30">
-            <p className="text-yellow-300 text-xs font-semibold">
-              🏅 {newBadges.length} badge{newBadges.length > 1 ? "s" : ""} unlocked!
-            </p>
+          <div className="sticker mt-2 rounded-xl bg-[#FFD500] px-3 py-2 text-center text-xs font-bold text-[#1A1200]">
+            {newBadges.length} badge{newBadges.length > 1 ? "s" : ""} unlocked!
           </div>
         )}
       </div>

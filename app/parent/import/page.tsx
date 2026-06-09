@@ -7,21 +7,22 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageHeader } from "@/components/parent/PageHeader";
 import { CheckCircle2, Download, Loader2 } from "lucide-react";
 
 function ImportButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending}>
+    <Button type="submit" disabled={pending} className="h-10">
       {pending ? (
         <>
-          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          <Loader2 className="size-4 animate-spin" />
           Importing…
         </>
       ) : (
         <>
-          <Download className="w-4 h-4 mr-2" />
-          Import
+          <Download className="size-4" />
+          Import from WCA
         </>
       )}
     </Button>
@@ -32,39 +33,31 @@ export default function ImportPage() {
   const [state, action] = useActionState(importWcaResults, { error: null });
 
   return (
-    <div className="space-y-6 max-w-lg">
-      <div>
-        <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-          Import
-        </h2>
-        <p className="text-zinc-500 text-sm mt-0.5">
-          Bring in official WCA results or future practice exports.
-        </p>
-      </div>
+    <div className="space-y-6 max-w-xl">
+      <PageHeader
+        title="Import"
+        description="Bring in official WCA results or future practice exports."
+      />
 
-      {/* WCA Import */}
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 space-y-4">
+      <div className="parent-surface p-5 sm:p-6 space-y-5">
         <div>
-          <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">
-            WCA Import
-          </h3>
-          <p className="text-sm text-zinc-500 mt-0.5">
-            Fetches all official competitions, results, and individual solve
-            times. Re-running is safe — existing records are updated, not
-            duplicated.
+          <h2 className="font-semibold text-foreground">WCA import</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Fetches competitions, results, and individual solve times. Safe to
+            re-run — existing records update in place.
           </p>
         </div>
 
-        <form action={action} className="space-y-3">
+        <form action={action} className="space-y-4">
           {state.error && (
-            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
               {state.error}
             </p>
           )}
 
           {state.error === null && state.compsImported !== undefined && (
-            <div className="flex items-start gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-              <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
+              <CheckCircle2 className="size-4 shrink-0 mt-0.5" />
               <span>
                 Imported <strong>{state.compsImported}</strong> competition
                 {state.compsImported !== 1 ? "s" : ""} and{" "}
@@ -74,14 +67,14 @@ export default function ImportPage() {
             </div>
           )}
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="wca_id">WCA ID</Label>
             <Input
               id="wca_id"
               name="wca_id"
               placeholder="e.g. 2025ZEYA01"
               defaultValue="2025ZEYA01"
-              className="font-mono uppercase"
+              className="font-mono-time h-11 uppercase"
               autoFocus
             />
           </div>
@@ -90,17 +83,14 @@ export default function ImportPage() {
         </form>
       </div>
 
-      {/* Twisty Timer — coming soon */}
-      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 opacity-60">
+      <div className="parent-surface p-5 sm:p-6 opacity-70">
         <div className="flex items-center gap-2 mb-1">
-          <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">
-            Twisty Timer
-          </h3>
+          <h2 className="font-semibold text-foreground">Twisty Timer</h2>
           <Badge variant="secondary">Coming soon</Badge>
         </div>
-        <p className="text-sm text-zinc-500">
-          Import practice solves from a Twisty Timer export file. The parser
-          will be built once a sample export is provided.
+        <p className="text-sm text-muted-foreground">
+          Import practice solves from a Twisty Timer export file once a sample
+          export is available.
         </p>
       </div>
     </div>

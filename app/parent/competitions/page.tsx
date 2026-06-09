@@ -3,8 +3,10 @@ import { getServiceClient } from "@/lib/supabase/service";
 import { getOwnerId } from "@/lib/owner";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { PageHeader } from "@/components/parent/PageHeader";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
-import { Plus, Trophy } from "lucide-react";
+import { Calendar, ChevronRight, MapPin, Plus, Trophy } from "lucide-react";
 
 export default async function CompetitionsPage() {
   const db = getServiceClient();
@@ -26,65 +28,69 @@ export default async function CompetitionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-            Competitions
-          </h2>
-          <p className="text-sm text-zinc-500 mt-0.5">
-            {comps?.length ?? 0} competition{comps?.length !== 1 ? "s" : ""}
-          </p>
-        </div>
-        <Link href="/parent/competitions/new" className={cn(buttonVariants())}>
-          <Plus className="w-4 h-4 mr-1" />
-          Add unofficial comp
-        </Link>
-      </div>
+      <PageHeader
+        title="Competitions"
+        description={`${comps?.length ?? 0} competition${comps?.length !== 1 ? "s" : ""} on record`}
+        action={
+          <Link href="/parent/competitions/new" className={cn(buttonVariants())}>
+            <Plus className="size-4" />
+            Add unofficial
+          </Link>
+        }
+      />
 
-      {!comps?.length && (
-        <div className="flex flex-col items-center justify-center py-16 text-zinc-400">
-          <Trophy className="w-10 h-10 mb-3 opacity-30" />
-          <p className="text-sm">No competitions yet.</p>
-          <p className="text-xs mt-1">
-            Add an unofficial comp above, or import from WCA in Phase 8.
-          </p>
+      {!comps?.length ? (
+        <EmptyState
+          icon={Trophy}
+          title="No competitions yet"
+          description="Import from WCA or add an unofficial competition manually."
+          action={
+            <Link href="/parent/import" className={cn(buttonVariants({ variant: "outline" }))}>
+              Import WCA results
+            </Link>
+          }
+        />
+      ) : (
+        <div className="space-y-3">
+          {comps.map((comp) => (
+            <Link
+              key={comp.id}
+              href={`/parent/competitions/${comp.id}`}
+              className="parent-surface group flex items-center gap-4 p-4 transition-all hover:shadow-md hover:shadow-black/[0.04]"
+            >
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                <Trophy className="size-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-semibold text-foreground truncate">{comp.name}</p>
+                  <Badge variant={comp.type === "wca" ? "default" : "secondary"}>
+                    {comp.type === "wca" ? "WCA" : "Unofficial"}
+                  </Badge>
+                </div>
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                  {(comp.city || comp.country) && (
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin className="size-3" />
+                      {[comp.city, comp.country].filter(Boolean).join(", ")}
+                    </span>
+                  )}
+                  {comp.start_date && (
+                    <span className="inline-flex items-center gap-1">
+                      <Calendar className="size-3" />
+                      {comp.start_date}
+                      {comp.end_date && comp.end_date !== comp.start_date
+                        ? ` – ${comp.end_date}`
+                        : ""}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <ChevronRight className="size-4 shrink-0 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
+            </Link>
+          ))}
         </div>
       )}
-
-      <div className="space-y-3">
-        {comps?.map((comp) => (
-          <Link
-            key={comp.id}
-            href={`/parent/competitions/${comp.id}`}
-            className="block rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900
-                       p-4 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-semibold text-zinc-900 dark:text-zinc-50">
-                  {comp.name}
-                </p>
-                {(comp.city || comp.country) && (
-                  <p className="text-xs text-zinc-500 mt-0.5">
-                    {[comp.city, comp.country].filter(Boolean).join(", ")}
-                  </p>
-                )}
-                {comp.start_date && (
-                  <p className="text-xs text-zinc-400 mt-0.5">
-                    {comp.start_date}
-                    {comp.end_date && comp.end_date !== comp.start_date
-                      ? ` – ${comp.end_date}`
-                      : ""}
-                  </p>
-                )}
-              </div>
-              <Badge variant={comp.type === "wca" ? "default" : "secondary"}>
-                {comp.type === "wca" ? "WCA" : "Unofficial"}
-              </Badge>
-            </div>
-          </Link>
-        ))}
-      </div>
     </div>
   );
 }
