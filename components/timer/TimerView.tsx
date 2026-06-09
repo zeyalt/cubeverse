@@ -375,19 +375,24 @@ export function TimerView({
       </div>
 
       {/* Timer display */}
-      <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6">
-        <p
-          className={`font-mono-time font-bold transition-colors duration-75 ${timeColour}`}
-          style={{
-            fontSize: "clamp(4rem, 20vw, 7rem)",
-            letterSpacing: "-0.04em",
-          }}
-        >
-          {timeText}
-        </p>
+      <div className={`flex-1 flex flex-col items-center justify-center gap-3 px-6 ${phase === "holding" ? "timer-holding" : ""}`}>
+        <div className={`relative ${phase === "holding" || phase === "ready" ? "scale-110" : "scale-100"} transition-transform duration-75`}>
+          <p
+            className={`font-mono-time font-bold transition-colors duration-75 ${timeColour}`}
+            style={{
+              fontSize: "clamp(4rem, 20vw, 7rem)",
+              letterSpacing: "-0.04em",
+            }}
+          >
+            {timeText}
+          </p>
+          {phase === "ready" && (
+            <div className="absolute inset-0 rounded-2xl border-2 border-green-400 opacity-50 animate-pulse" />
+          )}
+        </div>
 
         {showHint && (
-          <p className="text-white/20 text-xs text-center max-w-xs mt-2">{hintText}</p>
+          <p className="text-white/20 text-xs text-center max-w-xs mt-2 animate-pulse">{hintText}</p>
         )}
 
         {phase === "inspecting" && (

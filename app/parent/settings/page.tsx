@@ -27,11 +27,9 @@ export default function SettingsPage() {
     if (html.classList.contains("dark")) {
       html.classList.remove("dark");
       localStorage.setItem("theme", "light");
-      setDarkMode(false);
     } else {
       html.classList.add("dark");
       localStorage.setItem("theme", "dark");
-      setDarkMode(true);
     }
   }, []);
 

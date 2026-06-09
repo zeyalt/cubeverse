@@ -50,12 +50,37 @@ export default async function OverviewPage() {
 
   const totalSolves = Object.values(heatmap).reduce((a, b) => a + b, 0);
 
+  // Find best practice time across all events for callout
+  const allPracticeSingles = pbs
+    .map((p) => p.practiceSingle)
+    .filter((p) => p && p > 0) as number[];
+  const bestOverall = allPracticeSingles.length > 0 ? Math.min(...allPracticeSingles) : null;
+
   return (
     <div className="space-y-8">
       <PageHeader
         title="Overview"
         description="Current personal bests and practice rhythm at a glance."
       />
+
+      {/* Top stat callout */}
+      {bestOverall && (
+        <div className="page-enter relative overflow-hidden rounded-2xl border-2 border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 p-6 shadow-lg">
+          <div className="absolute inset-0 opacity-5 pointer-events-none">
+            <svg className="absolute top-0 right-0 w-96 h-96" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.1" />
+            </svg>
+          </div>
+          <div className="relative">
+            <p className="text-xs font-semibold uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-1">
+              Personal best overall
+            </p>
+            <p className="font-display text-5xl font-bold text-blue-900 dark:text-blue-100">
+              {formatCs(bestOverall)}
+            </p>
+          </div>
+        </div>
+      )}
 
       <section className="parent-surface overflow-hidden">
         <div className="parent-surface-header">

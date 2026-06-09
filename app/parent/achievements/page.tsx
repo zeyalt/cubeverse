@@ -147,13 +147,13 @@ function BadgeCard({
 }) {
   return (
     <div
-      className={`rounded-2xl border p-4 text-center transition-all ${
+      className={`badge-new rounded-2xl border p-4 text-center transition-all hover:shadow-lg ${
         unlocked
-          ? "border-amber-200 bg-gradient-to-b from-amber-50 to-orange-50/50 shadow-sm dark:border-amber-900/50 dark:from-amber-950/40 dark:to-orange-950/20"
-          : "border-border bg-muted/30 opacity-55 grayscale"
+          ? "border-amber-200 bg-gradient-to-b from-amber-50 to-orange-50/50 shadow-sm dark:border-amber-900/50 dark:from-amber-950/40 dark:to-orange-950/20 ring-2 ring-amber-200/50 dark:ring-amber-700/30"
+          : "border-border bg-muted/30 opacity-55 grayscale hover:opacity-60"
       }`}
     >
-      <div className="mb-2 text-3xl leading-none">{emoji}</div>
+      <div className="mb-2 text-4xl leading-none filter drop-shadow-sm">{emoji}</div>
       <p className="text-xs font-semibold leading-tight text-foreground">{label}</p>
       {description && (
         <p className="mt-1 text-[10px] text-muted-foreground">{description}</p>

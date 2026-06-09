@@ -38,10 +38,13 @@ function SubmitButton({ label }: { label: string }) {
 }
 
 function ProgressBar({ pct }: { pct: number }) {
+  const isActive = pct > 0 && pct < 100;
   return (
-    <div className="h-2 overflow-hidden rounded-full bg-muted">
+    <div className="h-3 overflow-hidden rounded-full bg-muted ring-1 ring-inset ring-border">
       <div
-        className="h-full rounded-full bg-[#0046AD] transition-all duration-500"
+        className={`h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-700 ${
+          isActive ? "progress-active shadow-lg shadow-blue-500/20" : ""
+        }`}
         style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
       />
     </div>

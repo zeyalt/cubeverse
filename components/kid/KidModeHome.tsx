@@ -76,22 +76,22 @@ export function KidModeHome({
           Pick your puzzle
         </p>
         <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-none">
-          {events.map((ev, i) => {
+          {events.map((ev) => {
             const s = getEventSticker(ev.id);
             const active = ev.id === selectedId;
             return (
               <button
                 key={ev.id}
                 onClick={() => handleSelectEvent(ev.id)}
-                className={`shrink-0 rounded-xl border-2 px-4 py-2.5 text-sm font-bold transition-all kid-animate-in ${
-                  active ? "sticker -translate-y-0.5" : "hover:bg-white/10"
+                className={`event-sticker shrink-0 rounded-xl border-2 px-4 py-2.5 text-sm font-bold transition-all ${
+                  active ? "sticker -translate-y-1 scale-105" : "hover:bg-white/10 hover:scale-110"
                 }`}
                 style={{
-                  animationDelay: `${i * 40}ms`,
                   backgroundColor: active ? s.face : "rgba(255,255,255,0.06)",
                   color: active ? s.ink : "rgba(255,255,255,0.85)",
                   borderColor: active ? "#0A0A0A" : "rgba(255,255,255,0.15)",
-                  boxShadow: active ? "4px 4px 0 #0A0A0A" : "none",
+                  boxShadow: active ? "6px 6px 0 #0A0A0A, inset 0 0 20px rgba(0,0,0,0.1)" : "none",
+                  transitionDuration: "150ms",
                 }}
               >
                 {EVENT_SHORT[ev.id] ?? ev.name}
@@ -203,9 +203,9 @@ function StatSticker({
   mono?: boolean;
 }) {
   return (
-    <div className="sticker rounded-xl bg-[#FFFCF7] px-2 py-3 text-center text-[#1A1208]">
+    <div className="sticker group rounded-xl bg-[#FFFCF7] px-2 py-3 text-center text-[#1A1208] transition-transform active:scale-95 hover:shadow-lg" style={{ boxShadow: "3px 3px 0 #1A1208" }}>
       <div
-        className="mx-auto mb-1.5 h-1 w-8 rounded-full"
+        className="mx-auto mb-1.5 h-1.5 w-8 rounded-full transition-all group-hover:w-10"
         style={{ backgroundColor: accent }}
       />
       <div className="flex items-center justify-center gap-1">
