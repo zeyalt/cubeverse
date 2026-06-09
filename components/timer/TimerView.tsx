@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { useScramble } from "@/lib/useScramble";
 import { formatCs, DNF } from "@/lib/cubing";
 import { recordSolve, type SessionStats } from "@/app/actions/solve";
+import { PbCelebration } from "./PbCelebration";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -57,9 +58,11 @@ function makeRefs(): TimerRefs {
 export function TimerView({
   event,
   cuberId,
+  cuberName,
 }: {
   event: TimerEvent;
   cuberId: string;
+  cuberName: string;
 }) {
   const { scramble, next: nextScramble } = useScramble(event.id);
 
@@ -69,6 +72,7 @@ export function TimerView({
   const [inspSec, setInspSec] = useState(15);
   const [inspectionOn, setInspectionOn] = useState(false);
   const [stats, setStats] = useState<SessionStats | null>(null);
+  const [pbSolve, setPbSolve] = useState<{ timeCs: number; badges: string[] } | null>(null);
 
   const t = useRef<TimerRefs>(makeRefs());
 
@@ -248,7 +252,13 @@ export function TimerView({
       penalty: chosenPenalty,
       scramble: scramble,
     })
-      .then(setStats)
+      .then((result) => {
+        setStats(result);
+        if (result.isPb && chosenPenalty !== "dnf") {
+          const effCs = chosenPenalty === "plus2" ? cs + 200 : cs;
+          setPbSolve({ timeCs: effCs, badges: result.newBadges });
+        }
+      })
       .catch((err) => console.error("Failed to save solve:", err));
   }
 
@@ -372,6 +382,17 @@ export function TimerView({
             <span>Ao12 {stats.ao12 === DNF ? "DNF" : formatCs(stats.ao12)}</span>
           )}
         </div>
+      )}
+
+      {/* PB celebration overlay */}
+      {pbSolve && (
+        <PbCelebration
+          timeCs={pbSolve.timeCs}
+          eventName={event.name}
+          cuberName={cuberName}
+          newBadges={pbSolve.badges}
+          onDismiss={() => setPbSolve(null)}
+        />
       )}
 
       {/* Penalty bar */}

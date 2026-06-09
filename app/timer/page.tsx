@@ -23,16 +23,16 @@ export default async function TimerPage() {
   const jar = await cookies();
   const eventId = jar.get("cubeverse_event")?.value ?? "333";
 
-  const { data: event } = await db
-    .from("events")
-    .select("id, name")
-    .eq("id", eventId)
-    .maybeSingle();
+  const [{ data: event }, { data: cuber }] = await Promise.all([
+    db.from("events").select("id, name").eq("id", eventId).maybeSingle(),
+    db.from("cubers").select("name, display_name").eq("id", settings.default_cuber_id).single(),
+  ]);
 
   return (
     <TimerView
       event={event ?? FALLBACK_EVENT}
       cuberId={settings.default_cuber_id as string}
+      cuberName={cuber?.display_name ?? cuber?.name ?? "Cuber"}
     />
   );
 }

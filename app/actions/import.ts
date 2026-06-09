@@ -12,6 +12,8 @@ import {
   mapBest,
   meaningfulAttempts,
 } from "@/lib/wca";
+import { checkAndRecordPb } from "@/lib/pb";
+import { checkAndUnlockBadges } from "@/lib/badges";
 
 export interface ImportState {
   error: string | null;
@@ -167,6 +169,32 @@ export async function importWcaResults(
       });
 
       await db.from("solves").insert(solveRows);
+    }
+  }
+
+  // ── Recompute official PBs ──────────────────────────────────────────────────
+  // Iterate all imported results and update pb_history for context='official'.
+  for (const result of apiResults) {
+    const best = mapBest(result.best);
+    const avg = mapAverage(result.average);
+    const compDate = compDetails.find((c) => c.id === result.competition_id)?.start_date ?? undefined;
+
+    if (best > 0) {
+      await checkAndRecordPb(db, {
+        ownerId, cuberId, eventId: result.event_id,
+        recordType: "single", context: "official",
+        timeCs: best, achievedAt: compDate,
+      });
+      await checkAndUnlockBadges(db, ownerId, cuberId, result.event_id, "single", best);
+    }
+
+    if (avg !== null && avg > 0) {
+      await checkAndRecordPb(db, {
+        ownerId, cuberId, eventId: result.event_id,
+        recordType: "average", context: "official",
+        timeCs: avg, achievedAt: compDate,
+      });
+      await checkAndUnlockBadges(db, ownerId, cuberId, result.event_id, "average", avg);
     }
   }
 
