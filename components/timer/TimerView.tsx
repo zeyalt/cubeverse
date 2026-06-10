@@ -353,12 +353,6 @@ export function TimerView({
             <ArrowLeft className="w-5 h-5" />
           </Link>
         )}
-        <span
-          className="rounded-md border-2 border-black px-2.5 py-1 text-xs font-bold uppercase tracking-wide"
-          style={{ backgroundColor: sticker.face, color: sticker.ink, boxShadow: "2px 2px 0 #0A0A0A" }}
-        >
-          {event.name}
-        </span>
         <div className="flex items-center gap-2">
           <SyncIndicator />
           <button
