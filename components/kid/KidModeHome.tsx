@@ -54,6 +54,7 @@ export function KidModeHome({
         cuberId={cuberId}
         cuberName={cuberName}
         onBack={() => setShowTimer(false)}
+        autoStartInspection={true}
       />
     );
   }
@@ -115,12 +116,12 @@ export function KidModeHome({
         <div className="kid-animate-in mx-auto w-full max-w-sm" style={{ animationDelay: "80ms" }}>
           <button
             onClick={() => setShowTimer(true)}
-            className="w-full transition-opacity hover:opacity-80"
+            className="w-full cursor-pointer transition-opacity hover:opacity-80"
           >
             <p className="font-mono-time text-[5.5rem] font-semibold leading-none tracking-tighter sm:text-[6.5rem]">
               0<span className="text-white/25">.</span>00
             </p>
-            <p className="mt-3 text-sm text-white/45">Hold · release · solve!</p>
+            <p className="mt-3 text-sm text-white/45">Tap to start</p>
           </button>
         </div>
 

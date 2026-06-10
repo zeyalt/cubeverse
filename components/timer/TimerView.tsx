@@ -63,11 +63,13 @@ export function TimerView({
   cuberId,
   cuberName,
   onBack,
+  autoStartInspection = false,
 }: {
   event: TimerEvent;
   cuberId: string;
   cuberName: string;
   onBack?: () => void;
+  autoStartInspection?: boolean;
 }) {
   const { scramble, next: nextScramble } = useScramble(event.id);
 
@@ -200,6 +202,14 @@ export function TimerView({
       go("idle");
     }
   }, [startInspection, startRunning]);
+
+  // ── Auto-start inspection when opened from home page ────────────────────────
+
+  useEffect(() => {
+    if (autoStartInspection && phase === "idle") {
+      startInspection();
+    }
+  }, [autoStartInspection, startInspection, phase]);
 
   // ── Keyboard listeners ─────────────────────────────────────────────────────
 
