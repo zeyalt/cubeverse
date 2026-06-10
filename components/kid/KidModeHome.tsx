@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Settings, Flame } from "lucide-react";
 import Link from "next/link";
 import { setSelectedEvent } from "@/app/actions/parent";
 import { formatCs, DNF } from "@/lib/cubing";
 import { EVENT_SHORT, getEventSticker } from "@/lib/event-theme";
 import { useScramble } from "@/lib/useScramble";
-import { TimerView } from "@/components/timer/TimerView";
+import { recordSolve, type SessionStats } from "@/app/actions/solve";
+import { enqueueSolve } from "@/lib/offline/queue";
 
 interface Event {
   id: string;
@@ -25,6 +26,33 @@ interface KidModeHomeProps {
   streak: number;
 }
 
+type TimerPhase = "idle" | "holding" | "ready" | "inspecting" | "running" | "stopped";
+type Penalty = "none" | "plus2" | "dnf";
+
+interface TimerRefs {
+  phase: TimerPhase;
+  startMs: number;
+  finalCs: number;
+  holdTimer: ReturnType<typeof setTimeout> | null;
+  raf: number | null;
+  inspTimer: ReturnType<typeof setInterval> | null;
+  inspElapsed: number;
+  inspPenalty: Penalty;
+}
+
+function makeTimerRefs(): TimerRefs {
+  return {
+    phase: "idle",
+    startMs: 0,
+    finalCs: 0,
+    holdTimer: null,
+    raf: null,
+    inspTimer: null,
+    inspElapsed: 0,
+    inspPenalty: "none",
+  };
+}
+
 export function KidModeHome({
   cuberName,
   events,
@@ -35,9 +63,17 @@ export function KidModeHome({
   streak,
 }: KidModeHomeProps) {
   const [selectedId, setSelectedId] = useState(defaultEventId);
-  const [showTimer, setShowTimer] = useState(false);
   const [, startTransition] = useTransition();
-  const { scramble } = useScramble(selectedId);
+  const { scramble, next: nextScramble } = useScramble(selectedId);
+
+  // Timer state
+  const [timerPhase, setTimerPhase] = useState<TimerPhase>("idle");
+  const [displayCs, setDisplayCs] = useState(0);
+  const [penalty, setPenalty] = useState<Penalty>("none");
+  const [inspSec, setInspSec] = useState(15);
+  const [stats, setStats] = useState<SessionStats | null>(null);
+
+  const timerRef = useRef<TimerRefs>(makeTimerRefs());
 
   const selected = events.find((e) => e.id === selectedId) ?? events[0];
   const sticker = getEventSticker(selectedId);
@@ -45,6 +81,187 @@ export function KidModeHome({
   function handleSelectEvent(id: string) {
     setSelectedId(id);
     startTransition(() => setSelectedEvent(id));
+  }
+
+  // Timer helpers
+  function goPhase(p: TimerPhase) {
+    timerRef.current.phase = p;
+    setTimerPhase(p);
+  }
+
+  function clearHold() {
+    if (timerRef.current.holdTimer) {
+      clearTimeout(timerRef.current.holdTimer);
+      timerRef.current.holdTimer = null;
+    }
+  }
+
+  function clearRAF() {
+    if (timerRef.current.raf) {
+      cancelAnimationFrame(timerRef.current.raf);
+      timerRef.current.raf = null;
+    }
+  }
+
+  function clearInsp() {
+    if (timerRef.current.inspTimer) {
+      clearInterval(timerRef.current.inspTimer);
+      timerRef.current.inspTimer = null;
+    }
+  }
+
+  const startRunning = useCallback(() => {
+    clearInsp();
+    const carriedPenalty = timerRef.current.inspPenalty;
+    timerRef.current.inspPenalty = "none";
+
+    timerRef.current.startMs = performance.now();
+    goPhase("running");
+    setDisplayCs(0);
+    if ("vibrate" in navigator) navigator.vibrate(50);
+
+    function tick() {
+      setDisplayCs(Math.floor((performance.now() - timerRef.current.startMs) / 10));
+      timerRef.current.raf = requestAnimationFrame(tick);
+    }
+    timerRef.current.raf = requestAnimationFrame(tick);
+
+    if (carriedPenalty !== "none") {
+      timerRef.current.inspPenalty = carriedPenalty;
+    }
+  }, []);
+
+  const stopTimer = useCallback(() => {
+    clearRAF();
+    const cs = Math.floor((performance.now() - timerRef.current.startMs) / 10);
+    timerRef.current.finalCs = cs;
+    setDisplayCs(cs);
+    setPenalty(timerRef.current.inspPenalty);
+    timerRef.current.inspPenalty = "none";
+    goPhase("stopped");
+    if ("vibrate" in navigator) navigator.vibrate(30);
+  }, []);
+
+  const startInspection = useCallback(() => {
+    timerRef.current.inspElapsed = 0;
+    timerRef.current.inspPenalty = "none";
+    setInspSec(15);
+    goPhase("inspecting");
+
+    timerRef.current.inspTimer = setInterval(() => {
+      timerRef.current.inspElapsed += 1;
+      const remaining = 15 - timerRef.current.inspElapsed;
+      setInspSec(remaining);
+
+      if (timerRef.current.inspElapsed === 15) {
+        timerRef.current.inspPenalty = "plus2";
+      }
+      if (timerRef.current.inspElapsed >= 17) {
+        clearInsp();
+        timerRef.current.inspPenalty = "none";
+        timerRef.current.finalCs = 0;
+        setDisplayCs(0);
+        setPenalty("dnf");
+        goPhase("stopped");
+      }
+    }, 1000);
+  }, []);
+
+  const onPressStart = useCallback(() => {
+    const p = timerRef.current.phase;
+    if (p === "running") { stopTimer(); return; }
+    if (p === "inspecting") { startRunning(); return; }
+    if (p !== "idle") return;
+    goPhase("holding");
+    timerRef.current.holdTimer = setTimeout(() => goPhase("ready"), 400);
+  }, [startRunning, stopTimer]);
+
+  const onPressEnd = useCallback(() => {
+    const p = timerRef.current.phase;
+    if (p === "ready") {
+      clearHold();
+      startInspection();
+      return;
+    }
+    if (p === "holding") {
+      clearHold();
+      goPhase("idle");
+    }
+  }, [startInspection]);
+
+  // Cleanup on unmount
+  useEffect(() => () => { clearHold(); clearRAF(); clearInsp(); }, []);
+
+  // Keyboard support
+  useEffect(() => {
+    let down = false;
+    const kd = (e: KeyboardEvent) => {
+      if (e.code !== "Space" || e.repeat) return;
+      e.preventDefault();
+      if (!down) { down = true; onPressStart(); }
+    };
+    const ku = (e: KeyboardEvent) => {
+      if (e.code !== "Space") return;
+      e.preventDefault();
+      down = false;
+      onPressEnd();
+    };
+    window.addEventListener("keydown", kd);
+    window.addEventListener("keyup", ku);
+    return () => {
+      window.removeEventListener("keydown", kd);
+      window.removeEventListener("keyup", ku);
+    };
+  }, [onPressStart, onPressEnd]);
+
+  function deleteSolve() {
+    goPhase("idle");
+    setDisplayCs(0);
+    setPenalty("none");
+    setInspSec(15);
+    nextScramble();
+  }
+
+  function saveAndNext(chosenPenalty: Penalty) {
+    const cs = timerRef.current.finalCs;
+    goPhase("idle");
+    setDisplayCs(0);
+    setPenalty("none");
+    setInspSec(15);
+    nextScramble();
+
+    const solveInput = {
+      cuberId,
+      eventId: selectedId,
+      timeCs: cs,
+      penalty: chosenPenalty,
+      scramble: scramble,
+    };
+
+    if (!navigator.onLine) {
+      enqueueSolve(solveInput).catch((err) =>
+        console.error("Failed to queue solve:", err)
+      );
+      setStats((prev) => ({
+        sessionId: prev?.sessionId ?? "offline",
+        count: (prev?.count ?? 0) + 1,
+        bestCs: prev?.bestCs ?? null,
+        ao5: prev?.ao5 ?? null,
+        ao12: prev?.ao12 ?? null,
+        isPb: false,
+        newBadges: [],
+      }));
+      return;
+    }
+
+    recordSolve(solveInput)
+      .then((result) => {
+        setStats(result);
+      })
+      .catch((err) => {
+        console.error("Failed to save solve, queuing offline:", err);
+        enqueueSolve(solveInput).catch(console.error);
+      });
   }
 
   return (
@@ -102,22 +319,78 @@ export function KidModeHome({
       {/* Hero — asymmetric */}
       <div className="relative z-10 flex flex-1 flex-col justify-center px-5 py-6">
         <div className="kid-animate-in mx-auto w-full max-w-sm" style={{ animationDelay: "80ms" }}>
+          {/* Scramble display (above timer) */}
+          <div className="kid-animate-in px-5 py-4 rounded-lg bg-white/5 w-full mx-auto cursor-pointer transition-opacity hover:opacity-80 mb-8" onClick={() => onPressStart()} style={{ animationDelay: "80ms" }}>
+            <p className="font-mono-time text-center text-base leading-loose tracking-wide text-white/80">
+              {scramble ?? "Generating scramble…"}
+            </p>
+          </div>
+
+          {/* Timer display */}
           <button
-            onClick={() => setShowTimer(true)}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              onPressStart();
+            }}
+            onPointerUp={(e) => {
+              e.preventDefault();
+              onPressEnd();
+            }}
             className="w-full cursor-pointer transition-opacity hover:opacity-80"
+            style={{ touchAction: "none" }}
           >
             <p className="font-mono-time text-[5.5rem] font-semibold leading-none tracking-tighter sm:text-[6.5rem]">
-              0<span className="text-white/25">.</span>00
+              {timerPhase === "inspecting" ? inspSec > 0 ? String(inspSec) : "+2" :
+               timerPhase === "stopped" ? (penalty === "dnf" ? "DNF" : penalty === "plus2" ? formatCs(displayCs + 200) + "+" : formatCs(displayCs)) :
+               timerPhase === "running" ? formatCs(displayCs) : "0<span className=\"text-white/25\">.</span>00"}
             </p>
-            <p className="mt-3 text-sm text-white/45">Tap to start</p>
+            <p className="mt-3 text-sm text-white/45">
+              {timerPhase === "inspecting" ? inspSec <= 3 ? "Start now!" : "Inspecting…" :
+               timerPhase === "running" ? "Solving…" :
+               timerPhase === "stopped" ? "" :
+               "Tap to start"}
+            </p>
           </button>
-        </div>
 
-        {/* Scramble display */}
-        <div className="kid-animate-in mt-8 px-5 py-4 rounded-lg bg-white/5 w-full max-w-sm mx-auto cursor-pointer transition-opacity hover:opacity-80" onClick={() => setShowTimer(true)} style={{ animationDelay: "120ms" }}>
-          <p className="font-mono-time text-center text-base leading-loose tracking-wide text-white/80">
-            {scramble ?? "Generating scramble…"}
-          </p>
+          {/* Penalty bar */}
+          {timerPhase === "stopped" && (
+            <div className="mt-6 space-y-3 mx-auto w-full max-w-sm">
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  { p: "none" as Penalty, label: "OK", face: "#009B48", ink: "#FFF" },
+                  { p: "plus2" as Penalty, label: "+2", face: "#FFD500", ink: "#1A1200" },
+                  { p: "dnf" as Penalty, label: "DNF", face: "#B71234", ink: "#FFF" },
+                ] as const).map(({ p, label, face, ink }) => (
+                  <button
+                    key={p}
+                    onClick={() => setPenalty(p)}
+                    className={`sticker rounded-lg py-2 font-bold text-xs transition-all ${penalty === p ? "scale-105" : ""}`}
+                    style={{
+                      backgroundColor: face,
+                      color: ink,
+                      boxShadow: penalty === p ? "3px 3px 0 #0A0A0A" : "1px 1px 0 #0A0A0A",
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => deleteSolve()}
+                  className="flex-1 rounded-lg py-2 bg-white/10 text-white text-xs font-medium transition-colors hover:bg-white/20"
+                >
+                  Delete
+                </button>
+                <button
+                  onClick={() => saveAndNext(penalty)}
+                  className="flex-1 rounded-lg py-2 bg-white/20 text-white text-xs font-medium transition-colors hover:bg-white/30"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -150,18 +423,6 @@ export function KidModeHome({
         </div>
       </div>
 
-      {/* Timer overlay */}
-      {showTimer && (
-        <div className="fixed inset-0 z-50">
-          <TimerView
-            event={selected}
-            cuberId={cuberId}
-            cuberName={cuberName}
-            onBack={() => setShowTimer(false)}
-            autoStartInspection={true}
-          />
-        </div>
-      )}
     </div>
   );
 }
