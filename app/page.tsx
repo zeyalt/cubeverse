@@ -10,16 +10,21 @@ import type { Penalty } from "@/lib/cubing";
 import { computeStreak } from "@/lib/streak";
 
 export default async function Home() {
-  const db = getServiceClient();
-  const ownerId = getOwnerId();
+  try {
+    const db = getServiceClient();
+    const ownerId = getOwnerId();
 
-  const { data: settings } = await db
-    .from("app_settings")
-    .select("default_cuber_id")
-    .eq("owner_id", ownerId)
-    .maybeSingle();
+    const { data: settings } = await db
+      .from("app_settings")
+      .select("default_cuber_id")
+      .eq("owner_id", ownerId)
+      .maybeSingle();
 
-  if (!settings) redirect("/setup");
+    if (!settings) redirect("/setup");
+  } catch (error) {
+    console.error("Error in Home page:", error);
+    redirect("/setup");
+  }
 
   const jar = await cookies();
   const savedEvent = jar.get("cubeverse_event")?.value ?? "333";
