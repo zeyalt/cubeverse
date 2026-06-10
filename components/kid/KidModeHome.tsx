@@ -6,6 +6,7 @@ import Link from "next/link";
 import { setSelectedEvent } from "@/app/actions/parent";
 import { formatCs, DNF } from "@/lib/cubing";
 import { EVENT_SHORT, getEventSticker } from "@/lib/event-theme";
+import { useScramble } from "@/lib/useScramble";
 
 interface Event {
   id: string;
@@ -32,6 +33,7 @@ export function KidModeHome({
 }: KidModeHomeProps) {
   const [selectedId, setSelectedId] = useState(defaultEventId);
   const [, startTransition] = useTransition();
+  const { scramble } = useScramble(selectedId);
 
   const selected = events.find((e) => e.id === selectedId) ?? events[0];
   const sticker = getEventSticker(selectedId);
@@ -108,6 +110,13 @@ export function KidModeHome({
             0<span className="text-white/25">.</span>00
           </p>
           <p className="mt-3 text-sm text-white/45">Hold · release · solve!</p>
+        </div>
+
+        {/* Scramble display */}
+        <div className="kid-animate-in mt-8 px-5 py-4 rounded-lg bg-white/5 w-full max-w-sm mx-auto" style={{ animationDelay: "120ms" }}>
+          <p className="font-mono-time text-center text-base leading-loose tracking-wide text-white/80">
+            {scramble ?? "Generating scramble…"}
+          </p>
         </div>
 
         <div className="kid-animate-in mt-10 flex justify-center" style={{ animationDelay: "160ms" }}>
