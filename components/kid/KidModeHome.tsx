@@ -340,15 +340,22 @@ export function KidModeHome({
             style={{ touchAction: "none" }}
           >
             <p className="font-mono-time text-[5.5rem] font-semibold leading-none tracking-tighter sm:text-[6.5rem]">
-              {timerPhase === "inspecting" ? inspSec > 0 ? String(inspSec) : "+2" :
-               timerPhase === "stopped" ? (penalty === "dnf" ? "DNF" : penalty === "plus2" ? formatCs(displayCs + 200) + "+" : formatCs(displayCs)) :
-               timerPhase === "running" ? formatCs(displayCs) : "0<span className=\"text-white/25\">.</span>00"}
+              {timerPhase === "inspecting"
+                ? inspSec > 0 ? String(inspSec) : "+2"
+                : timerPhase === "stopped"
+                ? penalty === "dnf" ? "DNF" : penalty === "plus2" ? formatCs(displayCs + 200) + "+" : formatCs(displayCs)
+                : timerPhase === "running"
+                ? formatCs(displayCs)
+                : "0.00"}
             </p>
             <p className="mt-3 text-sm text-white/45">
-              {timerPhase === "inspecting" ? inspSec <= 3 ? "Start now!" : "Inspecting…" :
-               timerPhase === "running" ? "Solving…" :
-               timerPhase === "stopped" ? "" :
-               "Tap to start"}
+              {timerPhase === "inspecting"
+                ? inspSec <= 3 ? "Start now!" : "Inspecting…"
+                : timerPhase === "running"
+                ? "Solving…"
+                : timerPhase === "stopped"
+                ? ""
+                : "Tap to start"}
             </p>
           </button>
 
