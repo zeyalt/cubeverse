@@ -47,18 +47,6 @@ export function KidModeHome({
     startTransition(() => setSelectedEvent(id));
   }
 
-  if (showTimer) {
-    return (
-      <TimerView
-        event={selected}
-        cuberId={cuberId}
-        cuberName={cuberName}
-        onBack={() => setShowTimer(false)}
-        autoStartInspection={true}
-      />
-    );
-  }
-
   return (
     <div className="kid-canvas relative flex min-h-screen flex-col text-white">
       {/* Header */}
@@ -161,6 +149,19 @@ export function KidModeHome({
           />
         </div>
       </div>
+
+      {/* Timer overlay */}
+      {showTimer && (
+        <div className="fixed inset-0 z-50">
+          <TimerView
+            event={selected}
+            cuberId={cuberId}
+            cuberName={cuberName}
+            onBack={() => setShowTimer(false)}
+            autoStartInspection={true}
+          />
+        </div>
+      )}
     </div>
   );
 }
