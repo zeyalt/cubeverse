@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Settings, Flame, Zap, Play } from "lucide-react";
+import { Settings, Flame, Zap } from "lucide-react";
 import Link from "next/link";
 import { setSelectedEvent } from "@/app/actions/parent";
 import { formatCs, DNF } from "@/lib/cubing";
 import { EVENT_SHORT, getEventSticker } from "@/lib/event-theme";
 import { useScramble } from "@/lib/useScramble";
+import { TimerView } from "@/components/timer/TimerView";
 
 interface Event {
   id: string;
@@ -18,6 +19,7 @@ interface KidModeHomeProps {
   cuberName: string;
   events: Event[];
   defaultEventId: string;
+  cuberId: string;
   todayCount: number;
   todayBestCs: number | null;
   streak: number;
@@ -27,11 +29,13 @@ export function KidModeHome({
   cuberName,
   events,
   defaultEventId,
+  cuberId,
   todayCount,
   todayBestCs,
   streak,
 }: KidModeHomeProps) {
   const [selectedId, setSelectedId] = useState(defaultEventId);
+  const [showTimer, setShowTimer] = useState(false);
   const [, startTransition] = useTransition();
   const { scramble } = useScramble(selectedId);
 
@@ -41,6 +45,17 @@ export function KidModeHome({
   function handleSelectEvent(id: string) {
     setSelectedId(id);
     startTransition(() => setSelectedEvent(id));
+  }
+
+  if (showTimer) {
+    return (
+      <TimerView
+        event={selected}
+        cuberId={cuberId}
+        cuberName={cuberName}
+        onBack={() => setShowTimer(false)}
+      />
+    );
   }
 
   return (
@@ -106,32 +121,22 @@ export function KidModeHome({
             {selected?.name ?? selectedId}
           </div>
 
-          <p className="font-mono-time text-[5.5rem] font-semibold leading-none tracking-tighter sm:text-[6.5rem]">
-            0<span className="text-white/25">.</span>00
-          </p>
-          <p className="mt-3 text-sm text-white/45">Hold · release · solve!</p>
+          <button
+            onClick={() => setShowTimer(true)}
+            className="w-full transition-opacity hover:opacity-80"
+          >
+            <p className="font-mono-time text-[5.5rem] font-semibold leading-none tracking-tighter sm:text-[6.5rem]">
+              0<span className="text-white/25">.</span>00
+            </p>
+            <p className="mt-3 text-sm text-white/45">Hold · release · solve!</p>
+          </button>
         </div>
 
         {/* Scramble display */}
-        <div className="kid-animate-in mt-8 px-5 py-4 rounded-lg bg-white/5 w-full max-w-sm mx-auto" style={{ animationDelay: "120ms" }}>
+        <div className="kid-animate-in mt-8 px-5 py-4 rounded-lg bg-white/5 w-full max-w-sm mx-auto cursor-pointer transition-opacity hover:opacity-80" onClick={() => setShowTimer(true)} style={{ animationDelay: "120ms" }}>
           <p className="font-mono-time text-center text-base leading-loose tracking-wide text-white/80">
             {scramble ?? "Generating scramble…"}
           </p>
-        </div>
-
-        <div className="kid-animate-in mt-10 flex justify-center" style={{ animationDelay: "160ms" }}>
-          <Link
-            href="/timer"
-            className="kid-go-wiggle sticker relative flex size-40 flex-col items-center justify-center gap-1 rounded-[2rem] sm:size-44"
-            style={{
-              backgroundColor: sticker.face,
-              color: sticker.ink,
-            }}
-            aria-label="Start timer"
-          >
-            <Play className="size-14 fill-current sm:size-16" />
-            <span className="font-display text-xl font-extrabold tracking-tight">GO!</span>
-          </Link>
         </div>
       </div>
 

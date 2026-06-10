@@ -62,10 +62,12 @@ export function TimerView({
   event,
   cuberId,
   cuberName,
+  onBack,
 }: {
   event: TimerEvent;
   cuberId: string;
   cuberName: string;
+  onBack?: () => void;
 }) {
   const { scramble, next: nextScramble } = useScramble(event.id);
 
@@ -332,14 +334,25 @@ export function TimerView({
     >
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-6 pb-3 shrink-0">
-        <Link
-          href="/"
-          className="sticker-ghost -m-1 rounded-lg bg-white/10 p-2.5 transition-transform active:scale-95"
-          onPointerDown={(e) => e.stopPropagation()}
-          onPointerUp={(e) => e.stopPropagation()}
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
+        {onBack ? (
+          <button
+            onClick={onBack}
+            className="sticker-ghost -m-1 rounded-lg bg-white/10 p-2.5 transition-transform active:scale-95"
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+        ) : (
+          <Link
+            href="/"
+            className="sticker-ghost -m-1 rounded-lg bg-white/10 p-2.5 transition-transform active:scale-95"
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+        )}
         <span
           className="rounded-md border-2 border-black px-2.5 py-1 text-xs font-bold uppercase tracking-wide"
           style={{ backgroundColor: sticker.face, color: sticker.ink, boxShadow: "2px 2px 0 #0A0A0A" }}

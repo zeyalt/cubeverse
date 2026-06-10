@@ -65,6 +65,7 @@ export default async function Home() {
       cuberName={cuber?.display_name ?? cuber?.name ?? "Cuber"}
       events={events ?? []}
       defaultEventId={validEventId}
+      cuberId={cuberId}
       todayCount={todayCount}
       todayBestCs={todayBestCs}
       streak={streak}
