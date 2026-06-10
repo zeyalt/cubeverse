@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Settings, Flame, Zap } from "lucide-react";
+import { Settings, Flame } from "lucide-react";
 import Link from "next/link";
 import { setSelectedEvent } from "@/app/actions/parent";
 import { formatCs, DNF } from "@/lib/cubing";
@@ -113,14 +113,6 @@ export function KidModeHome({
       {/* Hero — asymmetric */}
       <div className="relative z-10 flex flex-1 flex-col justify-center px-5 py-6">
         <div className="kid-animate-in mx-auto w-full max-w-sm" style={{ animationDelay: "80ms" }}>
-          <div
-            className="mb-6 inline-flex items-center gap-2 rounded-full border-2 border-black px-3 py-1 text-xs font-bold uppercase tracking-widest"
-            style={{ backgroundColor: sticker.face, color: sticker.ink, boxShadow: "3px 3px 0 #0A0A0A" }}
-          >
-            <Zap className="size-3.5" fill="currentColor" />
-            {selected?.name ?? selectedId}
-          </div>
-
           <button
             onClick={() => setShowTimer(true)}
             className="w-full transition-opacity hover:opacity-80"
