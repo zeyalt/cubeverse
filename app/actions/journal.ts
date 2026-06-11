@@ -70,7 +70,7 @@ export async function createJournalEntry(
     }
   }
 
-  revalidatePath("/parent/journal");
+  revalidatePath("/");
   return { error: null };
 }
 
@@ -89,5 +89,5 @@ export async function deleteJournalEntry(entryId: string): Promise<void> {
   await db.from("media").delete().eq("linked_type", "journal").eq("linked_id", entryId);
   await db.from("journal_entries").delete().eq("id", entryId);
 
-  revalidatePath("/parent/journal");
+  revalidatePath("/");
 }

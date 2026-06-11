@@ -57,7 +57,7 @@ export async function createCompetition(
     .single();
 
   if (error) return { error: error.message };
-  redirect(`/parent/competitions/${comp.id}`);
+  redirect(`/competitions/${comp.id}`);
 }
 
 // ─── Add result (with individual solves) ─────────────────────────────────────
@@ -159,7 +159,7 @@ export async function addResult(
   const { error: solvesErr } = await db.from("solves").insert(solveRows);
   if (solvesErr) return { error: solvesErr.message };
 
-  redirect(`/parent/competitions/${competitionId}`);
+  redirect(`/competitions/${competitionId}`);
 }
 
 // ─── Delete competition (direct form action, no useActionState) ───────────────
@@ -168,7 +168,7 @@ export async function deleteCompetition(formData: FormData): Promise<void> {
   const id = formData.get("competition_id") as string;
   const db = getServiceClient();
   await db.from("competitions").delete().eq("id", id);
-  redirect("/parent/competitions");
+  redirect("/?tab=competitions");
 }
 
 // ─── Delete result (direct form action, no useActionState) ───────────────────
@@ -178,7 +178,7 @@ export async function deleteResult(formData: FormData): Promise<void> {
   const competitionId = formData.get("competition_id") as string;
   const db = getServiceClient();
   await db.from("results").delete().eq("id", resultId);
-  redirect(`/parent/competitions/${competitionId}`);
+  redirect(`/competitions/${competitionId}`);
 }
 
 // ─── Kid mode: Add result ────────────────────────────────────────────────────

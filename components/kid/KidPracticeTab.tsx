@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { setSelectedEvent } from "@/app/actions/parent";
 import { formatCs, parseToCs, DNF } from "@/lib/cubing";
 import { EVENT_SHORT, getEventSticker } from "@/lib/event-theme";
 import { useScramble } from "@/lib/useScramble";
@@ -102,7 +101,6 @@ export function KidPracticeTab({
     setSelectedCubeId(null);
     setEditingGoal(false);
     startTransition(async () => {
-      await setSelectedEvent(id);
       const setup = await getPracticeSetupData(cuberId, id);
       setCubes(setup.cubes);
       setActiveGoal(setup.activeGoal);

@@ -2,6 +2,8 @@
 
 import { getServiceClient } from "@/lib/supabase/service";
 import { getOwnerId } from "@/lib/owner";
+import { parseTwistyTimerExport } from "@/lib/import/twistytimer";
+import { ingestPracticeSolves } from "@/lib/import/ingest";
 import {
   fetchPersonResults,
   fetchCompetition,
@@ -384,4 +386,30 @@ export async function importWcaResultsKid(
   await checkActivityBadges(db, ownerId, cuberId, { compCount: compCount ?? 0 });
 
   return { error: null, compsImported, resultsImported };
+}
+
+export interface TwistyTimerImportResult {
+  error: string | null;
+  solvesImported?: number;
+}
+
+export async function importTwistyTimerData(
+  cuberId: string,
+  eventId: string,
+  fileContent: string
+): Promise<TwistyTimerImportResult> {
+  try {
+    const db = getServiceClient();
+    const ownerId = getOwnerId();
+
+    const solves = parseTwistyTimerExport(fileContent, eventId);
+    if (solves.length === 0) {
+      return { error: "No valid solves found in the file." };
+    }
+
+    const inserted = await ingestPracticeSolves(db, ownerId, cuberId, solves, "twisty_import");
+    return { error: null, solvesImported: inserted.length };
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
 }

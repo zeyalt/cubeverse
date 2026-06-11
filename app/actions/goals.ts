@@ -133,7 +133,7 @@ export async function createGoal(
 
   if (error) return { error: error.message };
 
-  revalidatePath("/parent/goals");
+  revalidatePath("/");
   return { error: null, success: "Goal created." };
 }
 
@@ -164,12 +164,12 @@ export async function seedStarterGoals(): Promise<FormState> {
   const { error } = await db.from("goals").insert(rows);
   if (error) return { error: error.message };
 
-  revalidatePath("/parent/goals");
+  revalidatePath("/");
   return { error: null, success: `Added ${rows.length} starter goals.` };
 }
 
 export async function archiveGoal(goalId: string): Promise<void> {
   const db = getServiceClient();
   await db.from("goals").update({ status: "archived" }).eq("id", goalId);
-  revalidatePath("/parent/goals");
+  revalidatePath("/");
 }

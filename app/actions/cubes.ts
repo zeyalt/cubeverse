@@ -67,7 +67,7 @@ export async function createCube(
 
   if (error) return { error: error.message };
 
-  revalidatePath("/parent/cubes");
+  revalidatePath("/");
   return { error: null };
 }
 
@@ -92,11 +92,11 @@ export async function setMainCube(cubeId: string, eventId: string | null): Promi
   }
 
   await db.from("cubes").update({ is_main: true }).eq("id", cubeId).eq("owner_id", ownerId);
-  revalidatePath("/parent/cubes");
+  revalidatePath("/");
 }
 
 export async function deleteCube(cubeId: string): Promise<void> {
   const db = getServiceClient();
   await db.from("cubes").delete().eq("id", cubeId);
-  revalidatePath("/parent/cubes");
+  revalidatePath("/");
 }

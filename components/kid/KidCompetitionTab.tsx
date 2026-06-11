@@ -38,7 +38,7 @@ export function KidCompetitionTab({ data: { competitions, cuberId, wcaId } }: Ki
       {/* Action buttons */}
       <div className="flex gap-2">
         <Link
-          href="/parent/competitions/new"
+          href="/competitions/new"
           className="sticker flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-[#0A0A0A] bg-[#009B48] px-4 py-2.5 text-center font-bold text-white transition-transform hover:scale-105 active:scale-95"
         >
           <Plus className="size-4" />

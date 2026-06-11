@@ -155,6 +155,7 @@ export interface HistoricalSolve {
   cs: number;
   penalty: "none" | "plus2" | "dnf";
   timestamp: number;
+  scramble: string | null;
 }
 
 export async function getHistoricalSolves(
@@ -165,7 +166,7 @@ export async function getHistoricalSolves(
 
   const { data: solves, error } = await db
     .from("solves")
-    .select("time_cs, penalty, solved_at")
+    .select("time_cs, penalty, solved_at, scramble")
     .eq("cuber_id", cuberId)
     .eq("event_id", eventId)
     .eq("context", "practice")
@@ -181,5 +182,6 @@ export async function getHistoricalSolves(
     cs: s.time_cs,
     penalty: s.penalty === "dnf" ? "dnf" : s.penalty === "plus2" ? "plus2" : "none",
     timestamp: new Date(s.solved_at).getTime(),
+    scramble: s.scramble ?? null,
   }));
 }
