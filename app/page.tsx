@@ -8,7 +8,8 @@ import { KidModeShell } from "@/components/kid/KidModeShell";
 import { effectiveTime, DNF } from "@/lib/cubing";
 import type { Penalty } from "@/lib/cubing";
 import { computeStreak } from "@/lib/streak";
-import { getCurrentPbs, getHeatmapCounts } from "@/lib/analytics";
+import { getCurrentPbs } from "@/lib/analytics";
+import { getAnalyticsData } from "@/app/actions/analytics";
 
 const ACTIVE_EVENTS = ["333", "222", "pyram", "skewb", "clock", "444", "333oh"];
 
@@ -49,7 +50,7 @@ export default async function Home({
     const savedEvent = jar.get("cubeverse_event")?.value ?? "333";
     const currentCuberId = (settings.current_cuber_id ?? settings.default_cuber_id) as string;
     const params = await searchParams;
-    const activeTab = (params?.tab ?? "overview") as "practice" | "competition" | "overview" | "badges" | "cubes";
+    const activeTab = (params?.tab ?? "practice") as "practice" | "competitions" | "analytics" | "badges" | "cubes";
 
     // Always fetch cuber name, all cubers, and events
     const [{ data: cuber }, { data: events }, { data: allCubers }] = await Promise.all([
@@ -77,60 +78,89 @@ export default async function Home({
     // Tab-specific data fetching
     let practiceData = null;
     let competitionData = null;
-    let overviewData = null;
+    let analyticsData = null;
     let badgesData = null;
     let cubesData = null;
 
     if (activeTab === "practice") {
-      const [{ data: todaySolves }, streak] = await Promise.all([
-        db
-          .from("solves")
-          .select("time_cs, penalty")
-          .eq("owner_id", ownerId)
-          .eq("event_id", savedEvent)
-          .eq("context", "practice")
-          .gte("solved_at", new Date().toISOString().slice(0, 10)),
-        computeStreak(db, currentCuberId),
-      ]);
+      const { data: allSolves } = await db
+        .from("solves")
+        .select("time_cs, penalty")
+        .eq("cuber_id", currentCuberId)
+        .eq("event_id", validEventId)
+        .eq("context", "practice")
+        .order("solved_at");
 
-      const todayCount = todaySolves?.length ?? 0;
-      const todayTimes = (todaySolves ?? []).map((s) =>
+      const times = (allSolves ?? []).map((s) =>
         effectiveTime(s.time_cs as number, s.penalty as Penalty)
       );
-      const nonDnf = todayTimes.filter((t) => t !== DNF);
-      const todayBestCs =
-        todayCount === 0 ? null : nonDnf.length > 0 ? Math.min(...nonDnf) : DNF;
+      const nonDnfTimes = times.filter((t) => t > 0);
+
+      // Compute rolling averages
+      const computeAoN = (arr: number[], n: number): number | null => {
+        if (arr.length < n) return null;
+        const slice = arr.slice(-n);
+        const sorted = slice.sort((a, b) => a - b);
+        return sorted.slice(1, -1).reduce((a, b) => a + b, 0) / (n - 2);
+      };
+
+      const ao5 = computeAoN(nonDnfTimes, 5);
+      const ao12 = computeAoN(nonDnfTimes, 12);
+      const ao50 = computeAoN(nonDnfTimes, 50);
+      const ao100 = computeAoN(nonDnfTimes, 100);
+      const best = nonDnfTimes.length > 0 ? Math.min(...nonDnfTimes) : null;
+      const count = times.length;
 
       practiceData = {
         events: events ?? [],
         defaultEventId: validEventId,
         cuberId: currentCuberId,
-        todayCount,
-        todayBestCs,
-        streak,
+        ao5,
+        ao12,
+        ao50,
+        ao100,
+        best,
+        count,
       };
-    } else if (activeTab === "competition") {
-      const { data: comps } = await db
-        .from("competitions")
-        .select("id, name, type, city, country, start_date, end_date")
-        .eq("cuber_id", currentCuberId)
-        .order("start_date", { ascending: false });
+    } else if (activeTab === "competitions") {
+      const [{ data: comps }, { data: cuber }] = await Promise.all([
+        db
+          .from("competitions")
+          .select("id, name, type, city, country, start_date, end_date")
+          .eq("cuber_id", currentCuberId)
+          .order("start_date", { ascending: false }),
+        db
+          .from("cubers")
+          .select("wca_id")
+          .eq("id", currentCuberId)
+          .single(),
+      ]);
 
       competitionData = {
         competitions: comps ?? [],
+        cuberId: currentCuberId,
+        wcaId: cuber?.wca_id ?? null,
       };
-    } else if (activeTab === "overview") {
-      const [pbs, heatmap] = await Promise.all([
+    } else if (activeTab === "analytics") {
+      const [pbs, initialData] = await Promise.all([
         getCurrentPbs(db, currentCuberId, ACTIVE_EVENTS),
-        getHeatmapCounts(db, currentCuberId),
+        getAnalyticsData(currentCuberId, validEventId),
       ]);
 
-      const totalSolves = Object.values(heatmap).reduce((a, b) => a + b, 0);
+      const { data: cubes } = await db
+        .from("cubes")
+        .select("id, name")
+        .eq("cuber_id", currentCuberId)
+        .order("is_main", { ascending: false })
+        .order("created_at");
 
-      overviewData = {
+      analyticsData = {
+        events: events ?? [],
+        defaultEventId: validEventId,
+        cuberId: currentCuberId,
+        initialAnalyticsData: initialData,
         pbs,
-        heatmap,
-        totalSolves,
+        cubes: cubes ?? [],
       };
     } else if (activeTab === "badges") {
       const { data: achievements } = await db
@@ -189,7 +219,7 @@ export default async function Home({
         activeTab={activeTab}
         practiceData={practiceData}
         competitionData={competitionData}
-        overviewData={overviewData}
+        analyticsData={analyticsData}
         badgesData={badgesData}
         cubesData={cubesData}
       />

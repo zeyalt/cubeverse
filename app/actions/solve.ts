@@ -150,3 +150,36 @@ export async function deleteSolve(solveId: string): Promise<void> {
   const db = getServiceClient();
   await db.from("solves").delete().eq("id", solveId);
 }
+
+export interface HistoricalSolve {
+  cs: number;
+  penalty: "none" | "plus2" | "dnf";
+  timestamp: number;
+}
+
+export async function getHistoricalSolves(
+  cuberId: string,
+  eventId: string
+): Promise<HistoricalSolve[]> {
+  const db = getServiceClient();
+
+  const { data: solves, error } = await db
+    .from("solves")
+    .select("time_cs, penalty, solved_at")
+    .eq("cuber_id", cuberId)
+    .eq("event_id", eventId)
+    .eq("context", "practice")
+    .order("solved_at", { ascending: false })
+    .limit(100);
+
+  if (error) {
+    console.error("Error fetching historical solves:", error);
+    return [];
+  }
+
+  return (solves ?? []).map((s: any) => ({
+    cs: s.time_cs,
+    penalty: s.penalty === "dnf" ? "dnf" : s.penalty === "plus2" ? "plus2" : "none",
+    timestamp: new Date(s.solved_at).getTime(),
+  }));
+}

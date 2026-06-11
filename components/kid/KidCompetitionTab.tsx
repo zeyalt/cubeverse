@@ -1,7 +1,9 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Trophy, MapPin, Calendar, Plus } from "lucide-react";
+import { Trophy, MapPin, Calendar, Plus, Download, Loader2 } from "lucide-react";
+import { importWcaResultsKid } from "@/app/actions/import";
 
 interface Competition {
   id: string;
@@ -16,10 +18,15 @@ interface Competition {
 interface KidCompetitionTabProps {
   data: {
     competitions: Competition[];
+    cuberId: string;
+    wcaId: string | null;
   };
 }
 
-export function KidCompetitionTab({ data: { competitions } }: KidCompetitionTabProps) {
+export function KidCompetitionTab({ data: { competitions, cuberId, wcaId } }: KidCompetitionTabProps) {
+  const [isPending, startTransition] = useTransition();
+  const [result, setResult] = useState<{ compsImported: number; resultsImported: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   return (
     <div className="space-y-5 px-5 py-6">
       {/* Header */}
@@ -37,14 +44,52 @@ export function KidCompetitionTab({ data: { competitions } }: KidCompetitionTabP
           <Plus className="size-4" />
           Add
         </Link>
-        <Link
-          href="/parent/import"
-          className="sticker flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-[#0A0A0A] bg-[#0046AD] px-4 py-2.5 text-center font-bold text-white transition-transform hover:scale-105 active:scale-95"
+        <button
+          onClick={() => {
+            if (!wcaId) {
+              setError("No WCA ID found. Please set it in your profile.");
+              return;
+            }
+            setError(null);
+            setResult(null);
+            startTransition(async () => {
+              const res = await importWcaResultsKid(cuberId, wcaId);
+              if (res.error) {
+                setError(res.error);
+              } else {
+                setResult({ compsImported: res.compsImported || 0, resultsImported: res.resultsImported || 0 });
+              }
+            });
+          }}
+          disabled={isPending || !wcaId}
+          className="sticker flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-[#0A0A0A] bg-[#0046AD] px-4 py-2.5 text-center font-bold text-white transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Trophy className="size-4" />
-          Import WCA
-        </Link>
+          {isPending ? (
+            <>
+              <Loader2 className="size-4 animate-spin" />
+              Importing…
+            </>
+          ) : (
+            <>
+              <Download className="size-4" />
+              Import WCA
+            </>
+          )}
+        </button>
       </div>
+
+      {/* Import result messages */}
+      {error && (
+        <div className="rounded-xl border-2 border-red-500 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-400">
+          {error}
+        </div>
+      )}
+      {result && (
+        <div className="rounded-xl border-2 border-green-500 bg-green-500/10 px-4 py-3 text-sm font-bold text-green-400">
+          ✓ Imported {result.compsImported} competition{result.compsImported !== 1 ? "s" : ""} and{" "}
+          {result.resultsImported} new result{result.resultsImported !== 1 ? "s" : ""}
+        </div>
+      )}
 
       {/* Competitions list */}
       {competitions.length === 0 ? (

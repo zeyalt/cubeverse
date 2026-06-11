@@ -289,3 +289,65 @@ export async function getCurrentPbs(
     practiceAvg:    best[`${id}:average:practice`] ?? null,
   }));
 }
+
+// ─── Competition Improvements ──────────────────────────────────────────────────
+
+export interface CompetitionImprovement {
+  competitionName: string;
+  date: string;
+  type: "wca" | "unofficial";
+  roundType: "first" | "second" | "semi" | "final";
+  bestSingle: number | null;
+  average: number | null;
+  deltaSingle: number | null;
+  deltaAverage: number | null;
+}
+
+export async function getCompetitionImprovements(
+  db: SupabaseClient,
+  cuberId: string,
+  eventId: string
+): Promise<CompetitionImprovement[]> {
+  const { data } = await db
+    .from("results")
+    .select("id, competition_id, best_cs, average_cs, round_type, competitions(name, start_date, type)")
+    .eq("cuber_id", cuberId)
+    .eq("event_id", eventId)
+    .order("competitions(start_date)", { ascending: true });
+
+  if (!data || data.length === 0) return [];
+
+  const rows = (data as any[])
+    .filter((r) => r.competitions && r.competitions.start_date)
+    .sort((a, b) => {
+      const dateA = new Date(a.competitions.start_date).getTime();
+      const dateB = new Date(b.competitions.start_date).getTime();
+      return dateA - dateB;
+    });
+
+  const results: CompetitionImprovement[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    const curr = rows[i];
+    const prev = i > 0 ? rows[i - 1] : null;
+
+    const currSingle = (curr.best_cs as number | null) ?? null;
+    const currAvg = (curr.average_cs as number | null) ?? null;
+    const prevSingle = prev ? ((prev.best_cs as number | null) ?? null) : null;
+    const prevAvg = prev ? ((prev.average_cs as number | null) ?? null) : null;
+
+    const roundType = (curr.round_type as string) ?? "final";
+
+    results.push({
+      competitionName: curr.competitions.name as string,
+      date: fmtDate(curr.competitions.start_date as string),
+      type: (curr.competitions.type as string).toLowerCase() === "wca" ? "wca" : "unofficial",
+      roundType: roundType as "first" | "second" | "semi" | "final",
+      bestSingle: currSingle,
+      average: currAvg,
+      deltaSingle: prevSingle !== null && currSingle !== null ? currSingle - prevSingle : null,
+      deltaAverage: prevAvg !== null && currAvg !== null ? currAvg - prevAvg : null,
+    });
+  }
+
+  return results;
+}

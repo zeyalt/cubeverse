@@ -19,9 +19,12 @@ interface KidPracticeTabProps {
   events: Event[];
   defaultEventId: string;
   cuberId: string;
-  todayCount: number;
-  todayBestCs: number | null;
-  streak: number;
+  ao5: number | null;
+  ao12: number | null;
+  ao50: number | null;
+  ao100: number | null;
+  best: number | null;
+  count: number;
 }
 
 type TimerPhase = "idle" | "holding" | "ready" | "inspecting" | "running" | "stopped";
@@ -55,9 +58,12 @@ export function KidPracticeTab({
   events,
   defaultEventId,
   cuberId,
-  todayCount,
-  todayBestCs,
-  streak,
+  ao5,
+  ao12,
+  ao50,
+  ao100,
+  best,
+  count,
 }: KidPracticeTabProps) {
   const [selectedId, setSelectedId] = useState(defaultEventId);
   const [, startTransition] = useTransition();
@@ -152,10 +158,8 @@ export function KidPracticeTab({
       timerRef.current.inspElapsed += 1;
       const remaining = 15 - timerRef.current.inspElapsed;
 
-      // Update display ONLY if not in holding state (hide countdown during hold)
-      if (timerRef.current.phase !== "holding" && timerRef.current.phase !== "ready") {
-        setInspSec(remaining);
-      }
+      // Always update display - countdown continues even during hold/ready
+      setInspSec(remaining);
 
       // Warning at 8s elapsed (7s remaining)
       if (timerRef.current.inspElapsed === 8) {
@@ -188,14 +192,10 @@ export function KidPracticeTab({
     // Ignore if already in a hold/ready state
     if (p === "holding" || p === "ready" || p === "stopped") return;
 
-    // If idle, start inspection first, then go to holding
-    if (p === "idle") {
-      startInspection();
-    }
-
-    // Start holding (works in both idle-turning-to-inspecting and inspecting states)
+    // Start holding (works in both idle and inspecting states)
     goPhase("holding");
-    setDisplayCs(0); // Show 0.00 during hold, hiding the countdown temporarily
+    // Don't show 0.00 - keep showing the countdown during hold
+    // setDisplayCs(0); is removed
 
     // After 500ms, transition to ready
     timerRef.current.holdTimer = setTimeout(() => {
@@ -204,17 +204,19 @@ export function KidPracticeTab({
         goPhase("ready");
       }
     }, 500);
-  }, [stopTimer, startInspection]);
+  }, [stopTimer]);
 
   const onPressEnd = useCallback(() => {
     const p = timerRef.current.phase;
 
     if (p === "ready") {
       clearHold();
-      // Check if still in valid inspection window (< 17s)
-      if (timerRef.current.inspElapsed < 17) {
-        // Start the actual solve timer, carrying any +2 penalty
+      // If inspection is running, start the actual solve timer
+      if (timerRef.current.inspTimer && timerRef.current.inspElapsed < 17) {
         startRunning();
+      } else if (!timerRef.current.inspTimer) {
+        // If not inspecting yet (ready from idle), start inspection on release
+        startInspection();
       }
       // If inspection has already crossed DNF (>= 17s), it auto-recorded; do nothing
       return;
@@ -222,18 +224,30 @@ export function KidPracticeTab({
 
     if (p === "holding") {
       clearHold();
-      // Release during hold - if was inspecting, go back to inspecting state
+      // Release during hold
       if (timerRef.current.inspTimer) {
+        // If already inspecting, go back to inspecting state
         goPhase("inspecting");
         // Restore countdown display
         const remaining = 15 - timerRef.current.inspElapsed;
         setInspSec(remaining > 0 ? remaining : 0);
       } else {
-        // Not inspecting - go back to idle
-        goPhase("idle");
+        // If not yet inspecting (in idle state), start inspection on release
+        startInspection();
       }
     }
-  }, [startRunning]);
+  }, [startRunning, startInspection]);
+
+  // Reset inspection when user presses Escape or back button
+  const resetInspection = useCallback(() => {
+    clearHold();
+    clearRAF();
+    clearInsp();
+    goPhase("idle");
+    setDisplayCs(0);
+    setPenalty("none");
+    setInspSec(15);
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -243,9 +257,14 @@ export function KidPracticeTab({
   useEffect(() => {
     let down = false;
     const kd = (e: KeyboardEvent) => {
-      if (e.code !== "Space" || e.repeat) return;
-      e.preventDefault();
-      if (!down) { down = true; onPressStart(); }
+      if (e.repeat) return;
+      if (e.code === "Space") {
+        e.preventDefault();
+        if (!down) { down = true; onPressStart(); }
+      } else if (e.code === "Escape") {
+        e.preventDefault();
+        resetInspection();
+      }
     };
     const ku = (e: KeyboardEvent) => {
       if (e.code !== "Space") return;
@@ -259,7 +278,7 @@ export function KidPracticeTab({
       window.removeEventListener("keydown", kd);
       window.removeEventListener("keyup", ku);
     };
-  }, [onPressStart, onPressEnd]);
+  }, [onPressStart, onPressEnd, resetInspection]);
 
   function deleteSolve() {
     goPhase("idle");
@@ -271,6 +290,8 @@ export function KidPracticeTab({
 
   function saveAndNext(chosenPenalty: Penalty) {
     const cs = timerRef.current.finalCs;
+    const currentScramble = scramble || "";
+
     goPhase("idle");
     setDisplayCs(0);
     setPenalty("none");
@@ -282,7 +303,7 @@ export function KidPracticeTab({
       eventId: selectedId,
       timeCs: cs,
       penalty: chosenPenalty,
-      scramble: scramble,
+      scramble: currentScramble,
     };
 
     if (!navigator.onLine) {
@@ -364,11 +385,11 @@ export function KidPracticeTab({
               e.preventDefault();
               onPressEnd();
             }}
-            className="w-full cursor-pointer transition-opacity hover:opacity-80"
-            style={{ touchAction: "none" }}
+            className="w-full cursor-pointer transition-opacity hover:opacity-80 select-none"
+            style={{ touchAction: "none", userSelect: "none", WebkitUserSelect: "none" }}
           >
-            <p className="font-mono-time text-[5.5rem] font-semibold leading-none tracking-tighter sm:text-[6.5rem]">
-              {timerPhase === "inspecting"
+            <p className="font-mono-time text-[5.5rem] font-semibold leading-none tracking-tighter sm:text-[6.5rem] select-none" style={{ userSelect: "none", WebkitUserSelect: "none" }}>
+              {timerPhase === "inspecting" || timerPhase === "holding" || timerPhase === "ready"
                 ? inspSec > 0 ? String(inspSec) : "+2"
                 : timerPhase === "stopped"
                 ? penalty === "dnf" ? "DNF" : penalty === "plus2" ? formatCs(displayCs + 200) + "+" : formatCs(displayCs)
@@ -376,14 +397,18 @@ export function KidPracticeTab({
                 ? formatCs(displayCs)
                 : "0.00"}
             </p>
-            <p className="mt-3 text-sm text-white/45">
+            <p className="mt-3 text-sm text-white/45 select-none" style={{ userSelect: "none", WebkitUserSelect: "none" }}>
               {timerPhase === "inspecting"
                 ? inspSec <= 3 ? "Start now!" : "Inspecting…"
+                : timerPhase === "holding"
+                ? timerRef.current.inspTimer ? "" : "Release to start inspection"
+                : timerPhase === "ready"
+                ? timerRef.current.inspTimer ? "Release to start" : "Release to start inspection"
                 : timerPhase === "running"
-                ? "Solving…"
+                ? ""
                 : timerPhase === "stopped"
                 ? ""
-                : "Tap to start"}
+                : "Tap to start inspection"}
             </p>
           </button>
 
@@ -459,33 +484,52 @@ export function KidPracticeTab({
       </div>
 
       {/* Stats dock */}
-      <div className="relative z-10 px-5 pt-4 kid-animate-in" style={{ animationDelay: "200ms" }}>
-        <div className="grid grid-cols-3 gap-2.5">
+      <div className="relative z-10 px-5 pt-4 pb-2 kid-animate-in" style={{ animationDelay: "200ms" }}>
+        <div className="grid grid-cols-6 gap-1.5">
           <StatSticker
-            icon={<Flame className="size-4" style={{ color: "#FF5800" }} />}
-            value={streak > 0 ? String(streak) : "—"}
-            label="streak"
-            accent="#FF5800"
+            value={ao5 ? formatCs(ao5) : "—"}
+            label="ao5"
+            accent="#FFD500"
+            mono
+            compact
           />
           <StatSticker
-            value={todayCount > 0 ? String(todayCount) : "—"}
-            label="today"
+            value={ao12 ? formatCs(ao12) : "—"}
+            label="ao12"
             accent="#0046AD"
+            mono
+            compact
           />
           <StatSticker
-            value={
-              todayBestCs === null
-                ? "—"
-                : todayBestCs === DNF
-                ? "DNF"
-                : formatCs(todayBestCs)
-            }
-            label="best"
+            value={ao50 ? formatCs(ao50) : "—"}
+            label="ao50"
             accent="#009B48"
             mono
+            compact
+          />
+          <StatSticker
+            value={ao100 ? formatCs(ao100) : "—"}
+            label="ao100"
+            accent="#B71234"
+            mono
+            compact
+          />
+          <StatSticker
+            value={best ? formatCs(best) : "—"}
+            label="best"
+            accent="#FF5800"
+            mono
+            compact
+          />
+          <StatSticker
+            value={String(count)}
+            label="count"
+            accent="#E91E63"
+            compact
           />
         </div>
       </div>
+
     </div>
   );
 }
@@ -496,13 +540,35 @@ function StatSticker({
   label,
   accent,
   mono,
+  compact,
 }: {
   icon?: React.ReactNode;
   value: string;
   label: string;
   accent: string;
   mono?: boolean;
+  compact?: boolean;
 }) {
+  if (compact) {
+    return (
+      <div
+        className="sticker rounded-lg bg-[#FFFCF7] px-1.5 py-2 text-center text-[#1A1208] transition-transform active:scale-95"
+        style={{ boxShadow: "2px 2px 0 #1A1208" }}
+      >
+        <div
+          className="mx-auto mb-1 h-1 w-5 rounded-full"
+          style={{ backgroundColor: accent }}
+        />
+        <p className={`text-xs font-bold ${mono ? "font-mono-time" : ""}`}>
+          {value}
+        </p>
+        <p className="text-[8px] font-bold uppercase tracking-wider text-[#6B5E4C] mt-0.5">
+          {label}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="sticker group rounded-xl bg-[#FFFCF7] px-2 py-3 text-center text-[#1A1208] transition-transform active:scale-95 hover:shadow-lg" style={{ boxShadow: "3px 3px 0 #1A1208" }}>
       <div

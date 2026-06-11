@@ -1,8 +1,8 @@
 "use client";
 
-import { Timer, Trophy, TrendingUp, Star, Box } from "lucide-react";
+import { Timer, Trophy, BarChart2, Star, Box } from "lucide-react";
 
-type Tab = "practice" | "competition" | "overview" | "badges" | "cubes";
+type Tab = "practice" | "competitions" | "analytics" | "badges" | "cubes";
 
 interface KidBottomNavProps {
   activeTab: Tab;
@@ -10,9 +10,9 @@ interface KidBottomNavProps {
 }
 
 const TABS = [
-  { id: "overview" as const, label: "Overview", icon: TrendingUp },
   { id: "practice" as const, label: "Practice", icon: Timer },
-  { id: "competition" as const, label: "Compete", icon: Trophy },
+  { id: "competitions" as const, label: "Competitions", icon: Trophy },
+  { id: "analytics" as const, label: "Analytics", icon: BarChart2 },
   { id: "badges" as const, label: "Badges", icon: Star },
   { id: "cubes" as const, label: "Cubes", icon: Box },
 ];

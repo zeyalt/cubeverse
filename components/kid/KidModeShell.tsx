@@ -6,11 +6,12 @@ import { KidHeader } from "./KidHeader";
 import { KidBottomNav } from "./KidBottomNav";
 import { KidPracticeTab } from "./KidPracticeTab";
 import { KidCompetitionTab } from "./KidCompetitionTab";
-import { KidOverviewTab } from "./KidOverviewTab";
+import { KidAnalyticsTab } from "./KidAnalyticsTab";
 import { KidBadgesTab } from "./KidBadgesTab";
 import { KidCubesTab } from "./KidCubesTab";
+import type { AnalyticsPayload } from "@/app/actions/analytics";
 
-type Tab = "practice" | "competition" | "overview" | "badges" | "cubes";
+type Tab = "practice" | "competitions" | "analytics" | "badges" | "cubes";
 
 interface Event {
   id: string;
@@ -22,9 +23,12 @@ interface PracticeTabData {
   events: Event[];
   defaultEventId: string;
   cuberId: string;
-  todayCount: number;
-  todayBestCs: number | null;
-  streak: number;
+  ao5: number | null;
+  ao12: number | null;
+  ao50: number | null;
+  ao100: number | null;
+  best: number | null;
+  count: number;
 }
 
 interface CompetitionTabData {
@@ -37,9 +41,20 @@ interface CompetitionTabData {
     start_date: string | null;
     end_date: string | null;
   }>;
+  cuberId: string;
+  wcaId: string | null;
 }
 
-interface OverviewTabData {
+interface Cube {
+  id: string;
+  name: string;
+}
+
+interface AnalyticsTabData {
+  events: Event[];
+  defaultEventId: string;
+  cuberId: string;
+  initialAnalyticsData: AnalyticsPayload;
   pbs: Array<{
     eventId: string;
     officialSingle: number | null;
@@ -47,8 +62,7 @@ interface OverviewTabData {
     practiceSingle: number | null;
     practiceAvg: number | null;
   }>;
-  heatmap: Record<string, number>;
-  totalSolves: number;
+  cubes: Cube[];
 }
 
 interface BadgesTabData {
@@ -99,7 +113,7 @@ interface KidModeShellProps {
   activeTab: Tab;
   practiceData?: PracticeTabData | null;
   competitionData?: CompetitionTabData | null;
-  overviewData?: OverviewTabData | null;
+  analyticsData?: AnalyticsTabData | null;
   badgesData?: BadgesTabData | null;
   cubesData?: CubesTabData | null;
 }
@@ -110,13 +124,13 @@ function TabContent({ tab, ...data }: { tab: Tab } & Record<string, any>) {
       return data.practiceData ? (
         <KidPracticeTab {...data.practiceData} />
       ) : null;
-    case "competition":
+    case "competitions":
       return data.competitionData ? (
         <KidCompetitionTab data={data.competitionData} />
       ) : null;
-    case "overview":
-      return data.overviewData ? (
-        <KidOverviewTab data={data.overviewData} />
+    case "analytics":
+      return data.analyticsData ? (
+        <KidAnalyticsTab {...data.analyticsData} />
       ) : null;
     case "badges":
       return data.badgesData ? (
@@ -139,7 +153,7 @@ function KidModeShellContent({
   activeTab,
   practiceData,
   competitionData,
-  overviewData,
+  analyticsData,
   badgesData,
   cubesData,
 }: KidModeShellProps) {
@@ -160,7 +174,7 @@ function KidModeShellContent({
           tab={currentTab}
           practiceData={practiceData}
           competitionData={competitionData}
-          overviewData={overviewData}
+          analyticsData={analyticsData}
           badgesData={badgesData}
           cubesData={cubesData}
         />
