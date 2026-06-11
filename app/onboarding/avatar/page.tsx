@@ -1,0 +1,141 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState, useTransition, useEffect } from "react";
+import Link from "next/link";
+import { completeOnboarding } from "@/app/actions/onboarding";
+
+const AVATAR_COLORS = [
+  { key: "gold", color: "#FFD500", label: "Gold" },
+  { key: "blue", color: "#0046AD", label: "Blue" },
+  { key: "green", color: "#009B48", label: "Green" },
+  { key: "purple", color: "#B71234", label: "Purple" },
+  { key: "orange", color: "#FF9800", label: "Orange" },
+  { key: "pink", color: "#E91E63", label: "Pink" },
+  { key: "red", color: "#F44336", label: "Red" },
+  { key: "cyan", color: "#00BCD4", label: "Cyan" },
+];
+
+export default function OnboardingAvatarPage() {
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [wcaId, setWcaId] = useState("");
+  const [selectedColor, setSelectedColor] = useState("blue");
+  const [error, setError] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    // Get name and WCA ID from sessionStorage
+    const storedName = sessionStorage.getItem("onboarding_name");
+    const storedWcaId = sessionStorage.getItem("onboarding_wca_id");
+
+    if (!storedName) {
+      router.push("/onboarding/name");
+    } else {
+      setName(storedName);
+      setWcaId(storedWcaId || "");
+    }
+  }, [router]);
+
+  function handleSubmit() {
+    startTransition(async () => {
+      try {
+        const result = await completeOnboarding({
+          name,
+          wcaId: wcaId === "skip" || !wcaId ? null : wcaId,
+          avatarColor: selectedColor,
+        });
+
+        if (result.error) {
+          setError(result.error);
+          return;
+        }
+
+        // Clear sessionStorage and redirect
+        sessionStorage.removeItem("onboarding_name");
+        sessionStorage.removeItem("onboarding_wca_id");
+
+        if (result.redirectTo) {
+          router.push(result.redirectTo);
+        }
+      } catch (err) {
+        setError("Failed to complete onboarding");
+      }
+    });
+  }
+
+  return (
+    <div className="flex flex-1 flex-col items-center justify-between px-5 py-8">
+      {/* Progress Bar */}
+      <div className="w-full max-w-md">
+        <div className="mb-8 flex items-center justify-between">
+          <Link
+            href="/onboarding/wca-id"
+            className="text-white/50 hover:text-white transition-colors"
+          >
+            ← Back
+          </Link>
+          <span className="text-sm font-semibold text-white/70">Step 3 of 3</span>
+        </div>
+
+        <div className="mb-8 h-1 w-full overflow-hidden rounded-full bg-white/20">
+          <div
+            className="h-full bg-[#FFD500] transition-all duration-300"
+            style={{ width: "100%" }}
+          />
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="w-full max-w-md space-y-6 text-center kid-animate-in">
+        <div>
+          <h2 className="font-display text-3xl font-bold mb-2">Pick your avatar</h2>
+          <p className="text-sm text-white/60">This is your color!</p>
+        </div>
+
+        {/* Avatar Grid */}
+        <div className="grid grid-cols-4 gap-4">
+          {AVATAR_COLORS.map(({ key, color, label }) => (
+            <button
+              key={key}
+              onClick={() => setSelectedColor(key)}
+              className={`sticker flex items-center justify-center rounded-2xl transition-transform ${
+                selectedColor === key ? "scale-110" : "scale-100 hover:scale-105"
+              }`}
+              style={{
+                backgroundColor: color,
+                width: "80px",
+                height: "80px",
+                boxShadow: selectedColor === key ? "0 0 0 3px #FFD500" : "3px 3px 0 #0A0A0A",
+              }}
+              title={label}
+            >
+              {selectedColor === key && (
+                <span className="text-2xl font-bold text-white mix-blend-multiply">✓</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {error && <p className="text-sm text-red-400">{error}</p>}
+      </div>
+
+      {/* Navigation */}
+      <div className="w-full max-w-md flex gap-3">
+        <Link
+          href="/onboarding/wca-id"
+          className="flex-1 rounded-xl border-2 border-white/20 px-4 py-3 text-center font-medium text-white/60 transition-colors hover:bg-white/10"
+        >
+          ← Back
+        </Link>
+        <button
+          onClick={handleSubmit}
+          disabled={isPending}
+          className="sticker flex-1 rounded-xl border-2 border-[#0A0A0A] bg-[#FFD500] px-4 py-3 text-center font-bold text-[#1A1208] transition-transform hover:scale-105 active:scale-95 disabled:opacity-50"
+        >
+          {isPending ? "Starting..." : "Start Cubing!"}
+        </button>
+      </div>
+    </div>
+  );
+}

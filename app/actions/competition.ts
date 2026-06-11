@@ -17,6 +17,15 @@ async function getDefaultCuberId(db: ReturnType<typeof getServiceClient>, ownerI
   return data?.default_cuber_id as string | null;
 }
 
+async function getActiveCuberId(db: ReturnType<typeof getServiceClient>, ownerId: string) {
+  const { data } = await db
+    .from("app_settings")
+    .select("default_cuber_id, current_cuber_id")
+    .eq("owner_id", ownerId)
+    .single();
+  return (data?.current_cuber_id ?? data?.default_cuber_id) as string | null;
+}
+
 // ─── Create unofficial competition ───────────────────────────────────────────
 
 export async function createCompetition(
@@ -170,4 +179,109 @@ export async function deleteResult(formData: FormData): Promise<void> {
   const db = getServiceClient();
   await db.from("results").delete().eq("id", resultId);
   redirect(`/parent/competitions/${competitionId}`);
+}
+
+// ─── Kid mode: Add result ────────────────────────────────────────────────────
+
+export async function addResultKid(
+  _prev: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const competitionId = formData.get("competition_id") as string;
+  const eventId = formData.get("event_id") as string;
+  const roundType = (formData.get("round_type") as string) || "final";
+
+  if (!competitionId || !eventId) return { error: "Missing required fields." };
+
+  // Collect solves (1–5 slots)
+  const rawSolves: { timeStr: string; penalty: Penalty }[] = [];
+  for (let i = 1; i <= 5; i++) {
+    const timeStr = (formData.get(`time_${i}`) as string | null)?.trim() ?? "";
+    const penalty = ((formData.get(`penalty_${i}`) as string) || "none") as Penalty;
+    if (timeStr || penalty === "dnf" || penalty === "dns") {
+      rawSolves.push({ timeStr, penalty });
+    }
+  }
+  if (rawSolves.length === 0) return { error: "Enter at least one solve." };
+
+  // Parse each solve
+  const solves: { time_cs: number; penalty: Penalty }[] = [];
+  for (const { timeStr, penalty } of rawSolves) {
+    if (penalty === "dnf" || penalty === "dns") {
+      solves.push({ time_cs: 0, penalty });
+    } else {
+      const cs = parseToCs(timeStr);
+      if (!cs || cs <= 0) return { error: `"${timeStr}" is not a valid time. Use 12.34 or 1:23.45` };
+      solves.push({ time_cs: cs, penalty });
+    }
+  }
+
+  const db = getServiceClient();
+  const ownerId = getOwnerId();
+
+  const [cuberId, { data: event }] = await Promise.all([
+    getActiveCuberId(db, ownerId),
+    db.from("events").select("format").eq("id", eventId).single(),
+  ]);
+
+  if (!cuberId) return { error: "No cuber set up." };
+  if (!event) return { error: "Event not found." };
+
+  const effTimes = solves.map((s) => effectiveTime(s.time_cs, s.penalty));
+  const nonDnf = effTimes.filter((t) => t !== DNF);
+  const best_cs = nonDnf.length > 0 ? Math.min(...nonDnf) : DNF;
+
+  let average_cs: number | null = null;
+  if (
+    (event.format === "ao5" && solves.length === 5) ||
+    (event.format === "mo3" && solves.length === 3)
+  ) {
+    average_cs = wcaAverage(effTimes);
+  }
+
+  const { data: result, error: resultErr } = await db
+    .from("results")
+    .insert({
+      owner_id: ownerId,
+      cuber_id: cuberId,
+      competition_id: competitionId,
+      event_id: eventId,
+      round_type: roundType,
+      format: event.format,
+      best_cs,
+      average_cs,
+      source: "manual",
+    })
+    .select("id")
+    .single();
+
+  if (resultErr) return { error: resultErr.message };
+
+  const solveRows = solves.map((s, i) => ({
+    owner_id: ownerId,
+    cuber_id: cuberId,
+    event_id: eventId,
+    context: "competition",
+    result_id: result.id,
+    competition_id: competitionId,
+    time_cs: s.time_cs,
+    penalty: s.penalty,
+    position: i + 1,
+    source: "manual",
+  }));
+
+  const { error: solvesErr } = await db.from("solves").insert(solveRows);
+  if (solvesErr) return { error: solvesErr.message };
+
+  redirect(`/competitions/${competitionId}`);
+}
+
+// ─── Kid mode: Delete result ─────────────────────────────────────────────────
+
+export async function deleteResultKid(formData: FormData): Promise<void> {
+  const resultId = formData.get("result_id") as string;
+  const competitionId = formData.get("competition_id") as string;
+  const db = getServiceClient();
+  await db.from("results").delete().eq("id", resultId);
+  redirect(`/competitions/${competitionId}`);
 }
