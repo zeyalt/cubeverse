@@ -1,13 +1,15 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { addResultKid, deleteResultKid } from "@/app/actions/competition";
+import { saveCompetitionNote } from "@/app/actions/notes";
 import { formatCs, DNF } from "@/lib/cubing";
 import { getEventSticker, EVENT_SHORT } from "@/lib/event-theme";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, MessageSquare } from "lucide-react";
+import type { CompetitionNote } from "@/app/actions/notes";
 
 const ROUND_LABELS: Record<string, string> = {
   first: "Round 1",
@@ -48,6 +50,7 @@ interface Competition {
   country: string | null;
   start_date: string | null;
   end_date: string | null;
+  cuber_id?: string;
 }
 
 interface Event {
@@ -60,6 +63,8 @@ interface KidCompetitionDetailProps {
   competition: Competition;
   results: Result[];
   events: Event[];
+  cuberId: string;
+  notes: CompetitionNote[];
 }
 
 function SolveChip({ timeCs, penalty }: { timeCs: number; penalty: string }) {
@@ -84,13 +89,33 @@ function ResultCard({
   result,
   events,
   competitionId,
+  competitionType,
+  cuberId,
+  expandedNotes,
+  noteTexts,
+  onToggleNote,
+  onSaveNote,
+  onUpdateNoteText,
 }: {
   result: Result;
   events: Event[];
   competitionId: string;
+  competitionType: string;
+  cuberId: string;
+  expandedNotes: Set<string>;
+  noteTexts: Record<string, string>;
+  onToggleNote: (key: string) => void;
+  onSaveNote: (cuberId: string, competitionId: string, eventId: string, roundType: string, content: string) => Promise<void>;
+  onUpdateNoteText: (key: string, text: string) => void;
 }) {
   const event = events.find((e) => e.id === result.event_id);
   const sticker = getEventSticker(result.event_id);
+  const noteKey = `${result.event_id}-${result.round_type}`;
+  const isExpanded = expandedNotes.has(noteKey);
+  const noteContent = noteTexts[noteKey] || "";
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftText, setDraftText] = useState(noteContent);
+  const [isSaving, setIsSaving] = useState(false);
 
   return (
     <div className="sticker rounded-xl border-2 border-white/10 bg-white/8 px-4 py-3">
@@ -107,20 +132,19 @@ function ResultCard({
             <p className="text-[10px] text-white/60">{ROUND_LABELS[result.round_type] ?? result.round_type}</p>
           </div>
         </div>
-        <form
-          action={deleteResultKid}
-          className="shrink-0"
-        >
-          <input type="hidden" name="result_id" value={result.id} />
-          <input type="hidden" name="competition_id" value={competitionId} />
-          <button
-            type="submit"
-            className="flex size-8 items-center justify-center rounded-lg bg-red-500/20 text-red-400 transition-colors hover:bg-red-500/30"
-            title="Delete result"
-          >
-            <Trash2 className="size-4" />
-          </button>
-        </form>
+        {competitionType !== "wca" && (
+          <form action={deleteResultKid} className="shrink-0">
+            <input type="hidden" name="result_id" value={result.id} />
+            <input type="hidden" name="competition_id" value={competitionId} />
+            <button
+              type="submit"
+              className="flex size-8 items-center justify-center rounded-lg bg-red-500/20 text-red-400 transition-colors hover:bg-red-500/30"
+              title="Delete result"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </form>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -143,6 +167,83 @@ function ResultCard({
             {result.solves.map((solve) => (
               <SolveChip key={solve.id} timeCs={solve.time_cs} penalty={solve.penalty} />
             ))}
+          </div>
+        )}
+
+        {/* Reflections Section */}
+        <button
+          onClick={() => {
+            if (!isExpanded) setDraftText(noteContent);
+            onToggleNote(noteKey);
+          }}
+          className="mt-3 w-full flex items-center justify-between rounded-lg bg-white/5 px-3 py-2 text-xs font-bold text-white/70 transition-colors hover:bg-white/10"
+        >
+          <span className="flex items-center gap-2">
+            <MessageSquare className="size-4" />
+            Reflections
+          </span>
+          <span>{isExpanded ? "−" : "+"}</span>
+        </button>
+
+        {isExpanded && (
+          <div className="space-y-2">
+            {isEditing ? (
+              <>
+                <textarea
+                  value={draftText}
+                  onChange={(e) => setDraftText(e.target.value)}
+                  placeholder="Write your reflections here..."
+                  autoFocus
+                  className="w-full rounded-lg bg-white/10 border border-white/30 px-3 py-2 text-xs text-white placeholder-white/40 focus:outline-none focus:border-[#FFD500]/60 resize-none"
+                  rows={4}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={async () => {
+                      setIsSaving(true);
+                      onUpdateNoteText(noteKey, draftText);
+                      await onSaveNote(cuberId, competitionId, result.event_id, result.round_type, draftText);
+                      setIsSaving(false);
+                      setIsEditing(false);
+                    }}
+                    disabled={isSaving}
+                    className="flex-1 rounded-lg bg-[#009B48] py-2 text-xs font-bold text-white transition-colors hover:bg-[#007a3a] disabled:opacity-50"
+                  >
+                    {isSaving ? "Saving…" : "Save"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDraftText(noteContent);
+                      setIsEditing(false);
+                    }}
+                    className="flex-1 rounded-lg bg-white/10 py-2 text-xs font-bold text-white/70 transition-colors hover:bg-white/15"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {noteContent ? (
+                  <p className="rounded-lg bg-white/5 px-3 py-2 text-xs text-white/80 whitespace-pre-wrap leading-relaxed">
+                    {noteContent}
+                  </p>
+                ) : (
+                  <p className="rounded-lg bg-white/5 px-3 py-2 text-xs text-white/30 italic">
+                    No reflections yet.
+                  </p>
+                )}
+                <button
+                  onClick={() => {
+                    setDraftText(noteContent);
+                    setIsEditing(true);
+                  }}
+                  className="w-full rounded-lg bg-white/8 py-2 text-xs font-bold text-white/60 transition-colors hover:bg-white/12"
+                >
+                  {noteContent ? "Edit" : "Add reflection"}
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -307,9 +408,21 @@ export function KidCompetitionDetail({
   competition,
   results,
   events,
+  cuberId,
+  notes,
 }: KidCompetitionDetailProps) {
   const router = useRouter();
   const [showAddForm, setShowAddForm] = useState(false);
+  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
+  const [noteTexts, setNoteTexts] = useState<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    notes.forEach((note) => {
+      const key = `${note.eventId}-${note.roundType}`;
+      map[key] = note.content || "";
+    });
+    return map;
+  });
+  const [, startTransition] = useTransition();
 
   return (
     <div className="kid-canvas min-h-screen flex flex-col text-white">
@@ -360,6 +473,25 @@ export function KidCompetitionDetail({
               result={result}
               events={events}
               competitionId={competition.id}
+              competitionType={competition.type}
+              cuberId={cuberId}
+              expandedNotes={expandedNotes}
+              noteTexts={noteTexts}
+              onToggleNote={(key) => {
+                const newExpanded = new Set(expandedNotes);
+                if (newExpanded.has(key)) {
+                  newExpanded.delete(key);
+                } else {
+                  newExpanded.add(key);
+                }
+                setExpandedNotes(newExpanded);
+              }}
+              onUpdateNoteText={(key, text) => {
+                setNoteTexts({ ...noteTexts, [key]: text });
+              }}
+              onSaveNote={(cuberId, competitionId, eventId, roundType, content) =>
+                saveCompetitionNote(cuberId, competitionId, eventId, roundType, content).then(() => {})
+              }
             />
           ))
         )}

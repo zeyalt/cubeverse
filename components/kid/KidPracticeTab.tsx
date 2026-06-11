@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { Flame } from "lucide-react";
 import { setSelectedEvent } from "@/app/actions/parent";
-import { formatCs, DNF } from "@/lib/cubing";
+import { formatCs, parseToCs, DNF } from "@/lib/cubing";
 import { EVENT_SHORT, getEventSticker } from "@/lib/event-theme";
 import { useScramble } from "@/lib/useScramble";
 import { recordSolve, type SessionStats } from "@/app/actions/solve";
 import { enqueueSolve } from "@/lib/offline/queue";
+import { getPracticeSetupData, setPracticeGoal, clearPracticeGoal } from "@/app/actions/goals";
 
 interface Event {
   id: string;
@@ -15,10 +15,18 @@ interface Event {
   format: string;
 }
 
+interface Cube {
+  id: string;
+  name: string;
+  event_id: string | null;
+}
+
 interface KidPracticeTabProps {
   events: Event[];
   defaultEventId: string;
   cuberId: string;
+  cubes: Cube[];
+  activeGoal: { id: string; target_cs: number } | null;
   ao5: number | null;
   ao12: number | null;
   ao50: number | null;
@@ -58,6 +66,8 @@ export function KidPracticeTab({
   events,
   defaultEventId,
   cuberId,
+  cubes: initialCubes,
+  activeGoal: initialGoal,
   ao5,
   ao12,
   ao50,
@@ -75,6 +85,13 @@ export function KidPracticeTab({
   const [inspSec, setInspSec] = useState(15);
   const [stats, setStats] = useState<SessionStats | null>(null);
 
+  // Cube + Goal state
+  const [cubes, setCubes] = useState<Cube[]>(initialCubes);
+  const [selectedCubeId, setSelectedCubeId] = useState<string | null>(null);
+  const [activeGoal, setActiveGoal] = useState(initialGoal);
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [goalInput, setGoalInput] = useState("");
+
   const timerRef = useRef<TimerRefs>(makeTimerRefs());
 
   const selected = events.find((e) => e.id === selectedId) ?? events[0];
@@ -82,7 +99,14 @@ export function KidPracticeTab({
 
   function handleSelectEvent(id: string) {
     setSelectedId(id);
-    startTransition(() => setSelectedEvent(id));
+    setSelectedCubeId(null);
+    setEditingGoal(false);
+    startTransition(async () => {
+      await setSelectedEvent(id);
+      const setup = await getPracticeSetupData(cuberId, id);
+      setCubes(setup.cubes);
+      setActiveGoal(setup.activeGoal);
+    });
   }
 
   function goPhase(p: TimerPhase) {
@@ -365,6 +389,129 @@ export function KidPracticeTab({
         </div>
       </div>
 
+      {/* Cube selector */}
+      {cubes.length > 0 && (
+        <div className="relative z-10 px-5 pb-3">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Cube</p>
+          <div className="flex gap-2 overflow-x-auto overflow-y-visible scrollbar-none pb-1">
+            <button
+              onClick={() => setSelectedCubeId(null)}
+              className="event-sticker shrink-0 rounded-xl border-2 px-4 py-2 text-sm font-bold transition-all"
+              style={selectedCubeId === null ? {
+                backgroundColor: "#0046AD", color: "#FFFFFF",
+                borderColor: "#0A0A0A", boxShadow: "3px 3px 0 #0A0A0A",
+              } : {
+                backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)",
+                borderColor: "rgba(255,255,255,0.15)", boxShadow: "1px 1px 0 rgba(255,255,255,0.1)",
+              }}
+            >
+              Any cube
+            </button>
+            {cubes.map((cube) => (
+              <button
+                key={cube.id}
+                onClick={() => setSelectedCubeId(cube.id)}
+                className="event-sticker shrink-0 rounded-xl border-2 px-4 py-2 text-sm font-bold transition-all"
+                style={selectedCubeId === cube.id ? {
+                  backgroundColor: "#0046AD", color: "#FFFFFF",
+                  borderColor: "#0A0A0A", boxShadow: "3px 3px 0 #0A0A0A",
+                } : {
+                  backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)",
+                  borderColor: "rgba(255,255,255,0.15)", boxShadow: "1px 1px 0 rgba(255,255,255,0.1)",
+                }}
+              >
+                {cube.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Goal section */}
+      <div className="relative z-10 px-5 pb-4">
+        {activeGoal && !editingGoal ? (
+          <div
+            className="sticker flex items-center justify-between rounded-xl border-2 border-[#0A0A0A] px-4 py-3"
+            style={{ backgroundColor: "#FFD500", boxShadow: "4px 4px 0 #0A0A0A" }}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🎯</span>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#6B4E00]">Target</p>
+                <p className="font-mono-time text-xl font-bold text-[#1A1200]">
+                  {(activeGoal.target_cs / 100).toFixed(2)}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setGoalInput((activeGoal.target_cs / 100).toFixed(2));
+                  setEditingGoal(true);
+                }}
+                className="rounded-lg bg-black/10 px-3 py-1.5 text-xs font-bold text-[#1A1200] transition-colors hover:bg-black/20"
+              >
+                Edit
+              </button>
+              <button
+                onClick={async () => {
+                  await clearPracticeGoal(cuberId, selectedId);
+                  setActiveGoal(null);
+                }}
+                className="rounded-lg bg-black/10 px-2 py-1.5 text-xs font-bold text-[#1A1200] transition-colors hover:bg-black/20"
+                title="Clear goal"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        ) : editingGoal ? (
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={goalInput}
+              onChange={(e) => setGoalInput(e.target.value)}
+              placeholder="e.g. 15.00"
+              autoFocus
+              className="flex-1 rounded-xl border-2 border-white/20 bg-white/10 px-4 py-2.5 font-mono-time text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/40"
+            />
+            <button
+              onClick={async () => {
+                const cs = parseToCs(goalInput);
+                if (cs > 0) {
+                  const result = await setPracticeGoal(cuberId, selectedId, cs);
+                  if (!result.error) {
+                    setActiveGoal({ id: "optimistic", target_cs: cs });
+                    setEditingGoal(false);
+                    setGoalInput("");
+                    // Refresh to get real id
+                    const setup = await getPracticeSetupData(cuberId, selectedId);
+                    setActiveGoal(setup.activeGoal);
+                  }
+                }
+              }}
+              className="sticker rounded-xl border-2 border-[#0A0A0A] bg-[#009B48] px-4 py-2.5 text-sm font-bold text-white"
+              style={{ boxShadow: "3px 3px 0 #0A0A0A" }}
+            >
+              Set
+            </button>
+            <button
+              onClick={() => { setEditingGoal(false); setGoalInput(""); }}
+              className="rounded-xl border-2 border-white/10 bg-white/10 px-4 py-2.5 text-sm font-bold text-white/60"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setEditingGoal(true)}
+            className="text-xs font-bold text-white/40 transition-colors hover:text-white/60"
+          >
+            + Set target time
+          </button>
+        )}
+      </div>
+
       {/* Hero — timer section */}
       <div className="relative z-10 flex flex-1 flex-col justify-center px-5 py-6">
         <div className="kid-animate-in mx-auto w-full max-w-sm" style={{ animationDelay: "80ms" }}>
@@ -487,35 +634,35 @@ export function KidPracticeTab({
       <div className="relative z-10 px-5 pt-4 pb-2 kid-animate-in" style={{ animationDelay: "200ms" }}>
         <div className="grid grid-cols-6 gap-1.5">
           <StatSticker
-            value={ao5 ? formatCs(ao5) : "—"}
+            value={ao5 ? (ao5 / 100).toFixed(2) : "—"}
             label="ao5"
             accent="#FFD500"
             mono
             compact
           />
           <StatSticker
-            value={ao12 ? formatCs(ao12) : "—"}
+            value={ao12 ? (ao12 / 100).toFixed(2) : "—"}
             label="ao12"
             accent="#0046AD"
             mono
             compact
           />
           <StatSticker
-            value={ao50 ? formatCs(ao50) : "—"}
+            value={ao50 ? (ao50 / 100).toFixed(2) : "—"}
             label="ao50"
             accent="#009B48"
             mono
             compact
           />
           <StatSticker
-            value={ao100 ? formatCs(ao100) : "—"}
+            value={ao100 ? (ao100 / 100).toFixed(2) : "—"}
             label="ao100"
             accent="#B71234"
             mono
             compact
           />
           <StatSticker
-            value={best ? formatCs(best) : "—"}
+            value={best ? (best / 100).toFixed(2) : "—"}
             label="best"
             accent="#FF5800"
             mono

@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { notFound } from "next/navigation";
 import { getServiceClient } from "@/lib/supabase/service";
 import { KidCompetitionDetail } from "@/components/kid/KidCompetitionDetail";
+import { getCompetitionNotes } from "@/app/actions/notes";
 
 export default async function KidCompetitionDetailPage({
   params,
@@ -15,7 +16,7 @@ export default async function KidCompetitionDetailPage({
   const [{ data: comp }, { data: results }, { data: events }] = await Promise.all([
     db
       .from("competitions")
-      .select("id, name, type, city, country, start_date, end_date")
+      .select("id, name, type, city, country, start_date, end_date, cuber_id")
       .eq("id", id)
       .maybeSingle(),
     db
@@ -33,6 +34,9 @@ export default async function KidCompetitionDetailPage({
 
   if (!comp) notFound();
 
+  const cuberId = comp.cuber_id as string;
+  const notes = await getCompetitionNotes(cuberId, id);
+
   return (
     <KidCompetitionDetail
       competition={comp}
@@ -41,6 +45,8 @@ export default async function KidCompetitionDetailPage({
         solves: r.solves ? [...(r.solves as any[])].sort((a, b) => a.position - b.position) : [],
       }))}
       events={events ?? []}
+      cuberId={cuberId}
+      notes={notes}
     />
   );
 }

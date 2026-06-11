@@ -83,24 +83,40 @@ export default async function Home({
     let cubesData = null;
 
     if (activeTab === "practice") {
-      const { data: allSolves } = await db
-        .from("solves")
-        .select("time_cs, penalty")
-        .eq("cuber_id", currentCuberId)
-        .eq("event_id", validEventId)
-        .eq("context", "practice")
-        .order("solved_at");
+      const [{ data: allSolves }, { data: practiceGoal }, { data: practiceCubes }] = await Promise.all([
+        db
+          .from("solves")
+          .select("time_cs, penalty")
+          .eq("cuber_id", currentCuberId)
+          .eq("event_id", validEventId)
+          .eq("context", "practice")
+          .order("solved_at"),
+        db
+          .from("goals")
+          .select("id, target_cs")
+          .eq("cuber_id", currentCuberId)
+          .eq("event_id", validEventId)
+          .eq("record_type", "single")
+          .eq("status", "active")
+          .maybeSingle(),
+        db
+          .from("cubes")
+          .select("id, name, event_id")
+          .eq("cuber_id", currentCuberId)
+          .eq("event_id", validEventId)
+          .order("is_main", { ascending: false })
+          .order("name"),
+      ]);
 
       const times = (allSolves ?? []).map((s) =>
         effectiveTime(s.time_cs as number, s.penalty as Penalty)
       );
       const nonDnfTimes = times.filter((t) => t > 0);
 
-      // Compute rolling averages
       const computeAoN = (arr: number[], n: number): number | null => {
         if (arr.length < n) return null;
         const slice = arr.slice(-n);
-        const sorted = slice.sort((a, b) => a - b);
+        const sorted = [...slice].sort((a, b) => a - b);
         return sorted.slice(1, -1).reduce((a, b) => a + b, 0) / (n - 2);
       };
 
@@ -115,6 +131,8 @@ export default async function Home({
         events: events ?? [],
         defaultEventId: validEventId,
         cuberId: currentCuberId,
+        cubes: (practiceCubes ?? []).map((c) => ({ id: c.id as string, name: c.name as string, event_id: c.event_id as string | null })),
+        activeGoal: practiceGoal ? { id: practiceGoal.id as string, target_cs: practiceGoal.target_cs as number } : null,
         ao5,
         ao12,
         ao50,

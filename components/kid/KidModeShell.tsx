@@ -23,6 +23,8 @@ interface PracticeTabData {
   events: Event[];
   defaultEventId: string;
   cuberId: string;
+  cubes: { id: string; name: string; event_id: string | null }[];
+  activeGoal: { id: string; target_cs: number } | null;
   ao5: number | null;
   ao12: number | null;
   ao50: number | null;
