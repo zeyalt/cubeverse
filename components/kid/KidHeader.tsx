@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Settings } from "lucide-react";
 import { CuberSwitcherSheet } from "./CuberSwitcherSheet";
-import { SettingsSheet } from "./SettingsSheet";
 
 const AVATAR_HEX: Record<string, string> = {
   gold: "#FFD500",
@@ -27,11 +26,11 @@ interface KidHeaderProps {
   cuberName: string;
   currentCuberId: string;
   cubers: Cuber[];
+  onOpenSettings: () => void;
 }
 
-export function KidHeader({ cuberName, currentCuberId, cubers }: KidHeaderProps) {
+export function KidHeader({ cuberName, currentCuberId, cubers, onOpenSettings }: KidHeaderProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const activeCuber = cubers.find((c) => c.id === currentCuberId);
   const avatarColor = AVATAR_HEX[activeCuber?.avatar_color ?? "blue"] ?? "#0046AD";
 
@@ -57,7 +56,7 @@ export function KidHeader({ cuberName, currentCuberId, cubers }: KidHeaderProps)
       </button>
 
       <button
-        onClick={() => setSettingsOpen(true)}
+        onClick={onOpenSettings}
         className="sticker-ghost mt-1 flex size-12 shrink-0 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm transition-transform active:scale-95"
         aria-label="Settings"
       >
@@ -72,9 +71,6 @@ export function KidHeader({ cuberName, currentCuberId, cubers }: KidHeaderProps)
         />
       )}
 
-      {settingsOpen && (
-        <SettingsSheet onClose={() => setSettingsOpen(false)} cuberId={currentCuberId} />
-      )}
     </header>
   );
 }

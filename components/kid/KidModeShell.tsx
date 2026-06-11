@@ -9,6 +9,7 @@ import { KidCompetitionTab } from "./KidCompetitionTab";
 import { KidAnalyticsTab } from "./KidAnalyticsTab";
 import { KidBadgesTab } from "./KidBadgesTab";
 import { KidCubesTab } from "./KidCubesTab";
+import { SettingsSheet } from "./SettingsSheet";
 import type { AnalyticsPayload } from "@/app/actions/analytics";
 
 type Tab = "practice" | "competitions" | "analytics" | "badges" | "cubes";
@@ -161,6 +162,7 @@ function KidModeShellContent({
 }: KidModeShellProps) {
   const router = useRouter();
   const [currentTab, setCurrentTab] = useState<Tab>(activeTab);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   function switchTab(tab: Tab) {
     setCurrentTab(tab);
@@ -169,7 +171,12 @@ function KidModeShellContent({
 
   return (
     <div className="kid-canvas relative flex min-h-screen flex-col text-white">
-      <KidHeader cuberName={cuberName} currentCuberId={currentCuberId} cubers={cubers} />
+      <KidHeader
+        cuberName={cuberName}
+        currentCuberId={currentCuberId}
+        cubers={cubers}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
 
       <main className="flex-1 overflow-y-auto kid-tab-enter" style={{ paddingBottom: "calc(4.5rem + env(safe-area-inset-bottom))" }}>
         <TabContent
@@ -183,6 +190,13 @@ function KidModeShellContent({
       </main>
 
       <KidBottomNav activeTab={currentTab} onSwitch={switchTab} />
+
+      {settingsOpen && (
+        <SettingsSheet
+          onClose={() => setSettingsOpen(false)}
+          cuberId={currentCuberId}
+        />
+      )}
     </div>
   );
 }
