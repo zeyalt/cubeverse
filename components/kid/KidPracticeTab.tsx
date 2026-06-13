@@ -577,6 +577,20 @@ export function KidPracticeTab({
         </div>
       </div>
 
+      {/* Timer interaction area — covers entire screen for tap/hold */}
+      <div
+        className="fixed inset-0 z-15"
+        style={{ pointerEvents: "auto", touchAction: "none" }}
+        onPointerDown={(e) => {
+          e.preventDefault();
+          onPressStart();
+        }}
+        onPointerUp={(e) => {
+          e.preventDefault();
+          onPressEnd();
+        }}
+      />
+
       {/* Timer — FIXED to viewport, never moves regardless of scramble height */}
       <div
         className="kid-animate-in fixed left-0 right-0 z-20 flex items-center justify-center px-5"
@@ -585,18 +599,7 @@ export function KidPracticeTab({
         <div className="w-full max-w-sm mx-auto" style={{ pointerEvents: "auto" }}>
 
           {/* Timer display */}
-          <button
-            onPointerDown={(e) => {
-              e.preventDefault();
-              onPressStart();
-            }}
-            onPointerUp={(e) => {
-              e.preventDefault();
-              onPressEnd();
-            }}
-            className="w-full cursor-pointer transition-opacity hover:opacity-80 select-none"
-            style={{ touchAction: "none", userSelect: "none", WebkitUserSelect: "none" }}
-          >
+          <div className="w-full cursor-pointer select-none text-center">
             <p className="font-mono-time text-[5.5rem] font-semibold leading-none tracking-tighter sm:text-[6.5rem] select-none" style={{ userSelect: "none", WebkitUserSelect: "none" }}>
               {timerPhase === "inspecting" || timerPhase === "holding" || timerPhase === "ready"
                 ? inspSec > 0 ? String(inspSec) : "+2"
@@ -619,7 +622,7 @@ export function KidPracticeTab({
                 ? ""
                 : "Tap to start inspection"}
             </p>
-          </button>
+          </div>
 
           {/* Penalty bar + session stats */}
           {timerPhase === "stopped" && (

@@ -92,6 +92,52 @@ export function KidAnalyticsTab({
     setSelectedEventId(eventId);
   };
 
+  const getDateRange = (range: DateRange): { start: Date; end: Date } => {
+    const end = new Date();
+    const start = new Date();
+    switch (range) {
+      case "14d":
+        start.setDate(end.getDate() - 14);
+        break;
+      case "30d":
+        start.setDate(end.getDate() - 30);
+        break;
+      case "60d":
+        start.setDate(end.getDate() - 60);
+        break;
+      case "month":
+        start.setDate(1);
+        break;
+      case "all":
+        start.setFullYear(1970);
+        break;
+    }
+    return { start, end };
+  };
+
+  const dateRangeFilter = getDateRange(dateRange);
+
+  const filteredHeatmap = Object.entries(analyticsData.heatmap).reduce(
+    (acc, [date, count]) => {
+      const d = new Date(date + "T00:00:00Z");
+      if (d >= dateRangeFilter.start && d <= dateRangeFilter.end) {
+        acc[date] = count;
+      }
+      return acc;
+    },
+    {} as Record<string, number>
+  );
+
+  const filteredSolvesOverTime = {
+    ...analyticsData.solvesOverTime,
+    points: analyticsData.solvesOverTime.points.filter((p) => {
+      const d = new Date(p.ts);
+      return d >= dateRangeFilter.start && d <= dateRangeFilter.end;
+    }),
+  };
+
+  const filteredDistribution = analyticsData.distribution; // TODO: filter if needed
+
   const filteredCompetitions = analyticsData.competitionImprovements.filter((comp) => {
     if (compTypeFilter === "all") return true;
     return comp.type === compTypeFilter;
@@ -157,7 +203,7 @@ export function KidAnalyticsTab({
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">Solves Over Time</p>
             <div className="rounded-xl bg-white/8 border border-white/10 p-4">
-              <SolvesOverTime data={analyticsData.solvesOverTime} />
+              <SolvesOverTime data={filteredSolvesOverTime} />
             </div>
           </div>
 
@@ -165,7 +211,7 @@ export function KidAnalyticsTab({
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">Solve Distribution</p>
             <div className="rounded-xl bg-white/8 border border-white/10 p-4">
-              <SolveDistribution bins={analyticsData.distribution} />
+              <SolveDistribution bins={filteredDistribution} />
             </div>
           </div>
 
@@ -173,7 +219,7 @@ export function KidAnalyticsTab({
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">Practice Frequency</p>
             <div className="rounded-xl bg-white/8 border border-white/10 p-4">
-              <PracticeHeatmap counts={analyticsData.heatmap} />
+              <PracticeHeatmap counts={filteredHeatmap} />
             </div>
           </div>
 

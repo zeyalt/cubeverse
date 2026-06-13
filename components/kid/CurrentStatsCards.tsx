@@ -50,25 +50,22 @@ export function CurrentStatsCards({
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+    <div className="grid grid-cols-6 gap-2">
       {metrics.map((metric) => (
         <div
           key={metric.label}
-          className="sticker rounded-xl border-2 border-white/10 bg-gradient-to-br from-white/8 to-white/4 px-4 py-4 relative overflow-hidden"
+          className="sticker rounded-lg border border-white/10 bg-white/5 px-3 py-3 relative overflow-hidden"
         >
-          {/* Decorative accent */}
-          <div className="absolute -top-1 -right-1 w-16 h-16 bg-[#FFD500]/5 rounded-full blur-2xl" />
-
           <div className="relative z-10">
-            <p className="text-xs font-bold uppercase tracking-wider text-white/40 mb-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-white/40 mb-1.5">
               {metric.label}
             </p>
             <div className="flex items-baseline justify-between">
-              <p className="font-mono-time font-bold text-white text-lg leading-tight">
+              <p className="font-mono-time font-bold text-white text-sm leading-tight">
                 {metric.value}
               </p>
               {metric.trend && (
-                <span className={`text-sm font-bold ${metric.trend === "down" ? "text-green-400" : "text-red-400"}`}>
+                <span className={`text-xs font-bold ${metric.trend === "down" ? "text-green-400" : "text-red-400"}`}>
                   {metric.trend === "down" ? "↓" : "↑"}
                 </span>
               )}
