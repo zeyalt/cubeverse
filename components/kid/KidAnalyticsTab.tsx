@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect } from "react";
 import { formatCs } from "@/lib/cubing";
 import { EVENT_SHORT, getEventSticker } from "@/lib/event-theme";
 import { getAnalyticsData, type AnalyticsPayload } from "@/app/actions/analytics";
-import { getHistoricalSolves } from "@/app/actions/solve";
+import { getHistoricalSolves, deleteSolve, updateSolve } from "@/app/actions/solve";
 import { PracticeHeatmap } from "@/components/analytics/PracticeHeatmap";
 import { SolvesOverTime } from "@/components/analytics/SolvesOverTime";
 import { SolveDistribution } from "@/components/analytics/SolveDistribution";
@@ -66,23 +66,27 @@ export function KidAnalyticsTab({
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editingCs, setEditingCs] = useState<number>(0);
   const [editingPenalty, setEditingPenalty] = useState<"none" | "plus2" | "dnf">("none");
-  const [sessionTimes, setSessionTimes] = useState<Array<{ cs: number; penalty: "none" | "plus2" | "dnf"; timestamp: number; scramble: string | null }>>([]);
+  const [sessionTimes, setSessionTimes] = useState<Array<{ id: string; cs: number; penalty: "none" | "plus2" | "dnf"; timestamp: number; scramble: string | null }>>([]);
+
+  async function refreshAll(eventId: string) {
+    const [solves, data] = await Promise.all([
+      getHistoricalSolves(cuberId, eventId),
+      getAnalyticsData(cuberId, eventId),
+    ]);
+    setSessionTimes(solves.map((s) => ({ id: s.id, cs: s.cs, penalty: s.penalty, timestamp: s.timestamp, scramble: s.scramble })));
+    setAnalyticsData(data);
+  }
 
   // Fetch historical solves on mount and event change
   useEffect(() => {
-    getHistoricalSolves(cuberId, selectedEventId).then((solves) => {
-      setSessionTimes(solves.map((s) => ({ cs: s.cs, penalty: s.penalty, timestamp: s.timestamp, scramble: s.scramble })));
-    });
+    refreshAll(selectedEventId);
   }, [cuberId, selectedEventId]);
 
   const selected = events.find((e) => e.id === selectedEventId) ?? events[0];
 
   const handleEventChange = (eventId: string) => {
     setSelectedEventId(eventId);
-    startTransition(async () => {
-      const data = await getAnalyticsData(cuberId, eventId);
-      setAnalyticsData(data);
-    });
+    startTransition(() => refreshAll(eventId));
   };
 
   const filteredCompetitions = analyticsData.competitionImprovements.filter((comp) => {
@@ -283,16 +287,23 @@ export function KidAnalyticsTab({
                       <div className="grid grid-cols-2 gap-2 pt-2">
                         <button onClick={() => setEditingIdx(null)} className="py-2 rounded-lg bg-white/10 text-white font-bold hover:bg-white/20">Cancel</button>
                         <button
-                          onClick={() => {
-                            setSessionTimes((prev) => prev.map((t, i) => i === editingIdx ? { ...t, cs: editingCs, penalty: editingPenalty } : t));
+                          onClick={async () => {
+                            const solveId = solve?.id;
                             setEditingIdx(null);
+                            if (solveId) await updateSolve(solveId, editingCs, editingPenalty);
+                            await refreshAll(selectedEventId);
                           }}
                           className="py-2 rounded-lg bg-green-600 text-white font-bold hover:bg-green-700"
                         >
                           Save
                         </button>
                         <button
-                          onClick={() => { setSessionTimes((prev) => prev.filter((_, i) => i !== editingIdx)); setEditingIdx(null); }}
+                          onClick={async () => {
+                            const solveId = solve?.id;
+                            setEditingIdx(null);
+                            if (solveId) await deleteSolve(solveId);
+                            await refreshAll(selectedEventId);
+                          }}
                           className="col-span-2 py-2 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700"
                         >
                           Delete

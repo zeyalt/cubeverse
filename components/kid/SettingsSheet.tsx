@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, Moon, Sun, Download, Upload, Loader2, Check, ChevronDown } from "lucide-react";
+import { X, Moon, Sun, Download, Upload, Loader2, Check, ChevronDown, Trash2 } from "lucide-react";
 import { exportAllData } from "@/app/actions/export";
-import { importTwistyTimerData } from "@/app/actions/import";
+import { importTwistyTimerData, clearImportedSolves } from "@/app/actions/import";
 
 const EVENTS = [
   { id: "333", label: "3×3×3" },
@@ -49,9 +49,16 @@ export function SettingsSheet({ onClose, cuberId }: SettingsSheetProps) {
   // Import state
   const [importEventId, setImportEventId] = useState("333");
   const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{ solvesImported: number } | null>(null);
+  const [importResult, setImportResult] = useState<{ solvesImported: number; solvesParsed: number } | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Clear imported solves state
+  const [clearEventId, setClearEventId] = useState<string>("all");
+  const [clearing, setClearing] = useState(false);
+  const [clearResult, setClearResult] = useState<{ deletedCount: number } | null>(null);
+  const [clearError, setClearError] = useState<string | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   async function handleExport() {
     setExporting(true);
@@ -87,7 +94,7 @@ export function SettingsSheet({ onClose, cuberId }: SettingsSheetProps) {
       if (result.error) {
         setImportError(result.error);
       } else {
-        setImportResult({ solvesImported: result.solvesImported ?? 0 });
+        setImportResult({ solvesImported: result.solvesImported ?? 0, solvesParsed: result.solvesParsed ?? 0 });
       }
     } catch (err) {
       setImportError((err as Error).message);
@@ -208,14 +215,95 @@ export function SettingsSheet({ onClose, cuberId }: SettingsSheetProps) {
             />
 
             {importResult && (
-              <div className="flex items-center gap-2 rounded-lg border border-green-500/40 bg-green-500/10 px-3 py-2 text-sm font-bold text-green-400">
-                <Check className="size-4 shrink-0" />
-                Imported {importResult.solvesImported} solve{importResult.solvesImported !== 1 ? "s" : ""}
+              <div className="flex items-start gap-2 rounded-lg border border-green-500/40 bg-green-500/10 px-3 py-2 text-sm font-bold text-green-400">
+                <Check className="size-4 shrink-0 mt-0.5" />
+                <div>
+                  <p>Imported {importResult.solvesImported} of {importResult.solvesParsed} solve{importResult.solvesParsed !== 1 ? "s" : ""}</p>
+                  {importResult.solvesImported < importResult.solvesParsed && (
+                    <p className="text-xs font-normal text-green-400/70 mt-0.5">
+                      {importResult.solvesParsed - importResult.solvesImported} skipped (already imported)
+                    </p>
+                  )}
+                </div>
               </div>
             )}
             {importError && (
               <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm font-bold text-red-400">
                 {importError}
+              </div>
+            )}
+          </div>
+
+          {/* Clear imported solves */}
+          <div className="space-y-3">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">Remove Imported Solves</p>
+
+            <div className="relative">
+              <select
+                value={clearEventId}
+                onChange={(e) => { setClearEventId(e.target.value); setConfirmClear(false); setClearResult(null); setClearError(null); }}
+                className="w-full appearance-none rounded-xl border-2 border-white/15 bg-white/8 px-4 py-3 font-bold text-white focus:outline-none focus:border-white/30"
+              >
+                <option value="all" className="bg-[#1C1916]">All events</option>
+                {EVENTS.map((ev) => (
+                  <option key={ev.id} value={ev.id} className="bg-[#1C1916]">{ev.label}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-white/40 pointer-events-none" />
+            </div>
+
+            {!confirmClear ? (
+              <button
+                onClick={() => setConfirmClear(true)}
+                className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-white/15 bg-white/8 px-4 py-3 font-bold text-red-400 transition-all hover:bg-red-500/10 hover:border-red-500/30"
+              >
+                <Trash2 className="size-4" />
+                Clear imported solves
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs text-white/50 text-center">
+                  This will permanently delete all Twisty Timer solves{clearEventId !== "all" ? ` for ${EVENTS.find(e => e.id === clearEventId)?.label}` : " across all events"}. Are you sure?
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setConfirmClear(false)}
+                    className="flex-1 rounded-xl border-2 border-white/10 bg-white/8 py-2.5 font-bold text-white/60 hover:bg-white/12"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setClearing(true);
+                      setClearResult(null);
+                      setClearError(null);
+                      const result = await clearImportedSolves(cuberId, clearEventId);
+                      setClearing(false);
+                      setConfirmClear(false);
+                      if (result.error) {
+                        setClearError(result.error);
+                      } else {
+                        setClearResult({ deletedCount: result.deletedCount });
+                      }
+                    }}
+                    disabled={clearing}
+                    className="flex-1 rounded-xl border-2 border-red-500/50 bg-red-500/20 py-2.5 font-bold text-red-400 hover:bg-red-500/30 disabled:opacity-50"
+                  >
+                    {clearing ? <Loader2 className="size-4 animate-spin mx-auto" /> : "Yes, delete"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {clearResult && (
+              <div className="flex items-center gap-2 rounded-lg border border-green-500/40 bg-green-500/10 px-3 py-2 text-sm font-bold text-green-400">
+                <Check className="size-4 shrink-0" />
+                Deleted {clearResult.deletedCount} solve{clearResult.deletedCount !== 1 ? "s" : ""}
+              </div>
+            )}
+            {clearError && (
+              <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm font-bold text-red-400">
+                {clearError}
               </div>
             )}
           </div>

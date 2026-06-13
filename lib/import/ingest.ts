@@ -102,21 +102,30 @@ export async function ingestPracticeSolves(
     });
   }
 
-  // Upsert all solves in chunks — duplicates (same cuber+event+solved_at+time_cs) are ignored
+  // Insert all solves in chunks, skip rows that violate the dedup index (if applied)
   const CHUNK = 500;
-  const insertedIds: string[] = [];
+  let totalInserted = 0;
   for (let i = 0; i < solveRows.length; i += CHUNK) {
-    const { data, error } = await db
+    const chunk = solveRows.slice(i, i + CHUNK);
+    const { error, count } = await db
       .from("solves")
-      .upsert(solveRows.slice(i, i + CHUNK), {
-        onConflict: "cuber_id,event_id,solved_at,time_cs",
-        ignoreDuplicates: true,
-      })
-      .select("id");
-    if (!error && data) insertedIds.push(...data.map((r: any) => r.id));
+      .insert(chunk, { count: "exact" });
+    if (error) {
+      // If dedup index exists, try row-by-row to skip duplicates
+      if (error.code === "23505") {
+        for (const row of chunk) {
+          const { error: rowErr } = await db.from("solves").insert(row);
+          if (!rowErr) totalInserted++;
+        }
+      } else {
+        console.error("[ingest] bulk insert error:", error.message);
+      }
+    } else {
+      totalInserted += count ?? chunk.length;
+    }
   }
 
-  return insertedIds;
+  return Array(totalInserted).fill("") as string[];
 }
 
 async function ingestSingle(

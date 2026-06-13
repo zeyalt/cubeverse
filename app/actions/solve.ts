@@ -152,6 +152,7 @@ export async function deleteSolve(solveId: string): Promise<void> {
 }
 
 export interface HistoricalSolve {
+  id: string;
   cs: number;
   penalty: "none" | "plus2" | "dnf";
   timestamp: number;
@@ -166,7 +167,7 @@ export async function getHistoricalSolves(
 
   const { data: solves, error } = await db
     .from("solves")
-    .select("time_cs, penalty, solved_at, scramble")
+    .select("id, time_cs, penalty, solved_at, scramble")
     .eq("cuber_id", cuberId)
     .eq("event_id", eventId)
     .eq("context", "practice")
@@ -179,9 +180,19 @@ export async function getHistoricalSolves(
   }
 
   return (solves ?? []).map((s: any) => ({
+    id: s.id,
     cs: s.time_cs,
     penalty: s.penalty === "dnf" ? "dnf" : s.penalty === "plus2" ? "plus2" : "none",
     timestamp: new Date(s.solved_at).getTime(),
     scramble: s.scramble ?? null,
   }));
+}
+
+export async function updateSolve(
+  solveId: string,
+  timeCs: number,
+  penalty: "none" | "plus2" | "dnf"
+): Promise<void> {
+  const db = getServiceClient();
+  await db.from("solves").update({ time_cs: timeCs, penalty }).eq("id", solveId);
 }
