@@ -53,16 +53,16 @@ export function CubesView({
   const [editName, setEditName] = useState("");
   const [editBrand, setEditBrand] = useState("");
   const [editEvent, setEditEvent] = useState("");
-  const [editAcquired, setEditAcquired] = useState("");
-  const [editNotes, setEditNotes] = useState("");
+  const [editPhoto, setEditPhoto] = useState<File | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const startEditing = (cube: CubeRow) => {
     setEditingId(cube.id);
     setEditName(cube.name);
     setEditBrand(cube.brand || "");
     setEditEvent(cube.eventId || "");
-    setEditAcquired(cube.acquiredOn || "");
-    setEditNotes(cube.notes || "");
+    setEditPhoto(null);
+    setEditError(null);
   };
 
   const cancelEditing = () => {
@@ -121,22 +121,6 @@ export function CubesView({
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="acquired_on" className="text-xs font-bold uppercase text-white/60">Acquired</Label>
-            <Input id="acquired_on" name="acquired_on" type="date" className="bg-white/10 border-white/20 text-white" />
-          </div>
-
-          <div className="space-y-1">
-            <Label htmlFor="notes" className="text-xs font-bold uppercase text-white/60">Notes</Label>
-            <textarea
-              id="notes"
-              name="notes"
-              rows={2}
-              placeholder="Add any notes..."
-              className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/40"
-            />
-          </div>
-
-          <div className="space-y-1">
             <Label htmlFor="photo" className="text-xs font-bold uppercase text-white/60">Photo</Label>
             <Input id="photo" name="photo" type="file" accept="image/*" className="bg-white/10 border-white/20 text-white file:bg-white/10 file:border-0 file:text-white file:font-bold" />
           </div>
@@ -169,6 +153,10 @@ export function CubesView({
                 key={c.id}
                 className="sticker rounded-xl border border-[#0046AD] bg-[#0046AD]/5 p-3 space-y-3"
               >
+                {editError && (
+                  <p className="text-sm text-red-400 font-bold">{editError}</p>
+                )}
+
                 <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase text-white/60">Name</Label>
                   <Input
@@ -205,22 +193,12 @@ export function CubesView({
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-xs font-bold uppercase text-white/60">Acquired</Label>
+                  <Label className="text-xs font-bold uppercase text-white/60">Photo</Label>
                   <Input
-                    type="date"
-                    value={editAcquired}
-                    onChange={(e) => setEditAcquired(e.target.value)}
-                    className="bg-white/10 border-white/20 text-white"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs font-bold uppercase text-white/60">Notes</Label>
-                  <textarea
-                    value={editNotes}
-                    onChange={(e) => setEditNotes(e.target.value)}
-                    rows={2}
-                    className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/40"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setEditPhoto(e.target.files?.[0] || null)}
+                    className="bg-white/10 border-white/20 text-white file:bg-white/10 file:border-0 file:text-white file:font-bold"
                   />
                 </div>
 
@@ -234,11 +212,12 @@ export function CubesView({
                           editName,
                           editBrand || null,
                           editEvent || null,
-                          editAcquired || null,
-                          editNotes || null
+                          editPhoto
                         );
                         if (!result.error) {
                           cancelEditing();
+                        } else {
+                          setEditError(result.error);
                         }
                       });
                     }}

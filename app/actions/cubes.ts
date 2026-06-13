@@ -100,23 +100,36 @@ export async function updateCube(
   name: string,
   brand: string | null,
   eventId: string | null,
-  acquiredOn: string | null,
-  notes: string | null
+  photo: File | null
 ): Promise<FormState> {
   const db = getServiceClient();
   const ownerId = getOwnerId();
 
   if (!name?.trim()) return { error: "Cube name is required." };
 
+  let photoUrl: string | undefined;
+  if (photo && photo.size > 0) {
+    try {
+      const { publicUrl } = await uploadMediaFile(db, ownerId, cubeId, photo);
+      photoUrl = publicUrl;
+    } catch (e) {
+      return { error: `Photo upload failed: ${(e as Error).message}` };
+    }
+  }
+
+  const updateData: Record<string, unknown> = {
+    name: name.trim(),
+    brand: brand?.trim() || null,
+    event_id: eventId || null,
+  };
+
+  if (photoUrl) {
+    updateData.photo_url = photoUrl;
+  }
+
   const { error } = await db
     .from("cubes")
-    .update({
-      name: name.trim(),
-      brand: brand?.trim() || null,
-      event_id: eventId || null,
-      acquired_on: acquiredOn || null,
-      notes: notes?.trim() || null,
-    })
+    .update(updateData)
     .eq("id", cubeId);
 
   if (error) return { error: error.message };
