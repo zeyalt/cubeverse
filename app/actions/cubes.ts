@@ -95,6 +95,36 @@ export async function setMainCube(cubeId: string, eventId: string | null): Promi
   revalidatePath("/");
 }
 
+export async function updateCube(
+  cubeId: string,
+  name: string,
+  brand: string | null,
+  eventId: string | null,
+  acquiredOn: string | null,
+  notes: string | null
+): Promise<FormState> {
+  const db = getServiceClient();
+  const ownerId = getOwnerId();
+
+  if (!name?.trim()) return { error: "Cube name is required." };
+
+  const { error } = await db
+    .from("cubes")
+    .update({
+      name: name.trim(),
+      brand: brand?.trim() || null,
+      event_id: eventId || null,
+      acquired_on: acquiredOn || null,
+      notes: notes?.trim() || null,
+    })
+    .eq("id", cubeId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/");
+  return { error: null };
+}
+
 export async function deleteCube(cubeId: string): Promise<void> {
   const db = getServiceClient();
   await db.from("cubes").delete().eq("id", cubeId);
