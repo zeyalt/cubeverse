@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useCallback } from "react";
 import { formatCs } from "@/lib/cubing";
 import { EVENT_SHORT, getEventSticker } from "@/lib/event-theme";
 import { getAnalyticsData, type AnalyticsPayload } from "@/app/actions/analytics";
@@ -68,25 +68,24 @@ export function KidAnalyticsTab({
   const [editingPenalty, setEditingPenalty] = useState<"none" | "plus2" | "dnf">("none");
   const [sessionTimes, setSessionTimes] = useState<Array<{ id: string; cs: number; penalty: "none" | "plus2" | "dnf"; timestamp: number; scramble: string | null }>>([]);
 
-  async function refreshAll(eventId: string) {
+  const refreshAll = useCallback(async (eventId: string) => {
     const [solves, data] = await Promise.all([
       getHistoricalSolves(cuberId, eventId),
       getAnalyticsData(cuberId, eventId),
     ]);
     setSessionTimes(solves.map((s) => ({ id: s.id, cs: s.cs, penalty: s.penalty, timestamp: s.timestamp, scramble: s.scramble })));
     setAnalyticsData(data);
-  }
+  }, [cuberId]);
 
-  // Fetch historical solves on mount and event change
+  // Fetch on mount and event change
   useEffect(() => {
     refreshAll(selectedEventId);
-  }, [cuberId, selectedEventId]);
+  }, [selectedEventId, refreshAll]);
 
   const selected = events.find((e) => e.id === selectedEventId) ?? events[0];
 
   const handleEventChange = (eventId: string) => {
     setSelectedEventId(eventId);
-    startTransition(() => refreshAll(eventId));
   };
 
   const filteredCompetitions = analyticsData.competitionImprovements.filter((comp) => {
@@ -149,21 +148,33 @@ export function KidAnalyticsTab({
             </div>
           </div>
 
-          {/* Practice PBs table */}
+          {/* Practice Summary table */}
           <div className="space-y-2">
-            <p className="text-sm font-bold text-white">Practice Personal Bests</p>
+            <p className="text-sm font-bold text-white">Summary</p>
             <div className="overflow-x-auto rounded-lg border border-white/10 bg-white/5">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-white/10">
-                    <th className="px-4 py-3 text-left font-bold uppercase tracking-wider text-white/60">
+                    <th className="px-3 py-3 text-left font-bold uppercase tracking-wider text-white/60">
                       Event
                     </th>
-                    <th className="px-4 py-3 text-center font-bold uppercase tracking-wider text-white/60">
+                    <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-white/60">
                       Single
                     </th>
-                    <th className="px-4 py-3 text-center font-bold uppercase tracking-wider text-white/60">
-                      Average
+                    <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-white/60">
+                      Ao5
+                    </th>
+                    <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-white/60">
+                      Ao12
+                    </th>
+                    <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-white/60">
+                      Ao50
+                    </th>
+                    <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-white/60">
+                      Ao100
+                    </th>
+                    <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-white/60">
+                      Count
                     </th>
                   </tr>
                 </thead>
@@ -173,14 +184,26 @@ export function KidAnalyticsTab({
                       key={pb.eventId}
                       className={idx !== pbs.length - 1 ? "border-b border-white/5" : ""}
                     >
-                      <td className="px-4 py-3 font-medium text-white">
+                      <td className="px-3 py-3 font-medium text-white">
                         {EVENT_NAMES[pb.eventId] || pb.eventId}
                       </td>
-                      <td className="px-4 py-3 text-center font-mono-time font-bold text-white">
+                      <td className="px-3 py-3 text-center font-mono-time font-bold text-white">
                         {fmt(pb.practiceSingle)}
                       </td>
-                      <td className="px-4 py-3 text-center font-mono-time text-white/80">
-                        {fmt(pb.practiceAvg)}
+                      <td className="px-3 py-3 text-center font-mono-time text-white/80">
+                        {fmt(pb.practiceAo5)}
+                      </td>
+                      <td className="px-3 py-3 text-center font-mono-time text-white/80">
+                        {fmt(pb.practiceAo12)}
+                      </td>
+                      <td className="px-3 py-3 text-center font-mono-time text-white/80">
+                        {fmt(pb.practiceAo50)}
+                      </td>
+                      <td className="px-3 py-3 text-center font-mono-time text-white/80">
+                        {fmt(pb.practiceAo100)}
+                      </td>
+                      <td className="px-3 py-3 text-center font-mono-time text-white/80">
+                        {pb.practiceCount}
                       </td>
                     </tr>
                   ))}
@@ -288,10 +311,13 @@ export function KidAnalyticsTab({
                         <button onClick={() => setEditingIdx(null)} className="py-2 rounded-lg bg-white/10 text-white font-bold hover:bg-white/20">Cancel</button>
                         <button
                           onClick={async () => {
-                            const solveId = solve?.id;
+                            const solveId = solve.id;
+                            const cs = editingCs;
+                            const pen = editingPenalty;
+                            const evId = selectedEventId;
                             setEditingIdx(null);
-                            if (solveId) await updateSolve(solveId, editingCs, editingPenalty);
-                            await refreshAll(selectedEventId);
+                            await updateSolve(solveId, cs, pen);
+                            await refreshAll(evId);
                           }}
                           className="py-2 rounded-lg bg-green-600 text-white font-bold hover:bg-green-700"
                         >
@@ -299,10 +325,11 @@ export function KidAnalyticsTab({
                         </button>
                         <button
                           onClick={async () => {
-                            const solveId = solve?.id;
+                            const solveId = solve.id;
+                            const evId = selectedEventId;
                             setEditingIdx(null);
-                            if (solveId) await deleteSolve(solveId);
-                            await refreshAll(selectedEventId);
+                            await deleteSolve(solveId);
+                            await refreshAll(evId);
                           }}
                           className="col-span-2 py-2 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700"
                         >

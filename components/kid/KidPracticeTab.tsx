@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { ChevronRight, X } from "lucide-react";
 import { formatCs, parseToCs, DNF } from "@/lib/cubing";
 import { EVENT_SHORT, getEventSticker } from "@/lib/event-theme";
 import { useScramble } from "@/lib/useScramble";
@@ -92,6 +93,7 @@ export function KidPracticeTab({
   const [activeGoal, setActiveGoal] = useState(initialGoal);
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalInput, setGoalInput] = useState("");
+  const [setupSheetOpen, setSetupSheetOpen] = useState(false);
 
   const timerRef = useRef<TimerRefs>(makeTimerRefs());
 
@@ -376,12 +378,12 @@ export function KidPracticeTab({
 
   return (
     <div className="relative flex flex-col text-white">
-      {/* Event stickers */}
-      <div className="relative z-10 mt-5 px-5 pb-3">
-        <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">
-          Pick your puzzle
-        </p>
-        <div className="flex gap-2.5 overflow-x-auto overflow-y-visible scrollbar-none">
+
+      {/* ── Compact setup bar ─────────────────────────────────────────────── */}
+      <div className="relative z-10 px-4 pt-4 pb-2 space-y-2">
+
+        {/* Row 1: puzzle pills */}
+        <div className="flex gap-2 overflow-x-auto scrollbar-none">
           {events.map((ev) => {
             const s = getEventSticker(ev.id);
             const active = ev.id === selectedId;
@@ -389,15 +391,13 @@ export function KidPracticeTab({
               <button
                 key={ev.id}
                 onClick={() => handleSelectEvent(ev.id)}
-                className={`event-sticker relative shrink-0 rounded-xl border-2 px-4 py-2.5 text-sm font-bold transition-all ${
-                  active ? "sticker" : "hover:bg-white/10"
-                }`}
+                className="shrink-0 rounded-lg border-2 px-3 py-1.5 text-xs font-bold transition-all"
                 style={{
                   backgroundColor: active ? s.face : "rgba(255,255,255,0.06)",
-                  color: active ? s.ink : "rgba(255,255,255,0.85)",
-                  borderColor: active ? "#0A0A0A" : "rgba(255,255,255,0.15)",
-                  boxShadow: active ? "4px 4px 0 #0A0A0A, inset 0 0 20px rgba(0,0,0,0.1)" : "1px 1px 0 rgba(255,255,255,0.1)",
-                  transitionDuration: "150ms",
+                  color: active ? s.ink : "rgba(255,255,255,0.7)",
+                  borderColor: active ? "#0A0A0A" : "rgba(255,255,255,0.12)",
+                  boxShadow: active ? "3px 3px 0 #0A0A0A" : "none",
+                  transitionDuration: "120ms",
                 }}
               >
                 {EVENT_SHORT[ev.id] ?? ev.name}
@@ -405,140 +405,184 @@ export function KidPracticeTab({
             );
           })}
         </div>
+
+        {/* Row 2: single setup row → opens bottom sheet */}
+        <button
+          onClick={() => setSetupSheetOpen(true)}
+          className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 transition-colors hover:bg-white/8 active:bg-white/10"
+        >
+          <div className="flex items-center gap-2 text-xs text-white/50 min-w-0">
+            {/* Cube */}
+            <span className="truncate">
+              {selectedCubeId
+                ? (cubes.find((c) => c.id === selectedCubeId)?.name ?? "Unknown")
+                : cubes.length > 0 ? "Any cube" : "No cubes set up"}
+            </span>
+            {/* Goal */}
+            {activeGoal && (
+              <>
+                <span className="text-white/20">·</span>
+                <span className="text-[#FFD500] font-mono-time font-bold">
+                  🎯 {(activeGoal.target_cs / 100).toFixed(2)}
+                </span>
+              </>
+            )}
+            {!activeGoal && (
+              <>
+                <span className="text-white/20">·</span>
+                <span className="text-white/30">No target</span>
+              </>
+            )}
+          </div>
+          <ChevronRight className="size-4 text-white/20 shrink-0" />
+        </button>
       </div>
 
-      {/* Cube selector */}
-      {cubes.length > 0 && (
-        <div className="relative z-10 px-5 pb-3">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Cube</p>
-          <div className="flex gap-2 overflow-x-auto overflow-y-visible scrollbar-none pb-1">
-            <button
-              onClick={() => setSelectedCubeId(null)}
-              className="event-sticker shrink-0 rounded-xl border-2 px-4 py-2 text-sm font-bold transition-all"
-              style={selectedCubeId === null ? {
-                backgroundColor: "#0046AD", color: "#FFFFFF",
-                borderColor: "#0A0A0A", boxShadow: "3px 3px 0 #0A0A0A",
-              } : {
-                backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)",
-                borderColor: "rgba(255,255,255,0.15)", boxShadow: "1px 1px 0 rgba(255,255,255,0.1)",
-              }}
-            >
-              Any cube
-            </button>
-            {cubes.map((cube) => (
-              <button
-                key={cube.id}
-                onClick={() => setSelectedCubeId(cube.id)}
-                className="event-sticker shrink-0 rounded-xl border-2 px-4 py-2 text-sm font-bold transition-all"
-                style={selectedCubeId === cube.id ? {
-                  backgroundColor: "#0046AD", color: "#FFFFFF",
-                  borderColor: "#0A0A0A", boxShadow: "3px 3px 0 #0A0A0A",
-                } : {
-                  backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)",
-                  borderColor: "rgba(255,255,255,0.15)", boxShadow: "1px 1px 0 rgba(255,255,255,0.1)",
-                }}
-              >
-                {cube.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Goal section */}
-      <div className="relative z-10 px-5 pb-4">
-        {activeGoal && !editingGoal ? (
-          <div
-            className="sticker flex items-center justify-between rounded-xl border-2 border-[#0A0A0A] px-4 py-3"
-            style={{ backgroundColor: "#FFD500", boxShadow: "4px 4px 0 #0A0A0A" }}
+      {/* ── Session Setup Sheet ──────────────────────────────────────────── */}
+      {setupSheetOpen && (
+        <>
+          <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={() => setSetupSheetOpen(false)} />
+          <div className="sheet-enter fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl border-t-2 border-white/10 bg-[#1C1916] px-5 pt-4"
+            style={{ paddingBottom: "calc(5rem + 1.5rem + env(safe-area-inset-bottom))" }}
           >
-            <div className="flex items-center gap-2">
-              <span className="text-lg">🎯</span>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[#6B4E00]">Target</p>
-                <p className="font-mono-time text-xl font-bold text-[#1A1200]">
-                  {(activeGoal.target_cs / 100).toFixed(2)}
-                </p>
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20" />
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="font-display text-lg font-bold text-white">Session Setup</h3>
+              <button onClick={() => setSetupSheetOpen(false)} className="flex size-8 items-center justify-center rounded-lg bg-white/10 hover:bg-white/20">
+                <X className="size-4" />
+              </button>
+            </div>
+
+            {/* Cube picker */}
+            <div className="space-y-2 mb-5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Cube</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setSelectedCubeId(null)}
+                  className="rounded-lg border-2 px-3 py-1.5 text-sm font-bold transition-all"
+                  style={selectedCubeId === null ? {
+                    backgroundColor: "#0046AD", color: "#fff",
+                    borderColor: "#0A0A0A", boxShadow: "3px 3px 0 #0A0A0A",
+                  } : {
+                    backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)",
+                    borderColor: "rgba(255,255,255,0.12)",
+                  }}
+                >
+                  Any cube
+                </button>
+                {cubes.map((cube) => (
+                  <button
+                    key={cube.id}
+                    onClick={() => setSelectedCubeId(cube.id)}
+                    className="rounded-lg border-2 px-3 py-1.5 text-sm font-bold transition-all"
+                    style={selectedCubeId === cube.id ? {
+                      backgroundColor: "#0046AD", color: "#fff",
+                      borderColor: "#0A0A0A", boxShadow: "3px 3px 0 #0A0A0A",
+                    } : {
+                      backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)",
+                      borderColor: "rgba(255,255,255,0.12)",
+                    }}
+                  >
+                    {cube.name}
+                  </button>
+                ))}
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setGoalInput((activeGoal.target_cs / 100).toFixed(2));
-                  setEditingGoal(true);
-                }}
-                className="rounded-lg bg-black/10 px-3 py-1.5 text-xs font-bold text-[#1A1200] transition-colors hover:bg-black/20"
-              >
-                Edit
-              </button>
-              <button
-                onClick={async () => {
-                  await clearPracticeGoal(cuberId, selectedId);
-                  setActiveGoal(null);
-                }}
-                className="rounded-lg bg-black/10 px-2 py-1.5 text-xs font-bold text-[#1A1200] transition-colors hover:bg-black/20"
-                title="Clear goal"
-              >
-                ×
-              </button>
+
+            {/* Goal picker */}
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Target Time</p>
+              {activeGoal && !editingGoal ? (
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 rounded-xl border-2 border-[#FFD500]/30 bg-[#FFD500]/10 px-4 py-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#FFD500]/60">Goal</p>
+                    <p className="font-mono-time text-2xl font-bold text-[#FFD500]">
+                      {(activeGoal.target_cs / 100).toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={() => { setGoalInput((activeGoal.target_cs / 100).toFixed(2)); setEditingGoal(true); }}
+                      className="rounded-lg border border-white/15 bg-white/8 px-3 py-2 text-xs font-bold text-white/60 hover:bg-white/12"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={async () => { await clearPracticeGoal(cuberId, selectedId); setActiveGoal(null); }}
+                      className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-400 hover:bg-red-500/20"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              ) : editingGoal ? (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={goalInput}
+                    onChange={(e) => setGoalInput(e.target.value)}
+                    placeholder="e.g. 15.00"
+                    autoFocus
+                    className="flex-1 rounded-xl border-2 border-white/20 bg-white/10 px-4 py-3 font-mono-time text-white placeholder-white/30 focus:outline-none focus:border-[#FFD500]/50"
+                  />
+                  <button
+                    onClick={async () => {
+                      const cs = parseToCs(goalInput);
+                      if (cs > 0) {
+                        const result = await setPracticeGoal(cuberId, selectedId, cs);
+                        if (!result.error) {
+                          setActiveGoal({ id: "optimistic", target_cs: cs });
+                          setEditingGoal(false);
+                          setGoalInput("");
+                          const setup = await getPracticeSetupData(cuberId, selectedId);
+                          setActiveGoal(setup.activeGoal);
+                        }
+                      }
+                    }}
+                    className="rounded-xl border-2 border-[#0A0A0A] bg-[#009B48] px-4 font-bold text-white"
+                    style={{ boxShadow: "3px 3px 0 #0A0A0A" }}
+                  >
+                    Set
+                  </button>
+                  <button
+                    onClick={() => { setEditingGoal(false); setGoalInput(""); }}
+                    className="rounded-xl border border-white/10 bg-white/8 px-3 font-bold text-white/50"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setEditingGoal(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/15 py-3 text-sm font-bold text-white/40 transition-colors hover:border-white/25 hover:text-white/60"
+                >
+                  + Set target time
+                </button>
+              )}
             </div>
           </div>
-        ) : editingGoal ? (
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={goalInput}
-              onChange={(e) => setGoalInput(e.target.value)}
-              placeholder="e.g. 15.00"
-              autoFocus
-              className="flex-1 rounded-xl border-2 border-white/20 bg-white/10 px-4 py-2.5 font-mono-time text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/40"
-            />
-            <button
-              onClick={async () => {
-                const cs = parseToCs(goalInput);
-                if (cs > 0) {
-                  const result = await setPracticeGoal(cuberId, selectedId, cs);
-                  if (!result.error) {
-                    setActiveGoal({ id: "optimistic", target_cs: cs });
-                    setEditingGoal(false);
-                    setGoalInput("");
-                    // Refresh to get real id
-                    const setup = await getPracticeSetupData(cuberId, selectedId);
-                    setActiveGoal(setup.activeGoal);
-                  }
-                }
-              }}
-              className="sticker rounded-xl border-2 border-[#0A0A0A] bg-[#009B48] px-4 py-2.5 text-sm font-bold text-white"
-              style={{ boxShadow: "3px 3px 0 #0A0A0A" }}
-            >
-              Set
-            </button>
-            <button
-              onClick={() => { setEditingGoal(false); setGoalInput(""); }}
-              className="rounded-xl border-2 border-white/10 bg-white/10 px-4 py-2.5 text-sm font-bold text-white/60"
-            >
-              Cancel
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setEditingGoal(true)}
-            className="text-xs font-bold text-white/40 transition-colors hover:text-white/60"
-          >
-            + Set target time
-          </button>
-        )}
+        </>
+      )}
+
+      {/* Scramble — floats at top of hero, size varies */}
+      <div className="relative z-10 px-5 pt-3">
+        <div
+          className="kid-animate-in rounded-lg bg-white/5 w-full max-w-sm mx-auto cursor-pointer transition-opacity hover:opacity-80 px-4 py-3"
+          style={{ animationDelay: "80ms" }}
+          onClick={() => onPressStart()}
+        >
+          <p className="font-mono-time text-center text-sm leading-relaxed tracking-wide text-white/80">
+            {scramble ?? "Generating scramble…"}
+          </p>
+        </div>
       </div>
 
-      {/* Hero — timer section */}
-      <div className="relative z-10 flex flex-1 flex-col justify-center px-5 py-6">
-        <div className="kid-animate-in mx-auto w-full max-w-sm" style={{ animationDelay: "80ms" }}>
-          {/* Scramble display */}
-          <div className="kid-animate-in px-5 py-4 rounded-lg bg-white/5 w-full mx-auto cursor-pointer transition-opacity hover:opacity-80 mb-8" onClick={() => onPressStart()} style={{ animationDelay: "80ms" }}>
-            <p className="font-mono-time text-center text-base leading-loose tracking-wide text-white/80">
-              {scramble ?? "Generating scramble…"}
-            </p>
-          </div>
+      {/* Timer — FIXED to viewport, never moves regardless of scramble height */}
+      <div
+        className="kid-animate-in fixed left-0 right-0 z-20 flex items-center justify-center px-5"
+        style={{ top: "50%", transform: "translateY(-50%)", animationDelay: "80ms", pointerEvents: "none" }}
+      >
+        <div className="w-full max-w-sm mx-auto" style={{ pointerEvents: "auto" }}>
 
           {/* Timer display */}
           <button
@@ -648,50 +692,35 @@ export function KidPracticeTab({
         </div>
       </div>
 
-      {/* Stats dock */}
-      <div className="relative z-10 px-5 pt-4 pb-2 kid-animate-in" style={{ animationDelay: "200ms" }}>
-        <div className="grid grid-cols-6 gap-1.5">
-          <StatSticker
-            value={ao5 ? (ao5 / 100).toFixed(2) : "—"}
-            label="ao5"
-            accent="#FFD500"
-            mono
-            compact
-          />
-          <StatSticker
-            value={ao12 ? (ao12 / 100).toFixed(2) : "—"}
-            label="ao12"
-            accent="#0046AD"
-            mono
-            compact
-          />
-          <StatSticker
-            value={ao50 ? (ao50 / 100).toFixed(2) : "—"}
-            label="ao50"
-            accent="#009B48"
-            mono
-            compact
-          />
-          <StatSticker
-            value={ao100 ? (ao100 / 100).toFixed(2) : "—"}
-            label="ao100"
-            accent="#B71234"
-            mono
-            compact
-          />
-          <StatSticker
-            value={best ? (best / 100).toFixed(2) : "—"}
-            label="best"
-            accent="#FF5800"
-            mono
-            compact
-          />
-          <StatSticker
-            value={String(count)}
-            label="count"
-            accent="#E91E63"
-            compact
-          />
+      {/* Stats strip - fixed above bottom nav */}
+      <div
+        className="fixed left-0 right-0 z-30 border-t border-white/8 kid-animate-in"
+        style={{
+          bottom: "calc(4.5rem + env(safe-area-inset-bottom))",
+          background: "rgba(10,10,10,0.88)",
+          backdropFilter: "blur(12px)",
+          animationDelay: "200ms",
+        }}
+      >
+        <div className="grid grid-cols-6 divide-x divide-white/8">
+          {([
+            { label: "ao5",   value: ao5 },
+            { label: "ao12",  value: ao12 },
+            { label: "ao50",  value: ao50 },
+            { label: "ao100", value: ao100 },
+            { label: "best",  value: best },
+          ] as const).map(({ label, value }) => (
+            <div key={label} className="flex flex-col items-center py-2 px-1">
+              <p className="font-mono-time text-[11px] font-bold text-white leading-none">
+                {value ? (value / 100).toFixed(2) : "—"}
+              </p>
+              <p className="text-[8px] font-bold uppercase tracking-wider text-white/30 mt-0.5">{label}</p>
+            </div>
+          ))}
+          <div className="flex flex-col items-center py-2 px-1">
+            <p className="font-display text-[11px] font-bold text-white leading-none">{count}</p>
+            <p className="text-[8px] font-bold uppercase tracking-wider text-white/30 mt-0.5">#</p>
+          </div>
         </div>
       </div>
 
@@ -699,56 +728,3 @@ export function KidPracticeTab({
   );
 }
 
-function StatSticker({
-  icon,
-  value,
-  label,
-  accent,
-  mono,
-  compact,
-}: {
-  icon?: React.ReactNode;
-  value: string;
-  label: string;
-  accent: string;
-  mono?: boolean;
-  compact?: boolean;
-}) {
-  if (compact) {
-    return (
-      <div
-        className="sticker rounded-lg bg-[#FFFCF7] px-1.5 py-2 text-center text-[#1A1208] transition-transform active:scale-95"
-        style={{ boxShadow: "2px 2px 0 #1A1208" }}
-      >
-        <div
-          className="mx-auto mb-1 h-1 w-5 rounded-full"
-          style={{ backgroundColor: accent }}
-        />
-        <p className={`text-xs font-bold ${mono ? "font-mono-time" : ""}`}>
-          {value}
-        </p>
-        <p className="text-[8px] font-bold uppercase tracking-wider text-[#6B5E4C] mt-0.5">
-          {label}
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="sticker group rounded-xl bg-[#FFFCF7] px-2 py-3 text-center text-[#1A1208] transition-transform active:scale-95 hover:shadow-lg" style={{ boxShadow: "3px 3px 0 #1A1208" }}>
-      <div
-        className="mx-auto mb-1.5 h-1.5 w-8 rounded-full transition-all group-hover:w-10"
-        style={{ backgroundColor: accent }}
-      />
-      <div className="flex items-center justify-center gap-1">
-        {icon}
-        <span className={`text-lg font-bold ${mono ? "font-mono-time text-base" : "font-display"}`}>
-          {value}
-        </span>
-      </div>
-      <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-[#6B5E4C]">
-        {label}
-      </p>
-    </div>
-  );
-}

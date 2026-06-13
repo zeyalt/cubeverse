@@ -63,7 +63,11 @@ interface AnalyticsTabData {
     officialSingle: number | null;
     officialAvg: number | null;
     practiceSingle: number | null;
-    practiceAvg: number | null;
+    practiceAo5: number | null;
+    practiceAo12: number | null;
+    practiceAo50: number | null;
+    practiceAo100: number | null;
+    practiceCount: number;
   }>;
   cubes: Cube[];
 }

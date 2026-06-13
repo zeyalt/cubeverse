@@ -255,7 +255,11 @@ export interface CurrentPb {
   officialSingle: number | null;
   officialAvg: number | null;
   practiceSingle: number | null;
-  practiceAvg: number | null;
+  practiceAo5: number | null;
+  practiceAo12: number | null;
+  practiceAo50: number | null;
+  practiceAo100: number | null;
+  practiceCount: number;
 }
 
 export async function getCurrentPbs(
@@ -263,17 +267,26 @@ export async function getCurrentPbs(
   cuberId: string,
   eventIds: string[]
 ): Promise<CurrentPb[]> {
-  const { data } = await db
-    .from("pb_history")
-    .select("event_id, record_type, context, time_cs")
-    .eq("cuber_id", cuberId)
-    .in("event_id", eventIds)
-    .in("context", ["official", "practice"])
-    .gt("time_cs", 0);
+  const [{ data: pbData }, { data: solveData }] = await Promise.all([
+    db
+      .from("pb_history")
+      .select("event_id, record_type, context, time_cs")
+      .eq("cuber_id", cuberId)
+      .in("event_id", eventIds)
+      .in("context", ["official", "practice"])
+      .gt("time_cs", 0),
+    db
+      .from("solves")
+      .select("event_id, time_cs, penalty")
+      .eq("cuber_id", cuberId)
+      .in("event_id", eventIds)
+      .eq("context", "practice")
+      .order("solved_at"),
+  ]);
 
   // Find minimum per (event, recordType, context)
   const best: Record<string, number> = {};
-  for (const r of data ?? []) {
+  for (const r of pbData ?? []) {
     const key = `${r.event_id}:${r.record_type}:${r.context}`;
     const cur = best[key];
     if (cur === undefined || (r.time_cs as number) < cur) {
@@ -281,12 +294,45 @@ export async function getCurrentPbs(
     }
   }
 
+  // Group solves by event and calculate rolling averages
+  const solvesByEvent: Record<string, Array<{ time_cs: number; penalty: string }>> = {};
+  for (const solve of solveData ?? []) {
+    const eventId = solve.event_id as string;
+    if (!solvesByEvent[eventId]) {
+      solvesByEvent[eventId] = [];
+    }
+    solvesByEvent[eventId].push(solve as { time_cs: number; penalty: string });
+  }
+
+  // Calculate rolling averages for each event
+  const practiceStats: Record<string, { ao5: number | null; ao12: number | null; ao50: number | null; ao100: number | null; count: number }> = {};
+  for (const [eventId, solves] of Object.entries(solvesByEvent)) {
+    const effs = solves.map((s) => effectiveTime(s.time_cs, s.penalty as Penalty));
+    const ao5s = rollingAoN(effs, 5);
+    const ao12s = rollingAoN(effs, 12);
+    const ao50s = rollingAoN(effs, 50);
+    const ao100s = rollingAoN(effs, 100);
+
+    const lastIdx = effs.length - 1;
+    practiceStats[eventId] = {
+      ao5: lastIdx >= 4 ? ao5s[lastIdx] : null,
+      ao12: lastIdx >= 11 ? ao12s[lastIdx] : null,
+      ao50: lastIdx >= 49 ? ao50s[lastIdx] : null,
+      ao100: lastIdx >= 99 ? ao100s[lastIdx] : null,
+      count: effs.length,
+    };
+  }
+
   return eventIds.map((id) => ({
     eventId: id,
     officialSingle: best[`${id}:single:official`] ?? null,
     officialAvg:    best[`${id}:average:official`] ?? null,
     practiceSingle: best[`${id}:single:practice`] ?? null,
-    practiceAvg:    best[`${id}:average:practice`] ?? null,
+    practiceAo5:    practiceStats[id]?.ao5 ?? null,
+    practiceAo12:   practiceStats[id]?.ao12 ?? null,
+    practiceAo50:   practiceStats[id]?.ao50 ?? null,
+    practiceAo100:  practiceStats[id]?.ao100 ?? null,
+    practiceCount:  practiceStats[id]?.count ?? 0,
   }));
 }
 
