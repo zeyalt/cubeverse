@@ -2,13 +2,14 @@
 
 import { useState, useTransition, useEffect, useCallback } from "react";
 import { formatCs } from "@/lib/cubing";
-import { EVENT_SHORT, getEventSticker } from "@/lib/event-theme";
+import { EVENT_SHORT } from "@/lib/event-theme";
 import { getAnalyticsData, type AnalyticsPayload } from "@/app/actions/analytics";
 import { getHistoricalSolves, deleteSolve, updateSolve } from "@/app/actions/solve";
+import { AnalyticsFilters, type DateRange } from "./AnalyticsFilters";
+import { CurrentStatsCards } from "./CurrentStatsCards";
 import { PracticeHeatmap } from "@/components/analytics/PracticeHeatmap";
 import { SolvesOverTime } from "@/components/analytics/SolvesOverTime";
 import { SolveDistribution } from "@/components/analytics/SolveDistribution";
-import { Consistency } from "@/components/analytics/Consistency";
 import { PbStaircase } from "@/components/analytics/PbStaircase";
 import { CompetitionImprovements } from "@/components/analytics/CompetitionImprovements";
 import type { CurrentPb } from "@/lib/analytics";
@@ -61,6 +62,8 @@ export function KidAnalyticsTab({
   const [selectedEventId, setSelectedEventId] = useState(defaultEventId);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsPayload>(initialAnalyticsData);
   const [compTypeFilter, setCompTypeFilter] = useState<"all" | "wca" | "unofficial">("all");
+  const [selectedCubeIds, setSelectedCubeIds] = useState<Set<string>>(new Set());
+  const [dateRange, setDateRange] = useState<DateRange>("all");
   const [isPending, startTransition] = useTransition();
   const [timesOpen, setTimesOpen] = useState(false);
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
@@ -83,6 +86,7 @@ export function KidAnalyticsTab({
   }, [selectedEventId, refreshAll]);
 
   const selected = events.find((e) => e.id === selectedEventId) ?? events[0];
+  const selectedPb = pbs.find((p) => p.eventId === selectedEventId);
 
   const handleEventChange = (eventId: string) => {
     setSelectedEventId(eventId);
@@ -94,7 +98,7 @@ export function KidAnalyticsTab({
   });
 
   return (
-    <div className="px-5 py-6 pb-28 space-y-6">
+    <div className="px-5 py-6 pb-28 space-y-6 touch-action: manipulation" style={{ touchAction: "manipulation" }}>
       {/* Sub-tab switcher */}
       <div className="flex gap-2">
         <button
@@ -122,93 +126,54 @@ export function KidAnalyticsTab({
       {/* Practice Sub-tab */}
       {subTab === "practice" && (
         <div className="space-y-6">
-          {/* Event selector */}
+          {/* Filters */}
+          <AnalyticsFilters
+            events={events}
+            selectedEventId={selectedEventId}
+            onEventChange={handleEventChange}
+            cubes={cubes}
+            selectedCubeIds={selectedCubeIds}
+            onCubesChange={setSelectedCubeIds}
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+          />
+
+          {/* Current Stats Cards */}
+          {selectedPb && (
+            <div className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-wider text-white/40">Current Stats</p>
+              <CurrentStatsCards
+                single={selectedPb.practiceSingle}
+                ao5={selectedPb.practiceAo5}
+                ao12={selectedPb.practiceAo12}
+                ao50={selectedPb.practiceAo50}
+                ao100={selectedPb.practiceAo100}
+                count={selectedPb.practiceCount}
+              />
+            </div>
+          )}
+
+          {/* Solves Over Time */}
           <div className="space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-white/40">Event</p>
-            <div className="flex flex-wrap gap-2">
-              {events.map((e) => (
-                <button
-                  key={e.id}
-                  onClick={() => handleEventChange(e.id)}
-                  disabled={isPending}
-                  className={`sticker px-4 py-2 rounded-lg font-bold text-sm transition-all disabled:opacity-50 ${
-                    selectedEventId === e.id
-                      ? "bg-[#FFD500] text-black shadow-lg"
-                      : "bg-white/10 text-white hover:bg-white/15"
-                  }`}
-                  style={
-                    selectedEventId === e.id
-                      ? { boxShadow: "4px 4px 0 rgba(0,0,0,0.3)" }
-                      : undefined
-                  }
-                >
-                  {EVENT_SHORT[e.id] || e.id}
-                </button>
-              ))}
+            <p className="text-xs font-bold uppercase tracking-wider text-white/40">Solves Over Time</p>
+            <div className="rounded-xl bg-white/8 border border-white/10 p-4">
+              <SolvesOverTime data={analyticsData.solvesOverTime} />
             </div>
           </div>
 
-          {/* Practice Summary table */}
+          {/* Solve Distribution */}
           <div className="space-y-2">
-            <p className="text-sm font-bold text-white">Summary</p>
-            <div className="overflow-x-auto rounded-lg border border-white/10 bg-white/5">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="px-3 py-3 text-left font-bold uppercase tracking-wider text-white/60">
-                      Event
-                    </th>
-                    <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-white/60">
-                      Single
-                    </th>
-                    <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-white/60">
-                      Ao5
-                    </th>
-                    <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-white/60">
-                      Ao12
-                    </th>
-                    <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-white/60">
-                      Ao50
-                    </th>
-                    <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-white/60">
-                      Ao100
-                    </th>
-                    <th className="px-3 py-3 text-center font-bold uppercase tracking-wider text-white/60">
-                      Count
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pbs.map((pb, idx) => (
-                    <tr
-                      key={pb.eventId}
-                      className={idx !== pbs.length - 1 ? "border-b border-white/5" : ""}
-                    >
-                      <td className="px-3 py-3 font-medium text-white">
-                        {EVENT_NAMES[pb.eventId] || pb.eventId}
-                      </td>
-                      <td className="px-3 py-3 text-center font-mono-time font-bold text-white">
-                        {fmt(pb.practiceSingle)}
-                      </td>
-                      <td className="px-3 py-3 text-center font-mono-time text-white/80">
-                        {fmt(pb.practiceAo5)}
-                      </td>
-                      <td className="px-3 py-3 text-center font-mono-time text-white/80">
-                        {fmt(pb.practiceAo12)}
-                      </td>
-                      <td className="px-3 py-3 text-center font-mono-time text-white/80">
-                        {fmt(pb.practiceAo50)}
-                      </td>
-                      <td className="px-3 py-3 text-center font-mono-time text-white/80">
-                        {fmt(pb.practiceAo100)}
-                      </td>
-                      <td className="px-3 py-3 text-center font-mono-time text-white/80">
-                        {pb.practiceCount}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <p className="text-xs font-bold uppercase tracking-wider text-white/40">Solve Distribution</p>
+            <div className="rounded-xl bg-white/8 border border-white/10 p-4">
+              <SolveDistribution bins={analyticsData.distribution} />
+            </div>
+          </div>
+
+          {/* Practice Frequency */}
+          <div className="space-y-2">
+            <p className="text-xs font-bold uppercase tracking-wider text-white/40">Practice Frequency</p>
+            <div className="rounded-xl bg-white/8 border border-white/10 p-4">
+              <PracticeHeatmap counts={analyticsData.heatmap} />
             </div>
           </div>
 
@@ -343,37 +308,6 @@ export function KidAnalyticsTab({
             })()}
           </div>
 
-          {/* Practice Frequency (heatmap) */}
-          <div className="space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-white/40">Practice Frequency</p>
-            <div className="rounded-xl bg-white/8 border border-white/10 p-4">
-              <PracticeHeatmap counts={analyticsData.heatmap} />
-            </div>
-          </div>
-
-          {/* Solves Over Time */}
-          <div className="space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-white/40">Solves Over Time</p>
-            <div className="rounded-xl bg-white/8 border border-white/10 p-4">
-              <SolvesOverTime data={analyticsData.solvesOverTime} />
-            </div>
-          </div>
-
-          {/* Solve Distribution */}
-          <div className="space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-white/40">Solve Distribution</p>
-            <div className="rounded-xl bg-white/8 border border-white/10 p-4">
-              <SolveDistribution bins={analyticsData.distribution} />
-            </div>
-          </div>
-
-          {/* Consistency */}
-          <div className="space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-white/40">Consistency</p>
-            <div className="rounded-xl bg-white/8 border border-white/10 p-4">
-              <Consistency points={analyticsData.consistency} window={20} />
-            </div>
-          </div>
         </div>
       )}
 
