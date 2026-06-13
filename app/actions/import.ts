@@ -402,12 +402,17 @@ export async function importTwistyTimerData(
     const db = getServiceClient();
     const ownerId = getOwnerId();
 
+    console.log("[import] fileContent length:", fileContent.length);
+    console.log("[import] first 200 chars:", fileContent.slice(0, 200));
+
     const solves = parseTwistyTimerExport(fileContent, eventId);
+    console.log("[import] parsed solves count:", solves.length);
     if (solves.length === 0) {
-      return { error: "No valid solves found in the file." };
+      return { error: `No valid solves found. File length: ${fileContent.length} chars. First line: "${fileContent.split(/\r?\n/)[0].slice(0, 100)}"` };
     }
 
     const inserted = await ingestPracticeSolves(db, ownerId, cuberId, solves, "twisty_import");
+    console.log("[import] inserted count:", inserted.length);
     return { error: null, solvesImported: inserted.length };
   } catch (err) {
     return { error: (err as Error).message };

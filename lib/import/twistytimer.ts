@@ -17,11 +17,33 @@ export function parseTwistyTimerExport(
 ): ParsedSolve[] {
   const solves: ParsedSolve[] = [];
 
-  for (const line of raw.split("\n")) {
+  // Normalise line endings (\r\n, \r, \n all → \n)
+  const normalised = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+  // Log first few lines to help diagnose format issues
+  const preview = normalised.split("\n").slice(0, 3);
+  console.log("[twistytimer] first 3 lines:", preview);
+
+  for (const line of normalised.split("\n")) {
     const trimmed = line.trim();
     if (!trimmed) continue;
 
-    // Split on semicolons, strip surrounding quotes from each field
+    // Detect tab-delimited (Twisty Timer older format: puzzle\tcategory\ttime_ms\tpenalty\tscramble\tdate)
+    if (trimmed.includes("\t")) {
+      const cols = trimmed.split("\t").map((c) => c.trim());
+      // col 2 = time in ms, col 3 = penalty (0=ok,2=+2,-1=DNF), col 4 = scramble, col 5 = date
+      const timeMs = parseInt(cols[2]);
+      if (isNaN(timeMs) || timeMs <= 0) continue;
+      const penaltyRaw = parseInt(cols[3] ?? "0");
+      const penalty: "none" | "plus2" | "dnf" =
+        penaltyRaw === -1 ? "dnf" : penaltyRaw === 2 ? "plus2" : "none";
+      const scramble = cols[4] ?? undefined;
+      const solvedAt = cols[5] ? new Date(cols[5]).toISOString() : undefined;
+      solves.push({ event_id: eventId, time_cs: Math.round(timeMs / 10), penalty, scramble, solved_at: solvedAt });
+      continue;
+    }
+
+    // Semicolon-delimited format: "39.17";"scramble";"2025-04-29T..."
     const cols = trimmed.split(";").map((c) => c.trim().replace(/^"|"$/g, ""));
     if (cols.length < 1) continue;
 

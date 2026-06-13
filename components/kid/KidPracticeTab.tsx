@@ -83,6 +83,8 @@ export function KidPracticeTab({
   const [penalty, setPenalty] = useState<Penalty>("none");
   const [inspSec, setInspSec] = useState(15);
   const [stats, setStats] = useState<SessionStats | null>(null);
+  const [showHoldMsg, setShowHoldMsg] = useState(false);
+  const holdMsgTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Cube + Goal state
   const [cubes, setCubes] = useState<Cube[]>(initialCubes);
@@ -216,6 +218,8 @@ export function KidPracticeTab({
 
     // Start holding (works in both idle and inspecting states)
     goPhase("holding");
+    setShowHoldMsg(false);
+    holdMsgTimer.current = setTimeout(() => setShowHoldMsg(true), 1500);
     // Don't show 0.00 - keep showing the countdown during hold
     // setDisplayCs(0); is removed
 
@@ -229,6 +233,8 @@ export function KidPracticeTab({
   }, [stopTimer]);
 
   const onPressEnd = useCallback(() => {
+    if (holdMsgTimer.current) { clearTimeout(holdMsgTimer.current); holdMsgTimer.current = null; }
+    setShowHoldMsg(false);
     const p = timerRef.current.phase;
 
     if (p === "ready") {
@@ -265,6 +271,8 @@ export function KidPracticeTab({
     clearHold();
     clearRAF();
     clearInsp();
+    if (holdMsgTimer.current) { clearTimeout(holdMsgTimer.current); holdMsgTimer.current = null; }
+    setShowHoldMsg(false);
     goPhase("idle");
     setDisplayCs(0);
     setPenalty("none");
@@ -275,6 +283,18 @@ export function KidPracticeTab({
   useEffect(() => {
     return () => { clearHold(); clearRAF(); clearInsp(); };
   }, []);
+
+  // Android back button / browser back during inspection or running
+  useEffect(() => {
+    const isActive = timerPhase === "inspecting" || timerPhase === "holding" || timerPhase === "ready" || timerPhase === "running";
+    if (isActive) {
+      // Push a dummy state so the back button hits popstate instead of navigating
+      window.history.pushState({ inspection: true }, "");
+      const handlePop = () => resetInspection();
+      window.addEventListener("popstate", handlePop);
+      return () => window.removeEventListener("popstate", handlePop);
+    }
+  }, [timerPhase, resetInspection]);
 
   useEffect(() => {
     let down = false;
@@ -546,7 +566,7 @@ export function KidPracticeTab({
               {timerPhase === "inspecting"
                 ? inspSec <= 3 ? "Start now!" : "Inspecting…"
                 : timerPhase === "holding"
-                ? timerRef.current.inspTimer ? "" : "Release to start inspection"
+                ? timerRef.current.inspTimer ? "" : (showHoldMsg ? "Release to start inspection" : "")
                 : timerPhase === "ready"
                 ? timerRef.current.inspTimer ? "Release to start" : "Release to start inspection"
                 : timerPhase === "running"
