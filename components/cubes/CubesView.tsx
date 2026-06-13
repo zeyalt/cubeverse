@@ -3,11 +3,10 @@
 import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { createCube, deleteCube, setMainCube } from "@/app/actions/cubes";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Box, Plus, Star, Trash2 } from "lucide-react";
-import { nativeSelectClass, nativeTextareaClass } from "@/lib/ui";
+import { Plus, Star, Trash2, Edit2, Check, X } from "lucide-react";
+import { nativeSelectClass } from "@/lib/ui";
 import { EmptyState } from "@/components/ui/empty-state";
 
 interface CubeRow {
@@ -30,9 +29,13 @@ interface EventOption {
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending}>
-      {pending ? "Adding…" : "Add cube"}
-    </Button>
+    <button
+      type="submit"
+      disabled={pending}
+      className="sticker rounded-lg bg-[#FFD500] px-4 py-2 font-bold text-black transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+    >
+      {pending ? "Adding…" : "Add"}
+    </button>
   );
 }
 
@@ -46,101 +49,49 @@ export function CubesView({
   const [state, action] = useActionState(createCube, { error: null });
   const [showForm, setShowForm] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   return (
-    <div className="space-y-8 max-w-3xl">
+    <div className="space-y-4 pb-20">
+      {/* Add Cube Button - Always Visible */}
+      {!showForm && (
+        <button
+          onClick={() => setShowForm(true)}
+          className="sticker w-full rounded-xl border-2 border-[#FFD500] bg-[#FFD500]/10 px-4 py-3 font-bold text-[#FFD500] transition-all hover:bg-[#FFD500]/20 active:scale-95"
+        >
+          <Plus className="inline mr-2 size-5" />
+          Add Cube
+        </button>
+      )}
+
       {cubes.length === 0 && !showForm && (
         <EmptyState
-          icon={Box}
+          icon={Plus}
           title="No cubes yet"
-          description="Add the puzzles on the gear shelf — mains, backups, and new additions."
+          description="Start building your collection!"
         />
       )}
 
-      {/* Cube grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        {cubes.map((c) => (
-          <div
-            key={c.id}
-            className={`parent-surface overflow-hidden ${
-              c.isMain ? "ring-2 ring-amber-400/50" : ""
-            }`}
-          >
-            <div className="relative flex aspect-square items-center justify-center bg-muted">
-              {c.photoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={c.photoUrl} alt={c.name} className="w-full h-full object-cover" />
-              ) : (
-                <Box className="size-12 text-muted-foreground/40" />
-              )}
-              {c.isMain && (
-                <span className="absolute top-2 right-2 bg-amber-400 text-amber-900 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                  <Star className="w-2.5 h-2.5 fill-current" />
-                  Main
-                </span>
-              )}
-            </div>
-            <div className="p-3 space-y-1">
-              <p className="text-sm font-semibold leading-tight text-foreground">
-                {c.name}
-              </p>
-              {c.brand && (
-                <p className="text-xs text-muted-foreground">{c.brand}</p>
-              )}
-              {c.eventName && (
-                <p className="text-xs text-primary">{c.eventName}</p>
-              )}
-              <div className="flex gap-1 pt-1">
-                {!c.isMain && c.eventId && (
-                  <button
-                    type="button"
-                    disabled={isPending}
-                    onClick={() =>
-                      startTransition(() => setMainCube(c.id, c.eventId))
-                    }
-                    className="text-[10px] text-amber-600 hover:underline"
-                  >
-                    Set as main
-                  </button>
-                )}
-                <button
-                  type="button"
-                  disabled={isPending}
-                  onClick={() => startTransition(() => deleteCube(c.id))}
-                  className="ml-auto p-1 text-zinc-400 hover:text-red-500 transition-colors"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Add cube form */}
-      {showForm ? (
-        <form action={action} className="parent-surface max-w-lg space-y-4 p-5 sm:p-6">
+      {/* Add Cube Form */}
+      {showForm && (
+        <form action={action} className="sticker rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
           {state.error && (
-            <p className="text-sm text-red-600">{state.error}</p>
+            <p className="text-sm text-red-400 font-bold">{state.error}</p>
           )}
 
-          <div className="space-y-1.5">
-            <Label htmlFor="name">Name *</Label>
-            <Input id="name" name="name" required placeholder="e.g. RS3M 2020" />
+          <div className="space-y-1">
+            <Label htmlFor="name" className="text-xs font-bold uppercase text-white/60">Name *</Label>
+            <Input id="name" name="name" required placeholder="RS3M 2020" className="bg-white/10 border-white/20 text-white placeholder:text-white/30" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="brand">Brand</Label>
-              <Input id="brand" name="brand" placeholder="e.g. MoYu" />
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="brand" className="text-xs font-bold uppercase text-white/60">Brand</Label>
+              <Input id="brand" name="brand" placeholder="MoYu" className="bg-white/10 border-white/20 text-white placeholder:text-white/30" />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="event_id">Event</Label>
-              <select
-                id="event_id"
-                name="event_id"
-                className={nativeSelectClass}
-              >
+            <div className="space-y-1">
+              <Label htmlFor="event_id" className="text-xs font-bold uppercase text-white/60">Event</Label>
+              <select id="event_id" name="event_id" className={`${nativeSelectClass} bg-white/10 border-white/20 text-white`}>
                 <option value="">General</option>
                 {events.map((e) => (
                   <option key={e.id} value={e.id}>
@@ -151,43 +102,121 @@ export function CubesView({
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="acquired_on">Acquired</Label>
-            <Input id="acquired_on" name="acquired_on" type="date" />
+          <div className="space-y-1">
+            <Label htmlFor="acquired_on" className="text-xs font-bold uppercase text-white/60">Acquired</Label>
+            <Input id="acquired_on" name="acquired_on" type="date" className="bg-white/10 border-white/20 text-white" />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="notes">Notes</Label>
+          <div className="space-y-1">
+            <Label htmlFor="notes" className="text-xs font-bold uppercase text-white/60">Notes</Label>
             <textarea
               id="notes"
               name="notes"
               rows={2}
-              className={nativeTextareaClass}
+              placeholder="Add any notes..."
+              className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/40"
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="photo">Photo</Label>
-            <Input id="photo" name="photo" type="file" accept="image/*" />
+          <div className="space-y-1">
+            <Label htmlFor="photo" className="text-xs font-bold uppercase text-white/60">Photo</Label>
+            <Input id="photo" name="photo" type="file" accept="image/*" className="bg-white/10 border-white/20 text-white file:bg-white/10 file:border-0 file:text-white file:font-bold" />
           </div>
 
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="is_main" className="rounded" />
+          <label className="flex items-center gap-2 text-sm text-white/80">
+            <input type="checkbox" name="is_main" className="rounded w-4 h-4" />
             Main cube for this event
           </label>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 pt-2">
             <SubmitButton />
-            <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="flex-1 rounded-lg bg-white/10 px-4 py-2 font-bold text-white transition-colors hover:bg-white/20"
+            >
               Cancel
-            </Button>
+            </button>
           </div>
         </form>
-      ) : (
-        <Button variant="outline" className="gap-1.5" onClick={() => setShowForm(true)}>
-          <Plus className="w-4 h-4" />
-          Add cube
-        </Button>
+      )}
+
+      {/* Cubes List */}
+      {cubes.length > 0 && (
+        <div className="space-y-2">
+          {cubes.map((c) => (
+            <div
+              key={c.id}
+              className={`sticker rounded-xl border transition-all ${
+                c.isMain
+                  ? "border-[#FFD500] bg-[#FFD500]/5"
+                  : "border-white/10 bg-white/5 hover:bg-white/8"
+              }`}
+            >
+              <div className="flex items-center gap-3 p-3">
+                {/* Cube Photo */}
+                <div className="relative flex-shrink-0 w-12 h-12 rounded-lg bg-white/10 overflow-hidden">
+                  {c.photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={c.photoUrl} alt={c.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white/30">
+                      📦
+                    </div>
+                  )}
+                  {c.isMain && (
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent flex items-end justify-center pb-1">
+                      <Star className="w-3 h-3 fill-[#FFD500] text-[#FFD500]" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Cube Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-white truncate">{c.name}</p>
+                    {c.isMain && (
+                      <span className="sticker inline-flex items-center gap-1 rounded-full bg-[#FFD500]/20 px-2 py-0.5 text-[10px] font-bold text-[#FFD500] flex-shrink-0">
+                        <Star className="w-2.5 h-2.5 fill-current" />
+                        Main
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {c.brand && <span className="text-xs text-white/60">{c.brand}</span>}
+                    {c.eventName && <span className="text-xs text-[#0046AD] font-bold">{c.eventName}</span>}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {!c.isMain && c.eventId && (
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() =>
+                        startTransition(() => setMainCube(c.id, c.eventId))
+                      }
+                      className="p-2 text-[#FFD500] hover:bg-[#FFD500]/10 rounded-lg transition-colors disabled:opacity-50"
+                      title="Set as main"
+                    >
+                      <Star className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => startTransition(() => deleteCube(c.id))}
+                    className="p-2 text-white/40 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors disabled:opacity-50"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
