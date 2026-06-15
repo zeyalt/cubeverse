@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { getServiceClient } from "@/lib/supabase/service";
 import { getOwnerId } from "@/lib/owner";
 import { KidModeShell } from "@/components/kid/KidModeShell";
-import { effectiveTime, DNF } from "@/lib/cubing";
+import { effectiveTime, aoN, DNF } from "@/lib/cubing";
 import type { Penalty } from "@/lib/cubing";
 import { computeStreak } from "@/lib/streak";
 import { getCurrentPbs } from "@/lib/analytics";
@@ -22,27 +22,15 @@ export default async function Home({
     const db = getServiceClient();
     const ownerId = getOwnerId();
 
-    let result = await db
+    const result = await db
       .from("app_settings")
       .select("default_cuber_id, current_cuber_id")
       .eq("owner_id", ownerId)
       .maybeSingle();
 
-    // If schema cache is stale and current_cuber_id doesn't exist, fall back to just default_cuber_id
-    if (result.error && result.error.message?.includes("current_cuber_id")) {
-      console.warn("[app/page] Schema cache stale for current_cuber_id, falling back to default_cuber_id only");
-      result = await db
-        .from("app_settings")
-        .select("default_cuber_id")
-        .eq("owner_id", ownerId)
-        .maybeSingle();
-    }
-
     const settings = result.data;
-    console.log("[app/page] Settings query result:", { error: result.error, settings });
 
     if (!settings || !settings.default_cuber_id) {
-      console.log("[app/page] No settings found, redirecting to onboarding");
       redirect("/onboarding");
     }
 
@@ -108,22 +96,26 @@ export default async function Home({
           .order("name"),
       ]);
 
+      // Effective times preserve DNFs (= -1) so the WCA-correct aoN() can treat
+      // a DNF as the worst time in a window. This must match lib/analytics.ts
+      // getCurrentPbs so the Practice tab and Analytics show identical metrics.
       const times = (allSolves ?? []).map((s) =>
         effectiveTime(s.time_cs as number, s.penalty as Penalty)
       );
-      const nonDnfTimes = times.filter((t) => t > 0);
 
-      const computeAoN = (arr: number[], n: number): number | null => {
-        if (arr.length < n) return null;
-        const slice = arr.slice(-n);
-        const sorted = [...slice].sort((a, b) => a - b);
-        return sorted.slice(1, -1).reduce((a, b) => a + b, 0) / (n - 2);
+      // Current rolling average of the last N solves (WCA rules). Returns null
+      // if fewer than N solves, or if the window resolves to a DNF.
+      const currentAoN = (n: number): number | null => {
+        if (times.length < n) return null;
+        const result = aoN(times.slice(-n));
+        return result === DNF ? null : result;
       };
 
-      const ao5 = computeAoN(nonDnfTimes, 5);
-      const ao12 = computeAoN(nonDnfTimes, 12);
-      const ao50 = computeAoN(nonDnfTimes, 50);
-      const ao100 = computeAoN(nonDnfTimes, 100);
+      const nonDnfTimes = times.filter((t) => t > 0);
+      const ao5 = currentAoN(5);
+      const ao12 = currentAoN(12);
+      const ao50 = currentAoN(50);
+      const ao100 = currentAoN(100);
       const best = nonDnfTimes.length > 0 ? Math.min(...nonDnfTimes) : null;
       const count = times.length;
 
@@ -139,6 +131,9 @@ export default async function Home({
         ao100,
         best,
         count,
+        // Full ordered list of effective times for this event, so the client can
+        // recompute the 6 metrics live after each in-session solve.
+        recentTimes: times,
       };
     } else if (activeTab === "competitions") {
       const [{ data: comps }, { data: cuber }] = await Promise.all([

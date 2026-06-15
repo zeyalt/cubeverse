@@ -304,8 +304,10 @@ export async function getCurrentPbs(
     solvesByEvent[eventId].push(solve as { time_cs: number; penalty: string });
   }
 
-  // Calculate rolling averages for each event
-  const practiceStats: Record<string, { ao5: number | null; ao12: number | null; ao50: number | null; ao100: number | null; count: number }> = {};
+  // Calculate rolling averages + best single for each event, all derived from
+  // live solves so they always reflect deletions (pb_history can go stale and
+  // is only used for official records below).
+  const practiceStats: Record<string, { single: number | null; ao5: number | null; ao12: number | null; ao50: number | null; ao100: number | null; count: number }> = {};
   for (const [eventId, solves] of Object.entries(solvesByEvent)) {
     const effs = solves.map((s) => effectiveTime(s.time_cs, s.penalty as Penalty));
     const ao5s = rollingAoN(effs, 5);
@@ -313,8 +315,13 @@ export async function getCurrentPbs(
     const ao50s = rollingAoN(effs, 50);
     const ao100s = rollingAoN(effs, 100);
 
+    // Best single = fastest non-DNF effective time across all solves.
+    const nonDnf = effs.filter((t) => t > 0);
+    const single = nonDnf.length > 0 ? Math.min(...nonDnf) : null;
+
     const lastIdx = effs.length - 1;
     practiceStats[eventId] = {
+      single,
       ao5: lastIdx >= 4 ? ao5s[lastIdx] : null,
       ao12: lastIdx >= 11 ? ao12s[lastIdx] : null,
       ao50: lastIdx >= 49 ? ao50s[lastIdx] : null,
@@ -327,7 +334,7 @@ export async function getCurrentPbs(
     eventId: id,
     officialSingle: best[`${id}:single:official`] ?? null,
     officialAvg:    best[`${id}:average:official`] ?? null,
-    practiceSingle: best[`${id}:single:practice`] ?? null,
+    practiceSingle: practiceStats[id]?.single ?? null,
     practiceAo5:    practiceStats[id]?.ao5 ?? null,
     practiceAo12:   practiceStats[id]?.ao12 ?? null,
     practiceAo50:   practiceStats[id]?.ao50 ?? null,

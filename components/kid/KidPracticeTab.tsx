@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { ChevronRight, X } from "lucide-react";
-import { formatCs, parseToCs, DNF } from "@/lib/cubing";
+import { formatCs, parseToCs, effectiveTime, aoN, DNF } from "@/lib/cubing";
 import { EVENT_SHORT, getEventSticker } from "@/lib/event-theme";
 import { useScramble } from "@/lib/useScramble";
 import { recordSolve, type SessionStats } from "@/app/actions/solve";
@@ -33,6 +33,7 @@ interface KidPracticeTabProps {
   ao100: number | null;
   best: number | null;
   count: number;
+  recentTimes: number[];
 }
 
 type TimerPhase = "idle" | "holding" | "ready" | "inspecting" | "running" | "stopped";
@@ -68,16 +69,36 @@ export function KidPracticeTab({
   cuberId,
   cubes: initialCubes,
   activeGoal: initialGoal,
-  ao5,
-  ao12,
-  ao50,
-  ao100,
-  best,
-  count,
+  recentTimes,
 }: KidPracticeTabProps) {
   const [selectedId, setSelectedId] = useState(defaultEventId);
   const [, startTransition] = useTransition();
   const { scramble, next: nextScramble } = useScramble(selectedId);
+
+  // Live list of effective times (DNF = -1) for the selected event. Seeded from
+  // the server and appended to after each in-session solve so the 6 bottom
+  // metrics roll forward immediately without a page reload.
+  const [liveTimes, setLiveTimes] = useState<number[]>(recentTimes);
+
+  // Resync if the server sends a fresh list (e.g. after navigation/refresh).
+  useEffect(() => {
+    setLiveTimes(recentTimes);
+  }, [recentTimes]);
+
+  // Current rolling average of the last N times (WCA rules, matches the server).
+  const currentAoN = useCallback((n: number): number | null => {
+    if (liveTimes.length < n) return null;
+    const result = aoN(liveTimes.slice(-n));
+    return result === DNF ? null : result;
+  }, [liveTimes]);
+
+  const nonDnf = liveTimes.filter((t) => t > 0);
+  const ao5 = currentAoN(5);
+  const ao12 = currentAoN(12);
+  const ao50 = currentAoN(50);
+  const ao100 = currentAoN(100);
+  const best = nonDnf.length > 0 ? Math.min(...nonDnf) : null;
+  const count = liveTimes.length;
 
   const [timerPhase, setTimerPhase] = useState<TimerPhase>("idle");
   const [displayCs, setDisplayCs] = useState(0);
@@ -97,6 +118,27 @@ export function KidPracticeTab({
 
   const timerRef = useRef<TimerRefs>(makeTimerRefs());
 
+  // Measure the gap between the setup bar and the metrics strip so the tap
+  // zone spans exactly that region (no hardcoded offsets that can overlap).
+  const setupBarRef = useRef<HTMLDivElement>(null);
+  const metricsRef = useRef<HTMLDivElement>(null);
+  const [tapZone, setTapZone] = useState<{ top: number; bottom: number }>({ top: 0, bottom: 0 });
+
+  useEffect(() => {
+    function measure() {
+      const setupBottom = setupBarRef.current?.getBoundingClientRect().bottom ?? 0;
+      const metricsTop = metricsRef.current?.getBoundingClientRect().top ?? window.innerHeight;
+      setTapZone({ top: setupBottom, bottom: window.innerHeight - metricsTop });
+    }
+    measure();
+    window.addEventListener("resize", measure);
+    const id = setInterval(measure, 500); // catch async layout shifts (scramble load, stats panel)
+    return () => {
+      window.removeEventListener("resize", measure);
+      clearInterval(id);
+    };
+  }, []);
+
   const selected = events.find((e) => e.id === selectedId) ?? events[0];
   const sticker = getEventSticker(selectedId);
 
@@ -108,6 +150,7 @@ export function KidPracticeTab({
       const setup = await getPracticeSetupData(cuberId, id);
       setCubes(setup.cubes);
       setActiveGoal(setup.activeGoal);
+      setLiveTimes(setup.recentTimes);
     });
   }
 
@@ -346,6 +389,9 @@ export function KidPracticeTab({
     const cs = timerRef.current.finalCs;
     const currentScramble = scramble || "";
 
+    // Roll the 6 metrics forward immediately with this solve's effective time.
+    setLiveTimes((prev) => [...prev, effectiveTime(cs, chosenPenalty)]);
+
     goPhase("idle");
     setDisplayCs(0);
     setPenalty("none");
@@ -390,10 +436,10 @@ export function KidPracticeTab({
     <div className="relative flex flex-col text-white">
 
       {/* ── Compact setup bar ─────────────────────────────────────────────── */}
-      <div className="relative z-10 px-4 pt-4 pb-2 space-y-2">
+      <div ref={setupBarRef} className="relative z-10 px-4 pt-4 pb-2 space-y-2 pointer-events-none">
 
         {/* Row 1: puzzle pills */}
-        <div className="flex gap-2 overflow-x-auto scrollbar-none">
+        <div className="flex gap-2 overflow-x-auto scrollbar-none pointer-events-auto">
           {events.map((ev) => {
             const s = getEventSticker(ev.id);
             const active = ev.id === selectedId;
@@ -419,7 +465,7 @@ export function KidPracticeTab({
         {/* Row 2: single setup row → opens bottom sheet */}
         <button
           onClick={() => setSetupSheetOpen(true)}
-          className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 transition-colors hover:bg-white/8 active:bg-white/10"
+          className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 transition-colors hover:bg-white/8 active:bg-white/10 pointer-events-auto"
         >
           <div className="flex items-center gap-2 text-xs text-white/50 min-w-0">
             {/* Cube */}
@@ -576,15 +622,7 @@ export function KidPracticeTab({
 
       {/* Scramble — floats at top of hero, size varies */}
       <div
-        className="relative z-10 px-5 pt-3"
-        onPointerDown={(e) => {
-          e.preventDefault();
-          onPressStart();
-        }}
-        onPointerUp={(e) => {
-          e.preventDefault();
-          onPressEnd();
-        }}
+        className="relative z-10 px-5 pt-3 pointer-events-none"
         style={{ touchAction: "none" }}
       >
         <div
@@ -601,15 +639,38 @@ export function KidPracticeTab({
         </div>
       </div>
 
-      {/* Timer — FIXED to viewport, never moves regardless of scramble height */}
+      {/* Large tapable area covering hero region (from below setup box to above metrics).
+          Bounds are measured at runtime so it never overlaps the setup bar or metrics. */}
       <div
-        className="kid-animate-in fixed left-0 right-0 z-20 flex items-center justify-center px-5"
-        style={{ top: "50%", transform: "translateY(-50%)", animationDelay: "80ms", pointerEvents: "none" }}
+        className="fixed left-0 right-0 z-20 flex items-center justify-center px-5"
+        style={{
+          top: tapZone.top,
+          bottom: tapZone.bottom,
+          // Disable the big tap zone while the solve is stopped so the user can
+          // interact with the penalty / Delete / Next buttons without re-triggering.
+          pointerEvents: timerPhase === "stopped" ? "none" : "auto",
+          touchAction: "none",
+        }}
+        onPointerDown={(e) => {
+          e.preventDefault();
+          onPressStart();
+        }}
+        onPointerUp={(e) => {
+          e.preventDefault();
+          onPressEnd();
+        }}
       >
-        <div className="w-full max-w-sm mx-auto" style={{ pointerEvents: "auto" }}>
+        {/* Timer — FIXED to viewport center, never moves regardless of scramble height */}
+        <div
+          className="kid-animate-in fixed left-0 right-0 z-20 flex items-center justify-center px-5 pointer-events-none"
+          style={{ top: "50%", transform: "translateY(-50%)", animationDelay: "80ms" }}
+        >
+          <div className="w-full max-w-sm mx-auto">
 
           {/* Timer display */}
-          <div className="w-full cursor-pointer select-none text-center">
+          <div
+            className="w-full cursor-pointer select-none text-center"
+          >
             <p className="font-mono-time text-[5.5rem] font-semibold leading-none tracking-tighter sm:text-[6.5rem] select-none" style={{ userSelect: "none", WebkitUserSelect: "none" }}>
               {timerPhase === "inspecting" || timerPhase === "holding" || timerPhase === "ready"
                 ? inspSec > 0 ? String(inspSec) : "+2"
@@ -636,7 +697,7 @@ export function KidPracticeTab({
 
           {/* Penalty bar + session stats */}
           {timerPhase === "stopped" && (
-            <div className="mt-6 space-y-3 mx-auto w-full max-w-sm">
+            <div className="mt-6 space-y-3 mx-auto w-full max-w-sm pointer-events-auto">
               <div className="grid grid-cols-3 gap-2">
                 {([
                   { p: "none" as Penalty, label: "OK", face: "#009B48", ink: "#FFF" },
@@ -703,10 +764,12 @@ export function KidPracticeTab({
             </div>
           )}
         </div>
+        </div>
       </div>
 
       {/* Stats strip - fixed above bottom nav */}
       <div
+        ref={metricsRef}
         className="fixed left-0 right-0 z-30 border-t border-white/8 kid-animate-in select-none"
         style={{
           bottom: "calc(4.5rem + env(safe-area-inset-bottom))",

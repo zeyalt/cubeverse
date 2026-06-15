@@ -33,6 +33,7 @@ interface PracticeTabData {
   ao100: number | null;
   best: number | null;
   count: number;
+  recentTimes: number[];
 }
 
 interface CompetitionTabData {

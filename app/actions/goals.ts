@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { getServiceClient } from "@/lib/supabase/service";
 import { getOwnerId } from "@/lib/owner";
-import { parseToCs } from "@/lib/cubing";
+import { parseToCs, effectiveTime } from "@/lib/cubing";
+import type { Penalty } from "@/lib/cubing";
 import { STARTER_GOALS } from "@/lib/goals-seed";
 import type { GoalRecordType } from "@/lib/goals";
 
@@ -18,10 +19,14 @@ export interface PracticeSetupCube {
 export async function getPracticeSetupData(
   cuberId: string,
   eventId: string
-): Promise<{ cubes: PracticeSetupCube[]; activeGoal: { id: string; target_cs: number } | null }> {
+): Promise<{
+  cubes: PracticeSetupCube[];
+  activeGoal: { id: string; target_cs: number } | null;
+  recentTimes: number[];
+}> {
   const db = getServiceClient();
 
-  const [{ data: cubes }, { data: goal }] = await Promise.all([
+  const [{ data: cubes }, { data: goal }, { data: solves }] = await Promise.all([
     db
       .from("cubes")
       .select("id, name, event_id")
@@ -37,11 +42,21 @@ export async function getPracticeSetupData(
       .eq("record_type", "single")
       .eq("status", "active")
       .maybeSingle(),
+    db
+      .from("solves")
+      .select("time_cs, penalty")
+      .eq("cuber_id", cuberId)
+      .eq("event_id", eventId)
+      .eq("context", "practice")
+      .order("solved_at"),
   ]);
 
   return {
     cubes: (cubes ?? []) as PracticeSetupCube[],
     activeGoal: goal ? { id: goal.id as string, target_cs: goal.target_cs as number } : null,
+    recentTimes: (solves ?? []).map((s) =>
+      effectiveTime(s.time_cs as number, s.penalty as Penalty)
+    ),
   };
 }
 
