@@ -65,8 +65,9 @@ export function AnalyticsFilters({
   const cubesLabel = selectedCubeIds.size === 0 ? "All Cubes" : `${selectedCubeIds.size} selected`;
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-3 gap-2">
+    <div className="space-y-2">
+      {/* Row 1: Event (left) | Date Range (right) */}
+      <div className="grid grid-cols-2 gap-2">
         {/* Event dropdown */}
         <div className="relative">
           <button
@@ -98,43 +99,6 @@ export function AnalyticsFilters({
             </div>
           )}
         </div>
-
-        {/* Cubes dropdown */}
-        {cubes.length > 0 && (
-          <div className="relative">
-            <button
-              onClick={() => setCubesOpen(!cubesOpen)}
-              className="sticker w-full flex items-center justify-between rounded-lg border-2 border-white/10 bg-white/8 px-3 py-2 font-bold text-sm text-white transition-all hover:bg-white/12"
-            >
-              <span className="truncate text-left flex-1">{cubesLabel}</span>
-              <ChevronDown className={`size-4 flex-shrink-0 transition-transform ${cubesOpen ? "rotate-180" : ""}`} />
-            </button>
-
-            {cubesOpen && (
-              <div className="absolute top-full left-0 right-0 mt-1 z-50 rounded-lg border border-white/10 bg-[#1C1916] shadow-lg max-h-48 overflow-y-auto">
-                {cubes.map((cube) => (
-                  <button
-                    key={cube.id}
-                    onClick={() => toggleCube(cube.id)}
-                    className={`w-full text-left px-3 py-2 font-bold text-sm transition-colors flex items-center gap-2 ${
-                      selectedCubeIds.has(cube.id)
-                        ? "bg-[#0046AD]/20 text-[#0046AD]"
-                        : "text-white hover:bg-white/10"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedCubeIds.has(cube.id)}
-                      onChange={() => {}}
-                      className="pointer-events-none"
-                    />
-                    {cube.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Date range dropdown */}
         <div className="relative">
@@ -168,6 +132,43 @@ export function AnalyticsFilters({
           )}
         </div>
       </div>
+
+      {/* Row 2: Cubes (full width) */}
+      {cubes.length > 0 && (
+        <div className="relative">
+          <button
+            onClick={() => setCubesOpen(!cubesOpen)}
+            className="sticker w-full flex items-center justify-between rounded-lg border-2 border-white/10 bg-white/8 px-3 py-2 font-bold text-sm text-white transition-all hover:bg-white/12"
+          >
+            <span className="truncate text-left flex-1">{cubesLabel}</span>
+            <ChevronDown className={`size-4 flex-shrink-0 transition-transform ${cubesOpen ? "rotate-180" : ""}`} />
+          </button>
+
+          {cubesOpen && (
+            <div className="absolute top-full left-0 right-0 mt-1 z-50 rounded-lg border border-white/10 bg-[#1C1916] shadow-lg max-h-48 overflow-y-auto">
+              {cubes.map((cube) => (
+                <button
+                  key={cube.id}
+                  onClick={() => toggleCube(cube.id)}
+                  className={`w-full text-left px-3 py-2 font-bold text-sm transition-colors flex items-center gap-2 ${
+                    selectedCubeIds.has(cube.id)
+                      ? "bg-[#0046AD]/20 text-[#0046AD]"
+                      : "text-white hover:bg-white/10"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedCubeIds.has(cube.id)}
+                    onChange={() => {}}
+                    className="pointer-events-none"
+                  />
+                  {cube.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

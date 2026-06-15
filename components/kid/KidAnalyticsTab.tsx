@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect, useCallback } from "react";
 import { formatCs } from "@/lib/cubing";
 import { EVENT_SHORT } from "@/lib/event-theme";
+import { ChevronDown } from "lucide-react";
 import { getAnalyticsData, type AnalyticsPayload } from "@/app/actions/analytics";
 import { getHistoricalSolves, deleteSolve, updateSolve } from "@/app/actions/solve";
 import { AnalyticsFilters, type DateRange } from "./AnalyticsFilters";
@@ -70,6 +71,8 @@ export function KidAnalyticsTab({
   const [editingCs, setEditingCs] = useState<number>(0);
   const [editingPenalty, setEditingPenalty] = useState<"none" | "plus2" | "dnf">("none");
   const [sessionTimes, setSessionTimes] = useState<Array<{ id: string; cs: number; penalty: "none" | "plus2" | "dnf"; timestamp: number; scramble: string | null }>>([]);
+  const [eventDropdownOpen, setEventDropdownOpen] = useState(false);
+  const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
 
   const refreshAll = useCallback(async (eventId: string) => {
     const [solves, data] = await Promise.all([
@@ -92,20 +95,27 @@ export function KidAnalyticsTab({
     setSelectedEventId(eventId);
   };
 
+  const toLocalYMD = (d: Date): string => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
   const getDateRange = (range: DateRange): { startStr: string; endStr: string } => {
-    const end = new Date();
-    end.setHours(0, 0, 0, 0);
-    const start = new Date(end);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const start = new Date(today);
 
     switch (range) {
       case "14d":
-        start.setDate(start.getDate() - 14);
+        start.setDate(start.getDate() - 13); // 14 days includes today
         break;
       case "30d":
-        start.setDate(start.getDate() - 30);
+        start.setDate(start.getDate() - 29);
         break;
       case "60d":
-        start.setDate(start.getDate() - 60);
+        start.setDate(start.getDate() - 59);
         break;
       case "month":
         start.setDate(1);
@@ -115,27 +125,15 @@ export function KidAnalyticsTab({
         break;
     }
 
-    const startStr = start.toISOString().split("T")[0];
-    const endStr = end.toISOString().split("T")[0];
-    return { startStr, endStr };
+    return { startStr: toLocalYMD(start), endStr: toLocalYMD(today) };
   };
 
   const dateRangeFilter = getDateRange(dateRange);
 
-  const filteredHeatmap = Object.entries(analyticsData.heatmap).reduce(
-    (acc, [date, count]) => {
-      if (date >= dateRangeFilter.startStr && date <= dateRangeFilter.endStr) {
-        acc[date] = count;
-      }
-      return acc;
-    },
-    {} as Record<string, number>
-  );
-
   const filteredSolvesOverTime = {
     ...analyticsData.solvesOverTime,
     points: analyticsData.solvesOverTime.points.filter((p) => {
-      const dateStr = new Date(p.ts).toISOString().split("T")[0];
+      const dateStr = toLocalYMD(new Date(p.ts));
       return dateStr >= dateRangeFilter.startStr && dateStr <= dateRangeFilter.endStr;
     }),
   };
@@ -222,8 +220,12 @@ export function KidAnalyticsTab({
           {/* Practice Frequency */}
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">Practice Frequency</p>
-            <div className="rounded-xl bg-white/8 border border-white/10 p-4">
-              <PracticeHeatmap counts={filteredHeatmap} />
+            <div className="rounded-xl bg-white/8 border border-white/10 px-4 py-6">
+              <PracticeHeatmap
+                counts={analyticsData.heatmap}
+                startDate={dateRange === "all" ? undefined : dateRangeFilter.startStr}
+                endDate={dateRange === "all" ? undefined : dateRangeFilter.endStr}
+              />
             </div>
           </div>
 
@@ -364,49 +366,72 @@ export function KidAnalyticsTab({
       {/* Competition Sub-tab */}
       {subTab === "competition" && (
         <div className="space-y-6">
-          {/* Event selector */}
-          <div className="space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-white/40">Event</p>
-            <div className="flex flex-wrap gap-2">
-              {events.map((e) => (
-                <button
-                  key={e.id}
-                  onClick={() => handleEventChange(e.id)}
-                  disabled={isPending}
-                  className={`sticker px-4 py-2 rounded-lg font-bold text-sm transition-all disabled:opacity-50 ${
-                    selectedEventId === e.id
-                      ? "bg-[#FFD500] text-black shadow-lg"
-                      : "bg-white/10 text-white hover:bg-white/15"
-                  }`}
-                  style={
-                    selectedEventId === e.id
-                      ? { boxShadow: "4px 4px 0 rgba(0,0,0,0.3)" }
-                      : undefined
-                  }
-                >
-                  {EVENT_SHORT[e.id] || e.id}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* Filters */}
+          <div className="grid grid-cols-2 gap-2">
+            {/* Event dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setEventDropdownOpen(!eventDropdownOpen)}
+                className="sticker w-full flex items-center justify-between rounded-lg border-2 border-white/10 bg-white/8 px-3 py-2 font-bold text-sm text-white transition-all hover:bg-white/12"
+              >
+                <span className="truncate text-left flex-1">{EVENT_SHORT[selectedEventId] || selectedEventId}</span>
+                <ChevronDown className={`size-4 flex-shrink-0 transition-transform ${eventDropdownOpen ? "rotate-180" : ""}`} />
+              </button>
 
-          {/* Competition type filter */}
-          <div className="space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-white/40">Type</p>
-            <div className="flex gap-2">
-              {(["all", "wca", "unofficial"] as const).map((type) => (
-                <button
-                  key={type}
-                  onClick={() => setCompTypeFilter(type)}
-                  className={`flex-1 py-2 px-3 rounded-lg font-bold text-sm transition-colors ${
-                    compTypeFilter === type
-                      ? "bg-[#FFD500] text-black"
-                      : "bg-white/10 text-white hover:bg-white/15"
-                  }`}
-                >
-                  {type === "all" ? "All" : type === "wca" ? "WCA" : "Unofficial"}
-                </button>
-              ))}
+              {eventDropdownOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1 z-50 rounded-lg border border-white/10 bg-[#1C1916] shadow-lg max-h-48 overflow-y-auto">
+                  {events.map((e) => (
+                    <button
+                      key={e.id}
+                      onClick={() => {
+                        handleEventChange(e.id);
+                        setEventDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 font-bold text-sm transition-colors ${
+                        selectedEventId === e.id
+                          ? "bg-[#FFD500]/20 text-[#FFD500]"
+                          : "text-white hover:bg-white/10"
+                      }`}
+                    >
+                      {EVENT_SHORT[e.id] || e.id}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Competition type dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setTypeDropdownOpen(!typeDropdownOpen)}
+                className="sticker w-full flex items-center justify-between rounded-lg border-2 border-white/10 bg-white/8 px-3 py-2 font-bold text-sm text-white transition-all hover:bg-white/12"
+              >
+                <span className="truncate text-left flex-1">
+                  {compTypeFilter === "all" ? "All" : compTypeFilter === "wca" ? "WCA" : "Unofficial"}
+                </span>
+                <ChevronDown className={`size-4 flex-shrink-0 transition-transform ${typeDropdownOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {typeDropdownOpen && (
+                <div className="absolute top-full right-0 mt-1 z-50 rounded-lg border border-white/10 bg-[#1C1916] shadow-lg w-40">
+                  {(["all", "wca", "unofficial"] as const).map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => {
+                        setCompTypeFilter(type);
+                        setTypeDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 font-bold text-sm transition-colors ${
+                        compTypeFilter === type
+                          ? "bg-[#FFD500]/20 text-[#FFD500]"
+                          : "text-white hover:bg-white/10"
+                      }`}
+                    >
+                      {type === "all" ? "All" : type === "wca" ? "WCA" : "Unofficial"}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
