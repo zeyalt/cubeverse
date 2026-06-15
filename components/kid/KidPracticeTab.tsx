@@ -218,6 +218,9 @@ export function KidPracticeTab({
     // Ignore if already in a hold/ready state
     if (p === "holding" || p === "ready" || p === "stopped") return;
 
+    // Record press start time for tap detection
+    timerRef.current.startMs = Date.now();
+
     // Start holding (works in both idle and inspecting states)
     goPhase("holding");
     setShowHoldMsg(false);
@@ -238,6 +241,8 @@ export function KidPracticeTab({
     if (holdMsgTimer.current) { clearTimeout(holdMsgTimer.current); holdMsgTimer.current = null; }
     setShowHoldMsg(false);
     const p = timerRef.current.phase;
+    const pressDuration = Date.now() - timerRef.current.startMs;
+    const isQuickTap = pressDuration < 150; // Quick tap threshold
 
     if (p === "ready") {
       clearHold();
@@ -254,6 +259,11 @@ export function KidPracticeTab({
 
     if (p === "holding") {
       clearHold();
+      // Quick tap: directly start inspection without waiting for "ready" state
+      if (isQuickTap && timerRef.current.phase === "holding") {
+        startInspection();
+        return;
+      }
       // Release during hold
       if (timerRef.current.inspTimer) {
         // If already inspecting, go back to inspecting state
