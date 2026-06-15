@@ -565,22 +565,8 @@ export function KidPracticeTab({
       )}
 
       {/* Scramble — floats at top of hero, size varies */}
-      <div className="relative z-10 px-5 pt-3">
-        <div
-          className="kid-animate-in rounded-lg bg-white/5 w-full max-w-sm mx-auto cursor-pointer transition-opacity hover:opacity-80 px-4 py-3"
-          style={{ animationDelay: "80ms" }}
-          onClick={() => onPressStart()}
-        >
-          <p className="font-mono-time text-center text-sm leading-relaxed tracking-wide text-white/80">
-            {scramble ?? "Generating scramble…"}
-          </p>
-        </div>
-      </div>
-
-      {/* Timer interaction area — covers entire screen for tap/hold */}
       <div
-        className="fixed inset-0 z-15"
-        style={{ pointerEvents: "auto", touchAction: "none" }}
+        className="relative z-10 px-5 pt-3"
         onPointerDown={(e) => {
           e.preventDefault();
           onPressStart();
@@ -589,7 +575,21 @@ export function KidPracticeTab({
           e.preventDefault();
           onPressEnd();
         }}
-      />
+        style={{ touchAction: "none" }}
+      >
+        <div
+          className="kid-animate-in rounded-lg bg-white/5 w-full max-w-sm mx-auto cursor-pointer transition-opacity hover:opacity-80 px-4 py-3 select-none"
+          style={{ animationDelay: "80ms", userSelect: "none", WebkitUserSelect: "none" }}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <p
+            className="font-mono-time text-center text-sm leading-relaxed tracking-wide text-white/80"
+            style={{ userSelect: "none", WebkitUserSelect: "none" }}
+          >
+            {scramble ?? "Generating scramble…"}
+          </p>
+        </div>
+      </div>
 
       {/* Timer — FIXED to viewport, never moves regardless of scramble height */}
       <div
@@ -697,13 +697,16 @@ export function KidPracticeTab({
 
       {/* Stats strip - fixed above bottom nav */}
       <div
-        className="fixed left-0 right-0 z-30 border-t border-white/8 kid-animate-in"
+        className="fixed left-0 right-0 z-30 border-t border-white/8 kid-animate-in select-none"
         style={{
           bottom: "calc(4.5rem + env(safe-area-inset-bottom))",
           background: "rgba(10,10,10,0.88)",
           backdropFilter: "blur(12px)",
           animationDelay: "200ms",
+          userSelect: "none",
+          WebkitUserSelect: "none",
         }}
+        onContextMenu={(e) => e.preventDefault()}
       >
         <div className="grid grid-cols-6 divide-x divide-white/8">
           {([
@@ -713,16 +716,41 @@ export function KidPracticeTab({
             { label: "ao100", value: ao100 },
             { label: "best",  value: best },
           ] as const).map(({ label, value }) => (
-            <div key={label} className="flex flex-col items-center py-2 px-1">
-              <p className="font-mono-time text-[11px] font-bold text-white leading-none">
+            <div
+              key={label}
+              className="flex flex-col items-center py-2 px-1 select-none"
+              style={{ userSelect: "none", WebkitUserSelect: "none" }}
+            >
+              <p
+                className="font-mono-time text-[11px] font-bold text-white leading-none"
+                style={{ userSelect: "none", WebkitUserSelect: "none" }}
+              >
                 {value ? (value / 100).toFixed(2) : "—"}
               </p>
-              <p className="text-[8px] font-bold uppercase tracking-wider text-white/30 mt-0.5">{label}</p>
+              <p
+                className="text-[8px] font-bold uppercase tracking-wider text-white/30 mt-0.5"
+                style={{ userSelect: "none", WebkitUserSelect: "none" }}
+              >
+                {label}
+              </p>
             </div>
           ))}
-          <div className="flex flex-col items-center py-2 px-1">
-            <p className="font-display text-[11px] font-bold text-white leading-none">{count}</p>
-            <p className="text-[8px] font-bold uppercase tracking-wider text-white/30 mt-0.5">#</p>
+          <div
+            className="flex flex-col items-center py-2 px-1 select-none"
+            style={{ userSelect: "none", WebkitUserSelect: "none" }}
+          >
+            <p
+              className="font-display text-[11px] font-bold text-white leading-none"
+              style={{ userSelect: "none", WebkitUserSelect: "none" }}
+            >
+              {count}
+            </p>
+            <p
+              className="text-[8px] font-bold uppercase tracking-wider text-white/30 mt-0.5"
+              style={{ userSelect: "none", WebkitUserSelect: "none" }}
+            >
+              #
+            </p>
           </div>
         </div>
       </div>
