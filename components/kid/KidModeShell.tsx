@@ -10,6 +10,7 @@ import { KidAnalyticsTab } from "./KidAnalyticsTab";
 import { KidBadgesTab } from "./KidBadgesTab";
 import { KidCubesTab } from "./KidCubesTab";
 import { SettingsSheet } from "./SettingsSheet";
+import { CuberSwitcherSheet } from "./CuberSwitcherSheet";
 import type { AnalyticsPayload } from "@/app/actions/analytics";
 
 type Tab = "practice" | "competitions" | "analytics" | "badges" | "cubes";
@@ -167,6 +168,7 @@ function KidModeShellContent({
   const router = useRouter();
   const [currentTab, setCurrentTab] = useState<Tab>(activeTab);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
 
   function switchTab(tab: Tab) {
     setCurrentTab(tab);
@@ -180,25 +182,38 @@ function KidModeShellContent({
         currentCuberId={currentCuberId}
         cubers={cubers}
         onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSwitcher={() => setSwitcherOpen(true)}
       />
 
-      <main className="flex-1 overflow-y-auto kid-tab-enter" style={{ paddingBottom: "calc(4.5rem + env(safe-area-inset-bottom))" }}>
-        <TabContent
-          tab={currentTab}
-          practiceData={practiceData}
-          competitionData={competitionData}
-          analyticsData={analyticsData}
-          badgesData={badgesData}
-          cubesData={cubesData}
-        />
-      </main>
+      {/* Tab content + bottom nav are hidden while the cuber switcher is open
+          so the puzzle/scramble/timer/metrics don't show through or overlap. */}
+      <div className={switcherOpen ? "invisible" : ""}>
+        <main className="flex-1 overflow-y-auto kid-tab-enter" style={{ paddingBottom: "calc(4.5rem + env(safe-area-inset-bottom))" }}>
+          <TabContent
+            tab={currentTab}
+            practiceData={practiceData}
+            competitionData={competitionData}
+            analyticsData={analyticsData}
+            badgesData={badgesData}
+            cubesData={cubesData}
+          />
+        </main>
 
-      <KidBottomNav activeTab={currentTab} onSwitch={switchTab} />
+        <KidBottomNav activeTab={currentTab} onSwitch={switchTab} />
+      </div>
 
       {settingsOpen && (
         <SettingsSheet
           onClose={() => setSettingsOpen(false)}
           cuberId={currentCuberId}
+        />
+      )}
+
+      {switcherOpen && (
+        <CuberSwitcherSheet
+          cubers={cubers}
+          currentCuberId={currentCuberId}
+          onClose={() => setSwitcherOpen(false)}
         />
       )}
     </div>

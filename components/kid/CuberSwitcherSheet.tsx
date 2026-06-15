@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { switchCuber } from "@/app/actions/onboarding";
 import { X, Plus } from "lucide-react";
@@ -36,6 +36,12 @@ export function CuberSwitcherSheet({
 }: CuberSwitcherSheetProps) {
   const [isPending, startTransition] = useTransition();
 
+  // Drag-to-dismiss / drag-to-expand state
+  const [dragY, setDragY] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const dragStartY = useRef(0);
+
   function handleSwitch(cuberId: string) {
     if (cuberId === currentCuberId) {
       onClose();
@@ -44,25 +50,65 @@ export function CuberSwitcherSheet({
     startTransition(() => switchCuber(cuberId));
   }
 
+  function onDragStart(clientY: number) {
+    dragStartY.current = clientY;
+    setDragging(true);
+  }
+
+  function onDragMove(clientY: number) {
+    if (!dragging) return;
+    const delta = clientY - dragStartY.current;
+    // Allow dragging down (positive). Negative drag (up) expands the sheet.
+    if (delta < 0) {
+      setExpanded(true);
+      setDragY(0);
+    } else {
+      setDragY(delta);
+    }
+  }
+
+  function onDragEnd() {
+    if (!dragging) return;
+    setDragging(false);
+    // If dragged down more than 120px, dismiss
+    if (dragY > 120) {
+      onClose();
+    } else {
+      setDragY(0);
+    }
+  }
+
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop — opaque-ish, fully blocks content behind */}
       <div
-        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+        className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md"
         onClick={onClose}
       />
 
       {/* Sheet panel */}
       <div
-        className="sheet-enter fixed bottom-0 left-0 right-0 z-50 flex flex-col rounded-t-3xl border-t-2 border-white/10 bg-[#1C1916] px-5 pt-4"
+        className={`${dragging ? "" : "sheet-enter"} fixed bottom-0 left-0 right-0 z-[101] flex flex-col rounded-t-3xl border-t-2 border-white/15 bg-[#1C1916] px-5 pt-2`}
         style={{
           paddingBottom: "calc(5rem + 1.5rem + env(safe-area-inset-bottom))",
-          maxHeight: "90vh",
+          height: expanded ? "92vh" : "auto",
+          maxHeight: "92vh",
           overflowY: "auto",
+          transform: `translateY(${dragY}px)`,
+          transition: dragging ? "none" : "transform 0.25s ease, height 0.25s ease",
         }}
       >
-        {/* Handle bar */}
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20" />
+        {/* Draggable handle area */}
+        <div
+          className="-mx-5 px-5 pb-2 pt-2 cursor-grab active:cursor-grabbing touch-none"
+          style={{ touchAction: "none" }}
+          onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); onDragStart(e.clientY); }}
+          onPointerMove={(e) => onDragMove(e.clientY)}
+          onPointerUp={onDragEnd}
+          onPointerCancel={onDragEnd}
+        >
+          <div className="mx-auto h-1.5 w-12 rounded-full bg-white/25" />
+        </div>
 
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
