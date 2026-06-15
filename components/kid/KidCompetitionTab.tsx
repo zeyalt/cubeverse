@@ -99,48 +99,34 @@ export function KidCompetitionTab({ data: { competitions, cuberId, wcaId } }: Ki
           <p className="mt-1 text-sm text-white/50">Import from WCA or add one manually!</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1">
           {competitions.map((comp) => (
             <Link
               key={comp.id}
               href={`/competitions/${comp.id}`}
-              className="sticker group block rounded-xl border-2 border-white/20 bg-white/8 p-4 transition-all hover:bg-white/12 hover:border-white/30"
+              className="sticker block rounded-lg border border-white/10 bg-white/5 px-3 py-2 transition-all hover:bg-white/10 hover:border-white/20"
             >
-              <div className="flex items-start gap-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-white/10 group-hover:bg-white/15">
-                  <Trophy className="size-5 text-[#FFD500]" />
-                </div>
+              <div className="flex items-center gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-bold text-white truncate">{comp.name}</p>
+                    <p className="font-bold text-sm text-white truncate">{comp.name}</p>
                     <span
-                      className="sticker inline-block rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide border border-[#0A0A0A]"
+                      className="sticker inline-block rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide border"
                       style={{
                         backgroundColor: comp.type === "wca" ? "#FFD500" : "rgba(255,255,255,0.1)",
-                        color: comp.type === "wca" ? "#1A1208" : "rgba(255,255,255,0.7)",
-                        boxShadow: "2px 2px 0 rgba(0,0,0,0.1)",
+                        color: comp.type === "wca" ? "#1A1208" : "rgba(255,255,255,0.6)",
+                        borderColor: "rgba(0,0,0,0.2)",
                       }}
                     >
                       {comp.type === "wca" ? "WCA" : "Unofficial"}
                     </span>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-white/60">
-                    {(comp.city || comp.country) && (
-                      <span className="flex items-center gap-1">
-                        <MapPin className="size-3" />
-                        {[comp.city, comp.country].filter(Boolean).join(", ")}
-                      </span>
-                    )}
-                    {comp.start_date && (
-                      <span className="flex items-center gap-1">
-                        <Calendar className="size-3" />
-                        {comp.start_date}
-                        {comp.end_date && comp.end_date !== comp.start_date
-                          ? ` – ${comp.end_date}`
-                          : ""}
-                      </span>
-                    )}
-                  </div>
+                  {comp.start_date && (
+                    <p className="text-[11px] text-white/40 mt-0.5">
+                      {comp.start_date}
+                      {comp.end_date && comp.end_date !== comp.start_date ? ` – ${comp.end_date}` : ""}
+                    </p>
+                  )}
                 </div>
               </div>
             </Link>

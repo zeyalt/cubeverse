@@ -92,18 +92,20 @@ export function KidAnalyticsTab({
     setSelectedEventId(eventId);
   };
 
-  const getDateRange = (range: DateRange): { start: Date; end: Date } => {
+  const getDateRange = (range: DateRange): { startStr: string; endStr: string } => {
     const end = new Date();
-    const start = new Date();
+    end.setHours(0, 0, 0, 0);
+    const start = new Date(end);
+
     switch (range) {
       case "14d":
-        start.setDate(end.getDate() - 14);
+        start.setDate(start.getDate() - 14);
         break;
       case "30d":
-        start.setDate(end.getDate() - 30);
+        start.setDate(start.getDate() - 30);
         break;
       case "60d":
-        start.setDate(end.getDate() - 60);
+        start.setDate(start.getDate() - 60);
         break;
       case "month":
         start.setDate(1);
@@ -112,15 +114,17 @@ export function KidAnalyticsTab({
         start.setFullYear(1970);
         break;
     }
-    return { start, end };
+
+    const startStr = start.toISOString().split("T")[0];
+    const endStr = end.toISOString().split("T")[0];
+    return { startStr, endStr };
   };
 
   const dateRangeFilter = getDateRange(dateRange);
 
   const filteredHeatmap = Object.entries(analyticsData.heatmap).reduce(
     (acc, [date, count]) => {
-      const d = new Date(date + "T00:00:00Z");
-      if (d >= dateRangeFilter.start && d <= dateRangeFilter.end) {
+      if (date >= dateRangeFilter.startStr && date <= dateRangeFilter.endStr) {
         acc[date] = count;
       }
       return acc;
@@ -131,8 +135,8 @@ export function KidAnalyticsTab({
   const filteredSolvesOverTime = {
     ...analyticsData.solvesOverTime,
     points: analyticsData.solvesOverTime.points.filter((p) => {
-      const d = new Date(p.ts);
-      return d >= dateRangeFilter.start && d <= dateRangeFilter.end;
+      const dateStr = new Date(p.ts).toISOString().split("T")[0];
+      return dateStr >= dateRangeFilter.startStr && dateStr <= dateRangeFilter.endStr;
     }),
   };
 
@@ -144,7 +148,7 @@ export function KidAnalyticsTab({
   });
 
   return (
-    <div className="px-5 py-6 pb-28 space-y-6 touch-action: manipulation" style={{ touchAction: "manipulation" }}>
+    <div className="px-5 py-6 pb-28 space-y-6" style={{ touchAction: "manipulation" }}>
       {/* Sub-tab switcher */}
       <div className="flex gap-2">
         <button
