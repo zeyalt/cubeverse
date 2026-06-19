@@ -33,27 +33,27 @@ export default async function OnboardingWelcome() {
         {/* Logo / Title */}
         <div>
           <div
-            className="sticker mx-auto mb-6 flex size-24 items-center justify-center rounded-3xl text-5xl font-display font-extrabold"
+            className="mx-auto mb-6 flex size-20 items-center justify-center rounded-2xl text-4xl font-display font-extrabold ring-2 ring-[#FFD500]/20"
             style={{ backgroundColor: "#FFD500", color: "#1A1208" }}
           >
             C
           </div>
-          <h1 className="font-display text-4xl font-extrabold">Cubeverse</h1>
-          <p className="mt-3 text-lg text-white/60">Let's start cubing!</p>
+          <h1 className="font-display text-4xl font-extrabold tracking-tight">Cubeverse</h1>
+          <p className="mt-3 text-lg text-white/55">Let&apos;s start cubing!</p>
         </div>
 
         {/* Action Buttons */}
         <div className="space-y-3">
           <Link
             href="/onboarding/name"
-            className="sticker block w-full rounded-xl border-2 border-[#0A0A0A] bg-[#FFD500] px-6 py-3 text-center font-bold text-[#1A1208] transition-transform hover:scale-105 active:scale-95"
+            className="btn-accent flex min-h-12 w-full items-center justify-center px-6 text-center [touch-action:manipulation]"
           >
             Create New Cuber
           </Link>
 
           {existingCubers.length > 0 && (
-            <details className="sticker space-y-2 rounded-xl border-2 border-[#0A0A0A] bg-white/10 px-6 py-3">
-              <summary className="cursor-pointer font-bold text-white/80 hover:text-white">
+            <details className="surface space-y-2 px-5 py-3 text-left">
+              <summary className="cursor-pointer font-semibold text-white/80 hover:text-white">
                 Select Existing Cuber ({existingCubers.length})
               </summary>
               <div className="mt-3 space-y-2">
@@ -62,9 +62,9 @@ export default async function OnboardingWelcome() {
                     <input type="hidden" name="cuber_id" value={cuber.id} />
                     <button
                       type="submit"
-                      className="block w-full rounded-lg bg-white/10 px-4 py-2 text-left font-medium transition-colors hover:bg-white/20"
+                      className="block w-full rounded-lg bg-white/5 px-4 py-2.5 text-left font-medium transition-colors hover:bg-white/10 [touch-action:manipulation]"
                     >
-                      👤 {cuber.display_name ?? cuber.name}
+                      {cuber.display_name ?? cuber.name}
                     </button>
                   </form>
                 ))}

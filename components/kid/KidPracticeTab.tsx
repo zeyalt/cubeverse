@@ -791,17 +791,17 @@ export function KidPracticeTab({
           ] as const).map(({ label, value }) => (
             <div
               key={label}
-              className="flex flex-col items-center py-2 px-1 select-none"
+              className="flex flex-col items-center py-2.5 px-1 select-none"
               style={{ userSelect: "none", WebkitUserSelect: "none" }}
             >
               <p
-                className="font-mono-time text-[11px] font-bold text-white leading-none"
+                className="font-mono-time text-xs font-bold text-white leading-none"
                 style={{ userSelect: "none", WebkitUserSelect: "none" }}
               >
                 {value ? (value / 100).toFixed(2) : "—"}
               </p>
               <p
-                className="text-[8px] font-bold uppercase tracking-wider text-white/30 mt-0.5"
+                className="text-[9px] font-bold uppercase tracking-wider text-white/40 mt-1"
                 style={{ userSelect: "none", WebkitUserSelect: "none" }}
               >
                 {label}
@@ -809,17 +809,17 @@ export function KidPracticeTab({
             </div>
           ))}
           <div
-            className="flex flex-col items-center py-2 px-1 select-none"
+            className="flex flex-col items-center py-2.5 px-1 select-none"
             style={{ userSelect: "none", WebkitUserSelect: "none" }}
           >
             <p
-              className="font-display text-[11px] font-bold text-white leading-none"
+              className="font-display text-xs font-bold text-white leading-none"
               style={{ userSelect: "none", WebkitUserSelect: "none" }}
             >
               {count}
             </p>
             <p
-              className="text-[8px] font-bold uppercase tracking-wider text-white/30 mt-0.5"
+              className="text-[9px] font-bold uppercase tracking-wider text-white/40 mt-1"
               style={{ userSelect: "none", WebkitUserSelect: "none" }}
             >
               #

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
+import { Check } from "lucide-react";
 import { completeOnboarding } from "@/app/actions/onboarding";
 
 const AVATAR_COLORS = [
@@ -78,7 +79,7 @@ export default function OnboardingAvatarPage() {
           <span className="text-sm font-semibold text-white/70">Step 3 of 3</span>
         </div>
 
-        <div className="mb-8 h-1 w-full overflow-hidden rounded-full bg-white/20">
+        <div className="mb-8 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
           <div
             className="h-full bg-[#FFD500] transition-all duration-300"
             style={{ width: "100%" }}
@@ -99,19 +100,24 @@ export default function OnboardingAvatarPage() {
             <button
               key={key}
               onClick={() => setSelectedColor(key)}
-              className={`sticker flex items-center justify-center rounded-2xl transition-transform ${
-                selectedColor === key ? "scale-110" : "scale-100 hover:scale-105"
+              className={`flex items-center justify-center rounded-2xl transition-all [touch-action:manipulation] ${
+                selectedColor === key ? "scale-105" : "scale-100 hover:scale-105"
               }`}
               style={{
                 backgroundColor: color,
                 width: "80px",
                 height: "80px",
-                boxShadow: selectedColor === key ? "0 0 0 3px #FFD500" : "3px 3px 0 #0A0A0A",
+                boxShadow:
+                  selectedColor === key
+                    ? "0 0 0 3px #FFD500, 0 4px 12px rgba(0,0,0,0.4)"
+                    : "0 2px 6px rgba(0,0,0,0.3)",
               }}
               title={label}
+              aria-label={label}
+              aria-pressed={selectedColor === key}
             >
               {selectedColor === key && (
-                <span className="text-2xl font-bold text-white mix-blend-multiply">✓</span>
+                <Check className="size-7 text-white" strokeWidth={3} />
               )}
             </button>
           ))}
@@ -124,14 +130,14 @@ export default function OnboardingAvatarPage() {
       <div className="w-full max-w-md flex gap-3">
         <Link
           href="/onboarding/wca-id"
-          className="flex-1 rounded-xl border-2 border-white/20 px-4 py-3 text-center font-medium text-white/60 transition-colors hover:bg-white/10"
+          className="btn-neutral flex min-h-12 flex-1 items-center justify-center px-4 text-center [touch-action:manipulation]"
         >
           ← Back
         </Link>
         <button
           onClick={handleSubmit}
           disabled={isPending}
-          className="sticker flex-1 rounded-xl border-2 border-[#0A0A0A] bg-[#FFD500] px-4 py-3 text-center font-bold text-[#1A1208] transition-transform hover:scale-105 active:scale-95 disabled:opacity-50"
+          className="btn-accent flex min-h-12 flex-1 items-center justify-center px-4 text-center [touch-action:manipulation] disabled:opacity-50"
         >
           {isPending ? "Starting..." : "Start Cubing!"}
         </button>

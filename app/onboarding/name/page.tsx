@@ -38,7 +38,7 @@ export default function OnboardingNamePage() {
         </div>
 
         {/* Progress Indicator */}
-        <div className="mb-8 h-1 w-full overflow-hidden rounded-full bg-white/20">
+        <div className="mb-8 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
           <div
             className="h-full bg-[#FFD500] transition-all duration-300"
             style={{ width: "33%" }}
@@ -62,7 +62,7 @@ export default function OnboardingNamePage() {
               setError("");
             }}
             placeholder="Enter your name"
-            className="w-full rounded-xl border-2 border-white/30 bg-white/10 px-4 py-3 font-medium text-white placeholder-white/40 transition-colors focus:border-[#FFD500] focus:outline-none focus:ring-0"
+            className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 font-medium text-white placeholder-white/40 transition-colors focus:border-[#FFD500] focus:outline-none focus:ring-0"
             autoFocus
           />
           {error && <p className="text-sm text-red-400">{error}</p>}
@@ -73,13 +73,13 @@ export default function OnboardingNamePage() {
       <div className="w-full max-w-md flex gap-3">
         <Link
           href="/onboarding"
-          className="flex-1 rounded-xl border-2 border-white/20 px-4 py-3 text-center font-medium text-white/60 transition-colors hover:bg-white/10"
+          className="btn-neutral flex min-h-12 flex-1 items-center justify-center px-4 text-center [touch-action:manipulation]"
         >
           ← Back
         </Link>
         <button
           onClick={handleNext}
-          className="sticker flex-1 rounded-xl border-2 border-[#0A0A0A] bg-[#FFD500] px-4 py-3 text-center font-bold text-[#1A1208] transition-transform hover:scale-105 active:scale-95"
+          className="btn-accent flex min-h-12 flex-1 items-center justify-center px-4 text-center [touch-action:manipulation] disabled:opacity-50"
         >
           Next →
         </button>

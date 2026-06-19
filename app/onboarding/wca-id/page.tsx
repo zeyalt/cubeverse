@@ -81,7 +81,7 @@ export default function OnboardingWcaIdPage() {
           <span className="text-sm font-semibold text-white/70">Step 2 of 3</span>
         </div>
 
-        <div className="mb-8 h-1 w-full overflow-hidden rounded-full bg-white/20">
+        <div className="mb-8 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
           <div
             className="h-full bg-[#FFD500] transition-all duration-300"
             style={{ width: "66%" }}
@@ -106,13 +106,13 @@ export default function OnboardingWcaIdPage() {
                 setError("");
               }}
               placeholder="e.g., 2025ZEYA01"
-              className="flex-1 rounded-xl border-2 border-white/30 bg-white/10 px-4 py-3 font-mono text-white placeholder-white/40 transition-colors focus:border-[#FFD500] focus:outline-none"
+              className="flex-1 rounded-xl border border-white/15 bg-white/5 px-4 py-3 font-mono text-white placeholder-white/40 transition-colors focus:border-[#FFD500] focus:outline-none"
               disabled={isPending}
             />
             <button
               onClick={handleFetchWCA}
               disabled={isPending || !wcaId.trim()}
-              className="sticker rounded-xl border-2 border-[#0A0A0A] bg-[#0046AD] px-4 py-3 font-medium text-white transition-transform hover:scale-105 active:scale-95 disabled:opacity-50"
+              className="btn-neutral flex min-h-12 items-center justify-center px-4 [touch-action:manipulation] disabled:opacity-50"
             >
               {isPending ? "..." : "Fetch"}
             </button>
@@ -121,7 +121,7 @@ export default function OnboardingWcaIdPage() {
           {error && <p className="text-sm text-red-400">{error}</p>}
           {wcaData && (
             <div className="rounded-lg bg-green-500/20 px-3 py-2 text-sm text-green-300">
-              ✓ WCA ID verified {wcaData.name ? `— ${wcaData.name}` : ""} {wcaData.country?.name ? `(${wcaData.country.name})` : ""}
+              WCA ID verified {wcaData.name ? `— ${wcaData.name}` : ""} {wcaData.country?.name ? `(${wcaData.country.name})` : ""}
             </div>
           )}
         </div>
@@ -140,14 +140,14 @@ export default function OnboardingWcaIdPage() {
       <div className="w-full max-w-md flex gap-3">
         <Link
           href="/onboarding/name"
-          className="flex-1 rounded-xl border-2 border-white/20 px-4 py-3 text-center font-medium text-white/60 transition-colors hover:bg-white/10"
+          className="btn-neutral flex min-h-12 flex-1 items-center justify-center px-4 text-center [touch-action:manipulation]"
         >
           ← Back
         </Link>
         <button
           onClick={handleNext}
           disabled={isPending}
-          className="sticker flex-1 rounded-xl border-2 border-[#0A0A0A] bg-[#FFD500] px-4 py-3 text-center font-bold text-[#1A1208] transition-transform hover:scale-105 active:scale-95 disabled:opacity-50"
+          className="btn-accent flex min-h-12 flex-1 items-center justify-center px-4 text-center [touch-action:manipulation] disabled:opacity-50"
         >
           Next →
         </button>

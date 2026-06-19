@@ -6,6 +6,41 @@ import {
   ACTIVITY_BADGES,
   getBadgeInfo,
 } from "@/lib/badges";
+import {
+  Star,
+  Medal,
+  Trophy,
+  Hash,
+  Rocket,
+  Flame,
+  CalendarCheck,
+  Target,
+  Timer,
+  Gauge,
+  Award,
+  type LucideIcon,
+} from "lucide-react";
+
+// Lucide icon per activity badge key (replaces emoji for a cleaner, consistent look).
+const ACTIVITY_ICONS: Record<string, LucideIcon> = {
+  new_pb: Star,
+  first_comp: Medal,
+  "5_comps": Trophy,
+  "100_solves": Hash,
+  "1000_solves": Rocket,
+  streak_7: Flame,
+  streak_30: CalendarCheck,
+  all_events_in_one_comp: Target,
+};
+
+// Tier badges: single = raw speed (Timer), average = consistency (Gauge).
+function badgeIcon(key: string): LucideIcon {
+  if (ACTIVITY_ICONS[key]) return ACTIVITY_ICONS[key];
+  const info = getBadgeInfo(key);
+  if (info.recordType === "average") return Gauge;
+  if (info.recordType === "single") return Timer;
+  return Award;
+}
 
 interface Achievement {
   badge_key: string;
@@ -91,7 +126,7 @@ export function KidBadgesTab({
               return (
                 <BadgeCard
                   key={badge.key}
-                  emoji={info.emoji}
+                  icon={badgeIcon(badge.key)}
                   label={info.label}
                   description={badge.description}
                   unlocked={!!u}
@@ -117,7 +152,7 @@ export function KidBadgesTab({
               return (
                 <BadgeCard
                   key={tier.key}
-                  emoji={info.emoji}
+                  icon={badgeIcon(tier.key)}
                   label={info.label}
                   description={timeCs ? `${formatCs(timeCs)}` : undefined}
                   unlocked={!!u}
@@ -133,13 +168,13 @@ export function KidBadgesTab({
 }
 
 function BadgeCard({
-  emoji,
+  icon: Icon,
   label,
   description,
   unlocked,
   unlockedAt,
 }: {
-  emoji: string;
+  icon: LucideIcon;
   label: string;
   description?: string;
   unlocked: boolean;
@@ -153,7 +188,15 @@ function BadgeCard({
           : "border-white/8 bg-white/[0.025]"
       }`}
     >
-      <div className={`mb-2 text-3xl leading-none ${unlocked ? "" : "opacity-30 grayscale"}`}>{emoji}</div>
+      <div className="mb-2.5 flex justify-center">
+        <span
+          className={`flex size-10 items-center justify-center rounded-full ${
+            unlocked ? "bg-[#FFD500]/15 text-[#FFD500]" : "bg-white/5 text-white/30"
+          }`}
+        >
+          <Icon className="size-5" strokeWidth={2} />
+        </span>
+      </div>
       <p className={`text-xs font-bold leading-tight ${unlocked ? "text-white" : "text-white/45"}`}>{label}</p>
       {description && (
         <p className="mt-1 text-[10px] text-white/55 font-mono-time">{description}</p>
