@@ -146,25 +146,28 @@ export function KidAnalyticsTab({
   });
 
   return (
-    <div className="px-5 py-6 pb-28 space-y-6" style={{ touchAction: "manipulation" }}>
-      {/* Sub-tab switcher */}
-      <div className="flex gap-2">
+    <div className="px-5 pt-3 pb-28 space-y-5" style={{ touchAction: "manipulation" }}>
+      {/* Page title */}
+      <h2 className="font-display text-2xl font-extrabold tracking-tight text-white">Analytics</h2>
+
+      {/* Sub-tab switcher — segmented control */}
+      <div className="flex gap-1 rounded-xl border border-white/10 bg-white/5 p-1">
         <button
           onClick={() => setSubTab("practice")}
-          className={`flex-1 py-2 px-3 rounded-lg font-bold transition-colors ${
+          className={`flex min-h-9 flex-1 items-center justify-center rounded-lg px-3 text-sm font-bold transition-colors [touch-action:manipulation] ${
             subTab === "practice"
               ? "bg-[#FFD500] text-black"
-              : "bg-white/10 text-white hover:bg-white/15"
+              : "text-white/60 hover:text-white"
           }`}
         >
           Practice
         </button>
         <button
           onClick={() => setSubTab("competition")}
-          className={`flex-1 py-2 px-3 rounded-lg font-bold transition-colors ${
+          className={`flex min-h-9 flex-1 items-center justify-center rounded-lg px-3 text-sm font-bold transition-colors [touch-action:manipulation] ${
             subTab === "competition"
               ? "bg-[#FFD500] text-black"
-              : "bg-white/10 text-white hover:bg-white/15"
+              : "text-white/60 hover:text-white"
           }`}
         >
           Competition
@@ -204,7 +207,7 @@ export function KidAnalyticsTab({
           {/* Solves Over Time */}
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">Solves Over Time</p>
-            <div className="rounded-xl bg-white/8 border border-white/10 p-4">
+            <div className="surface p-4">
               <SolvesOverTime data={filteredSolvesOverTime} />
             </div>
           </div>
@@ -212,7 +215,7 @@ export function KidAnalyticsTab({
           {/* Solve Distribution */}
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">Solve Distribution</p>
-            <div className="rounded-xl bg-white/8 border border-white/10 p-4">
+            <div className="surface p-4">
               <SolveDistribution bins={filteredDistribution} />
             </div>
           </div>
@@ -220,7 +223,7 @@ export function KidAnalyticsTab({
           {/* Practice Frequency */}
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">Practice Frequency</p>
-            <div className="rounded-xl bg-white/8 border border-white/10 px-4 py-6">
+            <div className="surface px-4 py-6">
               <PracticeHeatmap
                 counts={analyticsData.heatmap}
                 startDate={dateRange === "all" ? undefined : dateRangeFilter.startStr}
@@ -233,7 +236,7 @@ export function KidAnalyticsTab({
           <div className="relative z-10">
             <button
               onClick={() => setTimesOpen(!timesOpen)}
-              className="w-full flex items-center justify-between rounded-xl bg-white/8 border border-white/10 px-4 py-3 transition-colors hover:bg-white/12"
+              className="surface surface-hover w-full flex items-center justify-between px-4 py-3"
             >
               <span className="font-bold text-white">
                 Practice History {sessionTimes.length > 0 && `(${sessionTimes.length})`}
@@ -478,7 +481,7 @@ export function KidAnalyticsTab({
           {/* PB Staircase */}
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">PB Progression</p>
-            <div className="rounded-xl bg-white/8 border border-white/10 p-4">
+            <div className="surface p-4">
               <PbStaircase data={analyticsData.pbStaircase} />
             </div>
           </div>
@@ -486,7 +489,7 @@ export function KidAnalyticsTab({
           {/* Competition Improvements */}
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">Competition Improvements</p>
-            <div className="rounded-xl bg-white/8 border border-white/10 p-4">
+            <div className="surface p-4">
               <CompetitionImprovements data={filteredCompetitions} />
             </div>
           </div>

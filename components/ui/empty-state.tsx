@@ -17,16 +17,16 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-[#D9CEBD] bg-[#FFFCF7]/60 px-6 py-14 text-center",
+        "flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/[0.035] px-6 py-16 text-center",
         className
       )}
     >
-      <div className="sticker mb-4 flex size-14 items-center justify-center rounded-xl bg-[#EDE6DA] text-[#6B5E4C]">
-        <Icon className="size-6" strokeWidth={1.5} />
+      <div className="mb-4 flex size-14 items-center justify-center rounded-full bg-white/5 text-white/40 ring-1 ring-white/10">
+        <Icon className="size-7" strokeWidth={1.5} />
       </div>
-      <p className="font-heading text-lg font-semibold text-[#1A1208]">{title}</p>
+      <p className="font-display text-lg font-bold text-white">{title}</p>
       {description && (
-        <p className="mt-1 max-w-sm text-sm text-[#6B5E4C]">{description}</p>
+        <p className="mt-1 max-w-xs text-sm text-white/50">{description}</p>
       )}
       {action && <div className="mt-5">{action}</div>}
     </div>

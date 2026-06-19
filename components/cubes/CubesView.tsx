@@ -75,9 +75,9 @@ export function CubesView({
       {!showForm && (
         <button
           onClick={() => setShowForm(true)}
-          className="sticker w-full rounded-xl border-2 border-[#FFD500] bg-[#FFD500]/10 px-4 py-3 font-bold text-[#FFD500] transition-all hover:bg-[#FFD500]/20 active:scale-95"
+          className="btn-accent flex min-h-11 w-full items-center justify-center gap-2 px-4 [touch-action:manipulation]"
         >
-          <Plus className="inline mr-2 size-5" />
+          <Plus className="size-5" />
           Add Cube
         </button>
       )}

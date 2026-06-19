@@ -33,14 +33,16 @@ export function KidBottomNav({ activeTab, onSwitch }: KidBottomNavProps) {
           <button
             key={id}
             onClick={() => onSwitch(id)}
-            className="flex flex-1 flex-col items-center justify-center gap-1 py-3 px-2 transition-transform active:scale-90"
+            aria-label={label}
+            aria-current={active ? "page" : undefined}
+            className="flex min-h-14 flex-1 cursor-pointer flex-col items-center justify-center gap-1 py-3 px-2 transition-transform active:scale-90 [touch-action:manipulation]"
           >
-            {active && (
-              <span
-                className="h-0.5 w-5 rounded-full transition-all"
-                style={{ backgroundColor: "#FFD500" }}
-              />
-            )}
+            {/* Always reserve the indicator's height so switching tabs never
+                nudges the icon/label up or down. */}
+            <span
+              className="h-0.5 w-5 rounded-full transition-all"
+              style={{ backgroundColor: active ? "#FFD500" : "transparent" }}
+            />
             <Icon
               className="size-5 transition-colors"
               style={{ color: active ? "#FFD500" : "rgba(255, 255, 255, 0.4)" }}

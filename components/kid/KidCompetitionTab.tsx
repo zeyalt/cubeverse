@@ -28,18 +28,18 @@ export function KidCompetitionTab({ data: { competitions, cuberId, wcaId } }: Ki
   const [result, setResult] = useState<{ compsImported: number; resultsImported: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   return (
-    <div className="space-y-5 px-5 py-6">
+    <div className="space-y-5 px-5 pt-3 pb-6">
       {/* Header */}
-      <div className="space-y-2">
-        <h2 className="font-display text-2xl font-extrabold text-white">Competitions</h2>
-        <p className="text-sm text-white/60">{competitions.length} on the record</p>
+      <div>
+        <h2 className="font-display text-2xl font-extrabold tracking-tight text-white">Competitions</h2>
+        <p className="mt-0.5 text-sm text-white/50">{competitions.length} on the record</p>
       </div>
 
-      {/* Action buttons */}
+      {/* Action buttons — one accent primary, one neutral secondary */}
       <div className="flex gap-2">
         <Link
           href="/competitions/new"
-          className="sticker flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-[#0A0A0A] bg-[#009B48] px-4 py-2.5 text-center font-bold text-white transition-transform hover:scale-105 active:scale-95"
+          className="btn-accent flex min-h-11 flex-1 items-center justify-center gap-2 px-4 text-center [touch-action:manipulation]"
         >
           <Plus className="size-4" />
           Add
@@ -62,7 +62,7 @@ export function KidCompetitionTab({ data: { competitions, cuberId, wcaId } }: Ki
             });
           }}
           disabled={isPending || !wcaId}
-          className="sticker flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-[#0A0A0A] bg-[#0046AD] px-4 py-2.5 text-center font-bold text-white transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn-neutral flex min-h-11 flex-1 items-center justify-center gap-2 px-4 text-center [touch-action:manipulation] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isPending ? (
             <>
@@ -80,42 +80,43 @@ export function KidCompetitionTab({ data: { competitions, cuberId, wcaId } }: Ki
 
       {/* Import result messages */}
       {error && (
-        <div className="rounded-xl border-2 border-red-500 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-400">
+        <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-300">
           {error}
         </div>
       )}
       {result && (
-        <div className="rounded-xl border-2 border-green-500 bg-green-500/10 px-4 py-3 text-sm font-bold text-green-400">
-          ✓ Imported {result.compsImported} competition{result.compsImported !== 1 ? "s" : ""} and{" "}
+        <div className="rounded-xl border border-green-500/40 bg-green-500/10 px-4 py-3 text-sm font-medium text-green-300">
+          Imported {result.compsImported} competition{result.compsImported !== 1 ? "s" : ""} and{" "}
           {result.resultsImported} new result{result.resultsImported !== 1 ? "s" : ""}
         </div>
       )}
 
       {/* Competitions list */}
       {competitions.length === 0 ? (
-        <div className="rounded-xl bg-white/8 px-6 py-12 text-center">
-          <Trophy className="mx-auto size-12 text-white/30 mb-3" />
-          <p className="font-display text-lg font-bold text-white/70">No competitions yet</p>
-          <p className="mt-1 text-sm text-white/50">Import from WCA or add one manually!</p>
+        <div className="surface flex flex-col items-center justify-center px-6 py-16 text-center">
+          <div className="mb-4 flex size-14 items-center justify-center rounded-full bg-white/5 ring-1 ring-white/10">
+            <Trophy className="size-7 text-white/40" strokeWidth={1.5} />
+          </div>
+          <p className="font-display text-lg font-bold text-white">No competitions yet</p>
+          <p className="mt-1 max-w-xs text-sm text-white/50">Import from WCA or add one manually to start your record.</p>
         </div>
       ) : (
-        <div className="space-y-1">
+        <div className="space-y-2">
           {competitions.map((comp) => (
             <Link
               key={comp.id}
               href={`/competitions/${comp.id}`}
-              className="sticker block rounded-lg border border-white/10 bg-white/5 px-3 py-2 transition-all hover:bg-white/10 hover:border-white/20"
+              className="surface surface-hover block px-4 py-3"
             >
               <div className="flex items-center gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-bold text-sm text-white truncate">{comp.name}</p>
                     <span
-                      className="sticker inline-block rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide border"
+                      className="inline-block shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide"
                       style={{
-                        backgroundColor: comp.type === "wca" ? "#FFD500" : "rgba(255,255,255,0.1)",
-                        color: comp.type === "wca" ? "#1A1208" : "rgba(255,255,255,0.6)",
-                        borderColor: "rgba(0,0,0,0.2)",
+                        backgroundColor: comp.type === "wca" ? "rgba(255,213,0,0.15)" : "rgba(255,255,255,0.08)",
+                        color: comp.type === "wca" ? "#FFD500" : "rgba(255,255,255,0.5)",
                       }}
                     >
                       {comp.type === "wca" ? "WCA" : "Unofficial"}

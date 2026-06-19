@@ -447,7 +447,7 @@ export function KidPracticeTab({
               <button
                 key={ev.id}
                 onClick={() => handleSelectEvent(ev.id)}
-                className="shrink-0 rounded-lg border-2 px-3 py-1.5 text-xs font-bold transition-all"
+                className="flex min-h-9 shrink-0 items-center rounded-lg border-2 px-3 py-1.5 text-xs font-bold transition-all [touch-action:manipulation]"
                 style={{
                   backgroundColor: active ? s.face : "rgba(255,255,255,0.06)",
                   color: active ? s.ink : "rgba(255,255,255,0.7)",
@@ -707,7 +707,7 @@ export function KidPracticeTab({
                   <button
                     key={p}
                     onClick={() => setPenalty(p)}
-                    className={`sticker rounded-lg py-2 font-bold text-xs transition-all ${penalty === p ? "scale-105" : ""}`}
+                    className={`sticker flex min-h-11 items-center justify-center rounded-lg py-2 font-bold text-sm transition-all [touch-action:manipulation] ${penalty === p ? "scale-105" : ""}`}
                     style={{
                       backgroundColor: face,
                       color: ink,
@@ -721,13 +721,13 @@ export function KidPracticeTab({
               <div className="flex gap-2">
                 <button
                   onClick={() => deleteSolve()}
-                  className="flex-1 rounded-lg py-2 bg-white/10 text-white text-xs font-medium transition-colors hover:bg-white/20"
+                  className="flex min-h-11 flex-1 items-center justify-center rounded-lg py-2 bg-white/10 text-white text-sm font-medium transition-colors hover:bg-white/20 [touch-action:manipulation]"
                 >
                   Delete
                 </button>
                 <button
                   onClick={() => saveAndNext(penalty)}
-                  className="flex-1 rounded-lg py-2 bg-white/20 text-white text-xs font-medium transition-colors hover:bg-white/30"
+                  className="flex min-h-11 flex-1 items-center justify-center rounded-lg py-2 bg-white/20 text-white text-sm font-medium transition-colors hover:bg-white/30 [touch-action:manipulation]"
                 >
                   Next →
                 </button>

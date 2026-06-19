@@ -53,17 +53,17 @@ export function KidBadgesTab({
   }
 
   return (
-    <div className="space-y-6 px-5 py-6">
+    <div className="space-y-6 px-5 pt-3 pb-6">
       {/* Header */}
-      <div className="space-y-2">
-        <h2 className="font-display text-2xl font-extrabold text-white">Badges</h2>
-        <p className="text-sm text-white/60">
+      <div>
+        <h2 className="font-display text-2xl font-extrabold tracking-tight text-white">Badges</h2>
+        <p className="mt-0.5 text-sm text-white/50">
           {unlockedCount} of {totalCount} unlocked
         </p>
       </div>
 
       {/* Progress bar */}
-      <div className="sticker rounded-xl bg-white/8 border border-white/10 px-4 py-3" style={{ boxShadow: "2px 2px 0 rgba(0,0,0,0.2)" }}>
+      <div className="surface px-4 py-3.5">
         <div className="mb-2 flex items-center justify-between text-sm">
           <span className="font-medium text-white/90">Progress</span>
           <span className="font-display font-bold" style={{ color: "#FFD500" }}>
@@ -147,19 +147,16 @@ function BadgeCard({
 }) {
   return (
     <div
-      className={`sticker rounded-2xl border-2 p-3 text-center transition-all ${
+      className={`rounded-2xl border p-3 text-center transition-all ${
         unlocked
-          ? "border-[#FFD500]/40 bg-[#FFD500]/10"
-          : "border-white/10 bg-white/5 opacity-50 grayscale"
+          ? "border-[#FFD500]/30 bg-[#FFD500]/[0.07] ring-1 ring-[#FFD500]/10"
+          : "border-white/8 bg-white/[0.025]"
       }`}
-      style={{
-        boxShadow: unlocked ? "2px 2px 0 #FFD500" : "1px 1px 0 rgba(0,0,0,0.2)",
-      }}
     >
-      <div className="mb-2 text-3xl leading-none filter drop-shadow-sm">{emoji}</div>
-      <p className="text-xs font-bold leading-tight text-white">{label}</p>
+      <div className={`mb-2 text-3xl leading-none ${unlocked ? "" : "opacity-30 grayscale"}`}>{emoji}</div>
+      <p className={`text-xs font-bold leading-tight ${unlocked ? "text-white" : "text-white/45"}`}>{label}</p>
       {description && (
-        <p className="mt-1 text-[10px] text-white/60 font-mono-time">{description}</p>
+        <p className="mt-1 text-[10px] text-white/55 font-mono-time">{description}</p>
       )}
       {unlocked && unlockedAt && (
         <p className="mt-1 text-[9px] font-medium text-[#FFD500]">

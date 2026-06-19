@@ -41,13 +41,13 @@ export function SolvesOverTime({ data }: Props) {
         <div className="flex rounded-lg border border-white/20 overflow-hidden text-xs bg-white/5">
           <button
             onClick={() => setXAxis("index")}
-            className={`px-3 py-1.5 transition-colors font-bold ${xAxis === "index" ? "bg-[#FFD500] text-black" : "text-white/60 hover:text-white"}`}
+            className={`flex min-h-9 cursor-pointer items-center px-3 py-1.5 transition-colors font-bold [touch-action:manipulation] ${xAxis === "index" ? "bg-[#FFD500] text-black" : "text-white/60 hover:text-white"}`}
           >
             Solve #
           </button>
           <button
             onClick={() => setXAxis("ts")}
-            className={`px-3 py-1.5 transition-colors font-bold ${xAxis === "ts" ? "bg-[#FFD500] text-black" : "text-white/60 hover:text-white"}`}
+            className={`flex min-h-9 cursor-pointer items-center px-3 py-1.5 transition-colors font-bold [touch-action:manipulation] ${xAxis === "ts" ? "bg-[#FFD500] text-black" : "text-white/60 hover:text-white"}`}
           >
             Date
           </button>
@@ -60,7 +60,7 @@ export function SolvesOverTime({ data }: Props) {
           { key: "comps", label: "Comps",  val: showComps, set: setShowComps },
         ].map(({ key, label, val, set }) => (
           <button key={key} onClick={() => set((v: boolean) => !v)}
-            className={`px-3 py-1.5 rounded-lg border font-bold transition-colors ${
+            className={`flex min-h-9 cursor-pointer items-center px-3 py-1.5 rounded-lg border font-bold transition-colors [touch-action:manipulation] ${
               val
                 ? "bg-white/20 text-white border-white/30"
                 : "border-white/10 text-white/40 hover:text-white/60"

@@ -1,6 +1,6 @@
 "use client";
 
-import { Settings } from "lucide-react";
+import { Settings, ChevronDown } from "lucide-react";
 
 const AVATAR_HEX: Record<string, string> = {
   gold: "#FFD500",
@@ -31,34 +31,35 @@ interface KidHeaderProps {
 export function KidHeader({ cuberName, currentCuberId, cubers, onOpenSettings, onOpenSwitcher }: KidHeaderProps) {
   const activeCuber = cubers.find((c) => c.id === currentCuberId);
   const avatarColor = AVATAR_HEX[activeCuber?.avatar_color ?? "blue"] ?? "#0046AD";
+  const initial = (cuberName?.trim()?.[0] ?? "C").toUpperCase();
 
   return (
-    <header className="relative z-10 flex items-start justify-between gap-4 px-5 pt-[max(1.5rem,env(safe-area-inset-top))]">
+    <header className="relative z-10 flex items-center justify-between gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-1">
       <button
         onClick={onOpenSwitcher}
-        className="flex items-center gap-3 text-left transition-transform active:scale-95 kid-animate-in"
+        className="group flex items-center gap-2.5 text-left transition-opacity active:opacity-70 [touch-action:manipulation]"
         aria-label="Switch cuber"
       >
         <div
-          className="size-10 shrink-0 rounded-full border-2 border-white/30"
-          style={{ backgroundColor: avatarColor }}
-        />
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/45">
-            Cubeverse
-          </p>
-          <h1 className="font-display mt-1 text-[2.5rem] font-extrabold leading-[0.95] tracking-tight sm:text-5xl">
+          className="flex size-9 shrink-0 items-center justify-center rounded-full ring-2 ring-white/15 font-display text-sm font-extrabold"
+          style={{ backgroundColor: avatarColor, color: "#fff" }}
+        >
+          {initial}
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="font-display text-lg font-bold leading-none tracking-tight text-white">
             {cuberName}
-          </h1>
+          </span>
+          <ChevronDown className="size-4 text-white/35" />
         </div>
       </button>
 
       <button
         onClick={onOpenSettings}
-        className="sticker-ghost mt-1 flex size-12 shrink-0 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm transition-transform active:scale-95"
+        className="flex size-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 transition-colors hover:bg-white/10 hover:text-white [touch-action:manipulation]"
         aria-label="Settings"
       >
-        <Settings className="size-5" />
+        <Settings className="size-[1.05rem]" />
       </button>
     </header>
   );

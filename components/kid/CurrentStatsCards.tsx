@@ -54,14 +54,14 @@ export function CurrentStatsCards({
       {metrics.map((metric) => (
         <div
           key={metric.label}
-          className="sticker rounded-lg border border-white/10 bg-white/5 px-2 py-2 relative overflow-hidden"
+          className="surface relative overflow-hidden px-3 py-2.5"
         >
           <div className="relative z-10">
-            <p className="text-[8px] font-bold uppercase tracking-wider text-white/40 mb-1">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-white/40 mb-1">
               {metric.label}
             </p>
             <div className="flex items-baseline justify-between">
-              <p className="font-mono-time font-bold text-white text-xs leading-tight">
+              <p className="font-mono-time font-bold text-white text-sm leading-tight">
                 {metric.value}
               </p>
               {metric.trend && (
