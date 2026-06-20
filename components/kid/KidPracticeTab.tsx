@@ -504,154 +504,50 @@ export function KidPracticeTab({
               </div>
             )}
           </div>
-        </div>
-
-        {/* Session-setup chip — cube + target, opens the setup sheet */}
-        <button
-          onClick={() => setSetupSheetOpen(true)}
-          aria-label="Session setup"
-          className="flex min-h-9 shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 transition-colors hover:bg-white/8 active:bg-white/10 pointer-events-auto"
-        >
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] uppercase tracking-wider text-white/50">
-              {selectedCubeId
-                ? cubes.find((c) => c.id === selectedCubeId)?.name || "Cube"
-                : "Any"}
-            </span>
-            <span className="flex items-center gap-1 text-xs font-mono-time font-bold text-[#FFD500]">
-              <Target className="size-3" />
-              {activeGoal ? (activeGoal.target_cs / 100).toFixed(2) : "—"}
-            </span>
-          </div>
-          <SlidersHorizontal className="size-3.5 text-white/30" />
-        </button>
-      </div>
-
-      {/* ── Session Setup Sheet ──────────────────────────────────────────── */}
-      {setupSheetOpen && (
-        <>
-          <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={() => setSetupSheetOpen(false)} />
-          <div className="sheet-enter fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl border-t-2 border-white/10 bg-[#1C1916] px-5 pt-4"
-            style={{ paddingBottom: "calc(5rem + 1.5rem + env(safe-area-inset-bottom))" }}
-          >
-            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20" />
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="font-display text-lg font-bold text-white">Session Setup</h3>
-              <button onClick={() => setSetupSheetOpen(false)} className="flex size-8 items-center justify-center rounded-lg bg-white/10 hover:bg-white/20">
-                <X className="size-4" />
-              </button>
-            </div>
-
-            {/* Cube picker */}
-            <div className="space-y-2 mb-5">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Cube</p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setSelectedCubeId(null)}
-                  className="rounded-lg border-2 px-3 py-1.5 text-sm font-bold transition-all"
-                  style={selectedCubeId === null ? {
-                    backgroundColor: "#0046AD", color: "#fff",
-                    borderColor: "#0A0A0A", boxShadow: "3px 3px 0 #0A0A0A",
-                  } : {
-                    backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)",
-                    borderColor: "rgba(255,255,255,0.12)",
-                  }}
-                >
-                  Any cube
-                </button>
-                {cubes.map((cube) => (
-                  <button
-                    key={cube.id}
-                    onClick={() => setSelectedCubeId(cube.id)}
-                    className="rounded-lg border-2 px-3 py-1.5 text-sm font-bold transition-all"
-                    style={selectedCubeId === cube.id ? {
-                      backgroundColor: "#0046AD", color: "#fff",
-                      borderColor: "#0A0A0A", boxShadow: "3px 3px 0 #0A0A0A",
-                    } : {
-                      backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)",
-                      borderColor: "rgba(255,255,255,0.12)",
-                    }}
-                  >
-                    {cube.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Goal picker */}
-            <div className="space-y-2">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Target Time</p>
-              {activeGoal && !editingGoal ? (
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 rounded-xl border-2 border-[#FFD500]/30 bg-[#FFD500]/10 px-4 py-3">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#FFD500]/60">Goal</p>
-                    <p className="font-mono-time text-2xl font-bold text-[#FFD500]">
-                      {(activeGoal.target_cs / 100).toFixed(2)}
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <button
-                      onClick={() => { setGoalInput((activeGoal.target_cs / 100).toFixed(2)); setEditingGoal(true); }}
-                      className="rounded-lg border border-white/15 bg-white/8 px-3 py-2 text-xs font-bold text-white/60 hover:bg-white/12"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={async () => { await clearPracticeGoal(cuberId, selectedId); setActiveGoal(null); }}
-                      className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-400 hover:bg-red-500/20"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                </div>
-              ) : editingGoal ? (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={goalInput}
-                    onChange={(e) => setGoalInput(e.target.value)}
-                    placeholder="e.g. 15.00"
-                    autoFocus
-                    className="flex-1 rounded-xl border-2 border-white/20 bg-white/10 px-4 py-3 font-mono-time text-white placeholder-white/30 focus:outline-none focus:border-[#FFD500]/50"
-                  />
-                  <button
-                    onClick={async () => {
-                      const cs = parseToCs(goalInput);
+          {/* Target time input */}
+          <div className="relative flex-1">
+            <div className="relative">
+              <Target className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#FFD500] pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Target"
+                value={goalInput}
+                onChange={(e) => setGoalInput(e.target.value)}
+                onBlur={async () => {
+                  if (goalInput.trim()) {
+                    try {
+                      const cs = Math.round(parseFloat(goalInput) * 100);
                       if (cs > 0) {
-                        const result = await setPracticeGoal(cuberId, selectedId, cs);
-                        if (!result.error) {
-                          setActiveGoal({ id: "optimistic", target_cs: cs });
-                          setEditingGoal(false);
-                          setGoalInput("");
-                          const setup = await getPracticeSetupData(cuberId, selectedId);
-                          setActiveGoal(setup.activeGoal);
-                        }
+                        await setPracticeGoal(cuberId, selectedId, cs);
+                        const setup = await getPracticeSetupData(cuberId, selectedId);
+                        setActiveGoal(setup.activeGoal);
                       }
-                    }}
-                    className="rounded-xl border-2 border-[#0A0A0A] bg-[#009B48] px-4 font-bold text-white"
-                    style={{ boxShadow: "3px 3px 0 #0A0A0A" }}
-                  >
-                    Set
-                  </button>
-                  <button
-                    onClick={() => { setEditingGoal(false); setGoalInput(""); }}
-                    className="rounded-xl border border-white/10 bg-white/8 px-3 font-bold text-white/50"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setEditingGoal(true)}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/15 py-3 text-sm font-bold text-white/40 transition-colors hover:border-white/25 hover:text-white/60"
-                >
-                  + Set target time
-                </button>
+                    } catch (err) {
+                      console.error("Failed to set goal:", err);
+                    }
+                  } else {
+                    await clearPracticeGoal(cuberId, selectedId);
+                    setActiveGoal(null);
+                  }
+                  setGoalInput("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+                className="sticker w-full flex items-center rounded-lg border-2 border-white/10 bg-white/8 px-3 py-2 pl-9 font-mono-time text-sm text-[#FFD500] transition-all hover:bg-white/12 focus:outline-none focus:border-[#FFD500]/50 placeholder:text-white/40"
+              />
+              {activeGoal && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/50">
+                  {(activeGoal.target_cs / 100).toFixed(2)}
+                </span>
               )}
             </div>
           </div>
-        </>
-      )}
+        </div>
+      </div>
+
 
       {/* ── Hero ───────────────────────────────────────────────────────────
           One flex column that fills the space between the setup bar and the
