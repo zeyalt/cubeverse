@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { X, Target, PartyPopper, SlidersHorizontal } from "lucide-react";
+import { X, Target, PartyPopper, SlidersHorizontal, ChevronDown } from "lucide-react";
 import { formatCs, parseToCs, effectiveTime, aoN, DNF } from "@/lib/cubing";
 import { EVENT_SHORT, getEventSticker } from "@/lib/event-theme";
 import { useScramble } from "@/lib/useScramble";
@@ -117,6 +117,8 @@ export function KidPracticeTab({
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalInput, setGoalInput] = useState("");
   const [setupSheetOpen, setSetupSheetOpen] = useState(false);
+  const [eventDropdownOpen, setEventDropdownOpen] = useState(false);
+  const [cubeDropdownOpen, setCubeDropdownOpen] = useState(false);
 
   const timerRef = useRef<TimerRefs>(makeTimerRefs());
 
@@ -355,6 +357,12 @@ export function KidPracticeTab({
     };
   }, [onPressStart, onPressEnd, resetInspection]);
 
+  useEffect(() => {
+    if (timerPhase === "stopped") {
+      nextScramble();
+    }
+  }, [timerPhase]);
+
   function deleteSolve() {
     goPhase("idle");
     setDisplayCs(0);
@@ -374,7 +382,6 @@ export function KidPracticeTab({
     setDisplayCs(0);
     setPenalty("none");
     setInspSec(15);
-    nextScramble();
 
     const solveInput = {
       cuberId,
@@ -414,31 +421,89 @@ export function KidPracticeTab({
   return (
     <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden text-white">
 
-      {/* ── Compact setup bar — pills + session-setup chip on one row ──────── */}
-      <div className="practice-setup relative z-10 flex shrink-0 items-center gap-2 px-4 pt-2 pb-2 pointer-events-none">
+      {/* ── Compact setup bar — event + cube dropdowns + session-setup chip ──── */}
+      <div className="practice-setup relative z-10 flex shrink-0 flex-col gap-2 px-4 pt-2 pb-2 pointer-events-none">
+        <div className="flex gap-2 pointer-events-auto">
+          {/* Event dropdown */}
+          <div className="relative flex-1">
+            <button
+              onClick={() => setEventDropdownOpen(!eventDropdownOpen)}
+              className="sticker w-full flex items-center justify-between rounded-lg border-2 border-white/10 bg-white/8 px-3 py-2 font-bold text-sm text-white transition-all hover:bg-white/12"
+            >
+              <span className="truncate text-left">{EVENT_SHORT[selectedId] || selectedId}</span>
+              <ChevronDown className={`size-4 flex-shrink-0 transition-transform ${eventDropdownOpen ? "rotate-180" : ""}`} />
+            </button>
 
-        {/* Puzzle pills — scroll horizontally, take remaining width */}
-        <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto scrollbar-none pointer-events-auto">
-          {events.map((ev) => {
-            const s = getEventSticker(ev.id);
-            const active = ev.id === selectedId;
-            return (
-              <button
-                key={ev.id}
-                onClick={() => handleSelectEvent(ev.id)}
-                className="flex min-h-9 shrink-0 items-center rounded-lg border px-3 py-1.5 text-xs font-bold transition-all [touch-action:manipulation]"
-                style={{
-                  backgroundColor: active ? s.face : "var(--kid-fill)",
-                  color: active ? s.ink : "var(--kid-fg-muted)",
-                  borderColor: active ? s.face : "var(--kid-border-strong)",
-                  boxShadow: active ? `0 0 0 1px ${s.face}` : "none",
-                  transitionDuration: "120ms",
-                }}
-              >
-                {EVENT_SHORT[ev.id] ?? ev.name}
-              </button>
-            );
-          })}
+            {eventDropdownOpen && (
+              <div className="absolute top-full left-0 right-0 mt-1 z-50 rounded-lg border border-white/10 bg-[#1C1916] shadow-lg max-h-48 overflow-y-auto">
+                {events.map((ev) => (
+                  <button
+                    key={ev.id}
+                    onClick={() => {
+                      handleSelectEvent(ev.id);
+                      setEventDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 font-bold text-sm transition-colors ${
+                      selectedId === ev.id
+                        ? "bg-[#FFD500]/20 text-[#FFD500]"
+                        : "text-white hover:bg-white/10"
+                    }`}
+                  >
+                    {EVENT_SHORT[ev.id] || ev.id}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Cube dropdown */}
+          <div className="relative flex-1">
+            <button
+              onClick={() => setCubeDropdownOpen(!cubeDropdownOpen)}
+              className="sticker w-full flex items-center justify-between rounded-lg border-2 border-white/10 bg-white/8 px-3 py-2 font-bold text-sm text-white transition-all hover:bg-white/12"
+            >
+              <span className="truncate text-left">
+                {selectedCubeId
+                  ? cubes.find((c) => c.id === selectedCubeId)?.name || "Cube"
+                  : "Any"}
+              </span>
+              <ChevronDown className={`size-4 flex-shrink-0 transition-transform ${cubeDropdownOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {cubeDropdownOpen && (
+              <div className="absolute top-full right-0 mt-1 z-50 rounded-lg border border-white/10 bg-[#1C1916] shadow-lg max-h-48 overflow-y-auto min-w-[180px]">
+                <button
+                  onClick={() => {
+                    setSelectedCubeId(null);
+                    setCubeDropdownOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 font-bold text-sm transition-colors ${
+                    selectedCubeId === null
+                      ? "bg-[#FFD500]/20 text-[#FFD500]"
+                      : "text-white hover:bg-white/10"
+                  }`}
+                >
+                  Any
+                </button>
+                {cubes.map((cube) => (
+                  <button
+                    key={cube.id}
+                    onClick={() => {
+                      setSelectedCubeId(cube.id);
+                      setCubeDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 font-bold text-sm transition-colors ${
+                      selectedCubeId === cube.id
+                        ? "bg-[#FFD500]/20 text-[#FFD500]"
+                        : "text-white hover:bg-white/10"
+                    }`}
+                  >
+                    {cube.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Session-setup chip — cube + target, opens the setup sheet */}
