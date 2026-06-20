@@ -34,12 +34,14 @@ export function useScramble(eventId: string) {
       const mod = await import("scrambow") as any;
       const Scrambow = mod.Scrambow ?? mod.default?.Scrambow ?? mod.default;
       const type = SCRAMBOW_EVENT[eventId] ?? "333";
-      const result: string = new Scrambow().setType(type).get(1)[0].scramble_string;
+      // Generate 2 scrambles and concatenate for longer, harder scrambles
+      const scrambles: string[] = new Scrambow().setType(type).get(2).map((s: any) => s.scramble_string);
+      const result: string = scrambles.join(" ");
       setScramble(result);
     } catch (err) {
       console.error("Scramble generation failed:", err);
       // Deterministic fallback so the user always gets something.
-      setScramble("R U R' U' F2 R U R' U' F2");
+      setScramble("R U R' U' F2 R U R' U' F2 R U R' U' F2 R U R' U' F2");
     } finally {
       busyRef.current = false;
     }
