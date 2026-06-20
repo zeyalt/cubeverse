@@ -729,39 +729,39 @@ export function KidPracticeTab({
           {/* Penalty bar + session stats */}
           {timerPhase === "stopped" && (
             <div className="mt-6 space-y-3 mx-auto w-full max-w-sm pointer-events-auto">
-              <div className="flex gap-0.5 items-center justify-center">
+              <div className="flex gap-2 items-center justify-center">
                 <button
                   onClick={() => deleteSolve()}
-                  className="flex items-center justify-center w-7 h-7 rounded-sm bg-white/10 text-white transition-colors hover:bg-white/20 [touch-action:manipulation]"
+                  className="flex items-center justify-center w-14 h-14 rounded-lg bg-white/10 text-white transition-colors hover:bg-white/20 [touch-action:manipulation]"
                   aria-label="Delete solve"
                 >
-                  <Trash2 className="size-3" />
+                  <Trash2 className="size-6" />
                 </button>
                 <button
                   onClick={() => setPenalty(penalty === "plus2" ? "none" : "plus2")}
-                  className="flex items-center justify-center w-7 h-7 rounded-sm font-bold text-[10px] transition-all [touch-action:manipulation]"
+                  className="flex items-center justify-center w-14 h-14 rounded-lg font-bold text-lg transition-all [touch-action:manipulation]"
                   style={{
                     backgroundColor: penalty === "plus2" ? "#FFD500" : "rgba(255,213,0,0.3)",
                     color: penalty === "plus2" ? "#1A1200" : "#FFD500",
-                    boxShadow: penalty === "plus2" ? "1px 1px 0 #0A0A0A" : "none",
+                    boxShadow: penalty === "plus2" ? "3px 3px 0 #0A0A0A" : "1px 1px 0 rgba(255,213,0,0.2)",
                   }}
                 >
                   +2
                 </button>
                 <button
                   onClick={() => setPenalty(penalty === "dnf" ? "none" : "dnf")}
-                  className="flex items-center justify-center w-7 h-7 rounded-sm font-bold text-[10px] transition-all [touch-action:manipulation]"
+                  className="flex items-center justify-center w-14 h-14 rounded-lg font-bold text-lg transition-all [touch-action:manipulation]"
                   style={{
                     backgroundColor: penalty === "dnf" ? "#B71234" : "rgba(183,18,52,0.3)",
                     color: penalty === "dnf" ? "#FFF" : "#B71234",
-                    boxShadow: penalty === "dnf" ? "1px 1px 0 #0A0A0A" : "none",
+                    boxShadow: penalty === "dnf" ? "3px 3px 0 #0A0A0A" : "1px 1px 0 rgba(183,18,52,0.2)",
                   }}
                 >
                   DNF
                 </button>
                 <button
                   onClick={() => saveAndNext(penalty)}
-                  className="flex items-center justify-center w-7 h-7 rounded-sm bg-white/20 text-white transition-colors hover:bg-white/30 [touch-action:manipulation]"
+                  className="flex items-center justify-center w-14 h-14 rounded-lg bg-white/20 text-white transition-colors hover:bg-white/30 [touch-action:manipulation]"
                   aria-label="Next solve"
                 >
                   <ArrowRight className="size-4" />
