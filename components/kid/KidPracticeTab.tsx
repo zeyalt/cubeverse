@@ -580,7 +580,7 @@ export function KidPracticeTab({
             onContextMenu={(e) => e.preventDefault()}
           >
             <p
-              className="font-mono-time text-center text-[15px] leading-snug tracking-wide text-white/75"
+              className="font-mono-time text-center text-[20px] leading-snug tracking-wide text-white/75"
               style={{ userSelect: "none", WebkitUserSelect: "none" }}
             >
               {scramble ?? "Generating scramble…"}
