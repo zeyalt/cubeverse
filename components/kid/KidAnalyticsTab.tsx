@@ -62,7 +62,6 @@ export function KidAnalyticsTab({
   const [subTab, setSubTab] = useState<"practice" | "competition">("practice");
   const [selectedEventId, setSelectedEventId] = useState(defaultEventId);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsPayload>(initialAnalyticsData);
-  const [compTypeFilter, setCompTypeFilter] = useState<"all" | "wca" | "unofficial">("all");
   const [selectedCubeIds, setSelectedCubeIds] = useState<Set<string>>(new Set());
   const [dateRange, setDateRange] = useState<DateRange>("all");
   const [timesOpen, setTimesOpen] = useState(false);
@@ -71,7 +70,6 @@ export function KidAnalyticsTab({
   const [editingPenalty, setEditingPenalty] = useState<"none" | "plus2" | "dnf">("none");
   const [sessionTimes, setSessionTimes] = useState<Array<{ id: string; cs: number; penalty: "none" | "plus2" | "dnf"; timestamp: number; scramble: string | null }>>([]);
   const [eventDropdownOpen, setEventDropdownOpen] = useState(false);
-  const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
 
   const refreshAll = useCallback(async (eventId: string) => {
     const [solves, data] = await Promise.all([
@@ -140,13 +138,8 @@ export function KidAnalyticsTab({
 
   const filteredDistribution = analyticsData.distribution; // TODO: filter if needed
 
-  const filteredCompetitions = analyticsData.competitionImprovements.filter((comp) => {
-    if (compTypeFilter === "all") return true;
-    return comp.type === compTypeFilter;
-  });
-
   return (
-    <div className="px-5 pt-3 pb-28 space-y-5" style={{ touchAction: "manipulation" }}>
+    <div className="px-5 pt-3 pb-4 space-y-5" style={{ touchAction: "manipulation" }}>
       {/* Page title */}
       <h2 className="font-display text-2xl font-extrabold tracking-tight text-white">Analytics</h2>
 
@@ -369,89 +362,34 @@ export function KidAnalyticsTab({
       {/* Competition Sub-tab */}
       {subTab === "competition" && (
         <div className="space-y-6">
-          {/* Filters */}
-          <div className="grid grid-cols-2 gap-2">
-            {/* Event dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setEventDropdownOpen(!eventDropdownOpen)}
-                className="sticker w-full flex items-center justify-between rounded-lg border-2 border-white/10 bg-white/8 px-3 py-2 font-bold text-sm text-white transition-all hover:bg-white/12"
-              >
-                <span className="truncate text-left flex-1">{EVENT_SHORT[selectedEventId] || selectedEventId}</span>
-                <ChevronDown className={`size-4 flex-shrink-0 transition-transform ${eventDropdownOpen ? "rotate-180" : ""}`} />
-              </button>
-
-              {eventDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1 z-50 rounded-lg border border-white/10 bg-[#1C1916] shadow-lg max-h-48 overflow-y-auto">
-                  {events.map((e) => (
-                    <button
-                      key={e.id}
-                      onClick={() => {
-                        handleEventChange(e.id);
-                        setEventDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 font-bold text-sm transition-colors ${
-                        selectedEventId === e.id
-                          ? "bg-[#FFD500]/20 text-[#FFD500]"
-                          : "text-white hover:bg-white/10"
-                      }`}
-                    >
-                      {EVENT_SHORT[e.id] || e.id}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Competition type dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setTypeDropdownOpen(!typeDropdownOpen)}
-                className="sticker w-full flex items-center justify-between rounded-lg border-2 border-white/10 bg-white/8 px-3 py-2 font-bold text-sm text-white transition-all hover:bg-white/12"
-              >
-                <span className="truncate text-left flex-1">
-                  {compTypeFilter === "all" ? "All" : compTypeFilter === "wca" ? "WCA" : "Unofficial"}
-                </span>
-                <ChevronDown className={`size-4 flex-shrink-0 transition-transform ${typeDropdownOpen ? "rotate-180" : ""}`} />
-              </button>
-
-              {typeDropdownOpen && (
-                <div className="absolute top-full right-0 mt-1 z-50 rounded-lg border border-white/10 bg-[#1C1916] shadow-lg w-40">
-                  {(["all", "wca", "unofficial"] as const).map((type) => (
-                    <button
-                      key={type}
-                      onClick={() => {
-                        setCompTypeFilter(type);
-                        setTypeDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 font-bold text-sm transition-colors ${
-                        compTypeFilter === type
-                          ? "bg-[#FFD500]/20 text-[#FFD500]"
-                          : "text-white hover:bg-white/10"
-                      }`}
-                    >
-                      {type === "all" ? "All" : type === "wca" ? "WCA" : "Unofficial"}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Official PBs table */}
+          {/* Personal Records table */}
           <div className="space-y-2">
-            <p className="text-sm font-bold text-white">Official Personal Bests</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-white/40">Personal Records</p>
             <div className="overflow-x-auto rounded-lg border border-white/10 bg-white/5">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-white/10">
-                    <th className="px-4 py-3 text-left font-bold uppercase tracking-wider text-white/60">
+                    <th rowSpan={2} className="px-4 py-3 text-left align-bottom font-bold uppercase tracking-wider text-white/60">
                       Event
                     </th>
-                    <th className="px-4 py-3 text-center font-bold uppercase tracking-wider text-white/60">
+                    <th colSpan={2} className="px-4 py-2 text-center font-bold uppercase tracking-wider text-white/60">
+                      WCA
+                    </th>
+                    <th colSpan={2} className="px-4 py-2 text-center font-bold uppercase tracking-wider text-white/60 border-l border-white/10">
+                      Non-WCA
+                    </th>
+                  </tr>
+                  <tr className="border-b border-white/10">
+                    <th className="px-4 py-2 text-center font-bold uppercase tracking-wider text-white/40">
                       Single
                     </th>
-                    <th className="px-4 py-3 text-center font-bold uppercase tracking-wider text-white/60">
+                    <th className="px-4 py-2 text-center font-bold uppercase tracking-wider text-white/40">
+                      Average
+                    </th>
+                    <th className="px-4 py-2 text-center font-bold uppercase tracking-wider text-white/40 border-l border-white/10">
+                      Single
+                    </th>
+                    <th className="px-4 py-2 text-center font-bold uppercase tracking-wider text-white/40">
                       Average
                     </th>
                   </tr>
@@ -466,16 +404,54 @@ export function KidAnalyticsTab({
                         {EVENT_NAMES[pb.eventId] || pb.eventId}
                       </td>
                       <td className="px-4 py-3 text-center font-mono-time font-bold text-white">
-                        {fmt(pb.officialSingle)}
+                        {fmt(pb.wcaSingle)}
                       </td>
                       <td className="px-4 py-3 text-center font-mono-time text-white/80">
-                        {fmt(pb.officialAvg)}
+                        {fmt(pb.wcaAvg)}
+                      </td>
+                      <td className="px-4 py-3 text-center font-mono-time font-bold text-white border-l border-white/10">
+                        {fmt(pb.unofficialSingle)}
+                      </td>
+                      <td className="px-4 py-3 text-center font-mono-time text-white/80">
+                        {fmt(pb.unofficialAvg)}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* Event filter — drives PB Progression + Competition Improvements */}
+          <div className="relative">
+            <button
+              onClick={() => setEventDropdownOpen(!eventDropdownOpen)}
+              className="sticker w-full flex items-center justify-between rounded-lg border-2 border-white/10 bg-white/8 px-3 py-2 font-bold text-sm text-white transition-all hover:bg-white/12"
+            >
+              <span className="truncate text-left flex-1">{EVENT_SHORT[selectedEventId] || selectedEventId}</span>
+              <ChevronDown className={`size-4 flex-shrink-0 transition-transform ${eventDropdownOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {eventDropdownOpen && (
+              <div className="absolute top-full left-0 right-0 mt-1 z-50 rounded-lg border border-white/10 bg-[#1C1916] shadow-lg max-h-48 overflow-y-auto">
+                {events.map((e) => (
+                  <button
+                    key={e.id}
+                    onClick={() => {
+                      handleEventChange(e.id);
+                      setEventDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 font-bold text-sm transition-colors ${
+                      selectedEventId === e.id
+                        ? "bg-[#FFD500]/20 text-[#FFD500]"
+                        : "text-white hover:bg-white/10"
+                    }`}
+                  >
+                    {EVENT_SHORT[e.id] || e.id}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* PB Staircase */}
@@ -490,7 +466,7 @@ export function KidAnalyticsTab({
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">Competition Improvements</p>
             <div className="surface p-4">
-              <CompetitionImprovements data={filteredCompetitions} />
+              <CompetitionImprovements data={analyticsData.competitionImprovements} />
             </div>
           </div>
         </div>

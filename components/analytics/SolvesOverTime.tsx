@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  ComposedChart, Scatter, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ComposedChart, Scatter, Line, XAxis, YAxis, Tooltip,
   ResponsiveContainer, ReferenceLine,
 } from "recharts";
 import type { SolvesOverTimeData } from "@/lib/analytics";
@@ -135,7 +135,6 @@ export function SolvesOverTime({ data }: Props) {
 
       <ResponsiveContainer width="100%" height={380}>
         <ComposedChart data={valid} margin={{ top: 8, right: 8, left: 0, bottom: 18 }}>
-          <CartesianGrid strokeDasharray="0" stroke={cc.grid} />
           <XAxis
             dataKey={xKey}
             tick={{ fontSize: 10, fill: cc.tick }}

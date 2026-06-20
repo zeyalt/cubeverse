@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import { addResultKid, deleteResultKid } from "@/app/actions/competition";
+import { addResultKid, deleteResultKid, deleteCompetition } from "@/app/actions/competition";
 import { saveCompetitionNote } from "@/app/actions/notes";
 import { formatCs, DNF } from "@/lib/cubing";
 import { getEventSticker, EVENT_SHORT } from "@/lib/event-theme";
@@ -451,10 +451,31 @@ export function KidCompetitionDetail({
                 boxShadow: "2px 2px 0 rgba(0,0,0,0.1)",
               }}
             >
-              {competition.type === "wca" ? "WCA" : "Unofficial"}
+              {competition.type === "wca" ? "WCA" : "Non-WCA"}
             </span>
           </div>
         </div>
+        {competition.type !== "wca" && (
+          <form
+            action={deleteCompetition}
+            className="shrink-0"
+            onSubmit={(e) => {
+              if (!window.confirm(`Delete "${competition.name}"? This removes all its results and can't be undone.`)) {
+                e.preventDefault();
+              }
+            }}
+          >
+            <input type="hidden" name="competition_id" value={competition.id} />
+            <button
+              type="submit"
+              className="sticker-ghost flex size-10 shrink-0 items-center justify-center rounded-xl bg-red-500/20 text-red-400 transition-transform active:scale-95"
+              title="Delete competition"
+              aria-label="Delete competition"
+            >
+              <Trash2 className="size-5" />
+            </button>
+          </form>
+        )}
       </header>
 
       {/* Results list */}

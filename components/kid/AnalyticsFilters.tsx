@@ -33,7 +33,7 @@ const DATE_RANGE_LABELS: Record<DateRange, string> = {
   "30d": "30 days",
   "60d": "60 days",
   "month": "This Month",
-  "all": "All",
+  "all": "All Dates",
 };
 
 export function AnalyticsFilters({
@@ -85,11 +85,9 @@ export function AnalyticsFilters({
   const cubesLabel = selectedCubeIds.size === 0 ? "All Cubes" : `${selectedCubeIds.size} selected`;
 
   return (
-    <div ref={rootRef} className="space-y-2">
-      {/* Row 1: Event (left) | Date Range (right) */}
-      <div className="grid grid-cols-2 gap-2">
-        {/* Event dropdown */}
-        <div className="relative">
+    <div ref={rootRef} className="flex gap-2">
+      {/* Event dropdown */}
+        <div className="relative flex-1">
           <button
             onClick={() => { const next = !eventOpen; closeAll(); setEventOpen(next); }}
             aria-haspopup="listbox"
@@ -102,7 +100,7 @@ export function AnalyticsFilters({
           </button>
 
           {eventOpen && (
-            <div role="listbox" className="absolute top-full left-0 right-0 mt-1 z-50 rounded-lg border border-white/10 bg-[#1C1916] shadow-lg max-h-48 overflow-y-auto">
+            <div role="listbox" className="absolute top-full left-0 mt-1 z-50 min-w-full w-36 rounded-lg border border-white/10 bg-[#1C1916] shadow-lg max-h-48 overflow-y-auto">
               {events.map((e) => (
                 <button
                   key={e.id}
@@ -125,8 +123,50 @@ export function AnalyticsFilters({
           )}
         </div>
 
-        {/* Date range dropdown */}
-        <div className="relative">
+        {/* Cubes dropdown */}
+      {cubes.length > 0 && (
+        <div className="relative flex-1">
+          <button
+            onClick={() => { const next = !cubesOpen; closeAll(); setCubesOpen(next); }}
+            aria-haspopup="listbox"
+            aria-expanded={cubesOpen}
+            aria-label="Filter by cube"
+            className="sticker w-full flex min-h-11 cursor-pointer items-center justify-between rounded-lg border-2 border-white/10 bg-white/8 px-3 py-2 font-bold text-sm text-white transition-all hover:bg-white/12 [touch-action:manipulation]"
+          >
+            <span className="truncate text-left flex-1">{cubesLabel}</span>
+            <ChevronDown className={`size-4 flex-shrink-0 transition-transform ${cubesOpen ? "rotate-180" : ""}`} />
+          </button>
+
+          {cubesOpen && (
+            <div role="listbox" aria-multiselectable className="absolute top-full left-0 mt-1 z-50 min-w-full w-44 rounded-lg border border-white/10 bg-[#1C1916] shadow-lg max-h-48 overflow-y-auto">
+              {cubes.map((cube) => (
+                <button
+                  key={cube.id}
+                  role="option"
+                  aria-selected={selectedCubeIds.has(cube.id)}
+                  onClick={() => toggleCube(cube.id)}
+                  className={`w-full text-left px-3 py-2.5 font-bold text-sm transition-colors flex items-center gap-2 [touch-action:manipulation] ${
+                    selectedCubeIds.has(cube.id)
+                      ? "bg-[#0046AD]/20 text-[#0046AD]"
+                      : "text-white hover:bg-white/10"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedCubeIds.has(cube.id)}
+                    onChange={() => {}}
+                    className="pointer-events-none"
+                  />
+                  {cube.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Date range dropdown */}
+        <div className="relative flex-1">
           <button
             onClick={() => { const next = !dateOpen; closeAll(); setDateOpen(next); }}
             aria-haspopup="listbox"
@@ -161,49 +201,6 @@ export function AnalyticsFilters({
             </div>
           )}
         </div>
-      </div>
-
-      {/* Row 2: Cubes (full width) */}
-      {cubes.length > 0 && (
-        <div className="relative">
-          <button
-            onClick={() => { const next = !cubesOpen; closeAll(); setCubesOpen(next); }}
-            aria-haspopup="listbox"
-            aria-expanded={cubesOpen}
-            aria-label="Filter by cube"
-            className="sticker w-full flex min-h-11 cursor-pointer items-center justify-between rounded-lg border-2 border-white/10 bg-white/8 px-3 py-2 font-bold text-sm text-white transition-all hover:bg-white/12 [touch-action:manipulation]"
-          >
-            <span className="truncate text-left flex-1">{cubesLabel}</span>
-            <ChevronDown className={`size-4 flex-shrink-0 transition-transform ${cubesOpen ? "rotate-180" : ""}`} />
-          </button>
-
-          {cubesOpen && (
-            <div role="listbox" aria-multiselectable className="absolute top-full left-0 right-0 mt-1 z-50 rounded-lg border border-white/10 bg-[#1C1916] shadow-lg max-h-48 overflow-y-auto">
-              {cubes.map((cube) => (
-                <button
-                  key={cube.id}
-                  role="option"
-                  aria-selected={selectedCubeIds.has(cube.id)}
-                  onClick={() => toggleCube(cube.id)}
-                  className={`w-full text-left px-3 py-2.5 font-bold text-sm transition-colors flex items-center gap-2 [touch-action:manipulation] ${
-                    selectedCubeIds.has(cube.id)
-                      ? "bg-[#0046AD]/20 text-[#0046AD]"
-                      : "text-white hover:bg-white/10"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedCubeIds.has(cube.id)}
-                    onChange={() => {}}
-                    className="pointer-events-none"
-                  />
-                  {cube.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

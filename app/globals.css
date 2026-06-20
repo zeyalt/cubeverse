@@ -552,3 +552,22 @@ body {
   background-color: rgba(26, 18, 8, 0.06);
   border: 1px solid rgba(26, 18, 8, 0.08);
 }
+
+/* Secondary (neutral) buttons hard-code white text/fill; retint for light mode
+   so they stay legible on the warm paper canvas. */
+.theme-light .btn-neutral {
+  background-color: rgba(26, 18, 8, 0.05);
+  color: #1A1208;
+  border-color: rgba(26, 18, 8, 0.15);
+}
+.theme-light .btn-neutral:hover {
+  background-color: rgba(26, 18, 8, 0.09);
+  border-color: rgba(26, 18, 8, 0.25);
+}
+
+/* Status-feedback text — Tailwind's 300/400 greens & reds are too light on the
+   warm paper canvas; darken them in light mode so banners/deltas hit AA. */
+.theme-light :where(.text-green-300) { color: #15803d; }
+.theme-light :where(.text-green-400) { color: #16a34a; }
+.theme-light :where(.text-red-300) { color: #b91c1c; }
+.theme-light :where(.text-red-400) { color: #dc2626; }

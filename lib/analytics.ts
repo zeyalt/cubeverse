@@ -80,15 +80,22 @@ export async function getPbStaircase(
   cuberId: string,
   eventId: string
 ): Promise<PbStaircaseData> {
-  const { data } = await db
-    .from("pb_history")
-    .select("record_type, context, time_cs, achieved_at")
-    .eq("cuber_id", cuberId)
-    .eq("event_id", eventId)
-    .gt("time_cs", 0)
-    .order("achieved_at");
+  const [{ data: pbData }, { data: resultData }] = await Promise.all([
+    db
+      .from("pb_history")
+      .select("record_type, context, time_cs, achieved_at")
+      .eq("cuber_id", cuberId)
+      .eq("event_id", eventId)
+      .gt("time_cs", 0)
+      .order("achieved_at"),
+    db
+      .from("results")
+      .select("best_cs, average_cs, competitions(start_date)")
+      .eq("cuber_id", cuberId)
+      .eq("event_id", eventId),
+  ]);
 
-  const rows = data ?? [];
+  const rows = pbData ?? [];
 
   function series(recordType: string, context: string): PbPoint[] {
     return rows
@@ -100,11 +107,43 @@ export async function getPbStaircase(
       }));
   }
 
+  // Official PB staircase is built directly from competition results so it
+  // includes BOTH WCA and manually-added non-WCA competitions (the latter
+  // never reach pb_history). Emit a point only where the running best improves.
+  type ResultRow = {
+    best_cs: number | null;
+    average_cs: number | null;
+    competitions: { start_date: string | null } | null;
+  };
+  const compResults = ((resultData ?? []) as unknown as ResultRow[])
+    .filter((r): r is ResultRow & { competitions: { start_date: string } } =>
+      Boolean(r.competitions?.start_date)
+    )
+    .sort(
+      (a, b) =>
+        new Date(a.competitions.start_date).getTime() -
+        new Date(b.competitions.start_date).getTime()
+    );
+
+  function officialSeries(field: "best_cs" | "average_cs"): PbPoint[] {
+    const pts: PbPoint[] = [];
+    let best = Infinity;
+    for (const r of compResults) {
+      const v = r[field];
+      if (v !== null && v > 0 && v < best) {
+        best = v;
+        const iso = r.competitions.start_date;
+        pts.push({ ts: new Date(iso).getTime(), date: fmtDate(iso), timeCs: v });
+      }
+    }
+    return pts;
+  }
+
   return {
     practiceSingle: series("single", "practice"),
     practiceAvg: series("average", "practice"),
-    officialSingle: series("single", "official"),
-    officialAvg: series("average", "official"),
+    officialSingle: officialSeries("best_cs"),
+    officialAvg: officialSeries("average_cs"),
   };
 }
 
@@ -254,6 +293,10 @@ export interface CurrentPb {
   eventId: string;
   officialSingle: number | null;
   officialAvg: number | null;
+  wcaSingle: number | null;
+  wcaAvg: number | null;
+  unofficialSingle: number | null;
+  unofficialAvg: number | null;
   practiceSingle: number | null;
   practiceAo5: number | null;
   practiceAo12: number | null;
@@ -267,7 +310,7 @@ export async function getCurrentPbs(
   cuberId: string,
   eventIds: string[]
 ): Promise<CurrentPb[]> {
-  const [{ data: pbData }, { data: solveData }] = await Promise.all([
+  const [{ data: pbData }, { data: solveData }, { data: resultData }] = await Promise.all([
     db
       .from("pb_history")
       .select("event_id, record_type, context, time_cs")
@@ -282,7 +325,35 @@ export async function getCurrentPbs(
       .in("event_id", eventIds)
       .eq("context", "practice")
       .order("solved_at"),
+    db
+      .from("results")
+      .select("event_id, best_cs, average_cs, competitions(type)")
+      .eq("cuber_id", cuberId)
+      .in("event_id", eventIds),
   ]);
+
+  // Split competition results into WCA vs non-WCA (unofficial) best single/avg.
+  type ResultRow = {
+    event_id: string;
+    best_cs: number | null;
+    average_cs: number | null;
+    competitions: { type: string } | null;
+  };
+  const compBest: Record<string, number> = {}; // key: `${eventId}:${wca|unofficial}:${single|average}`
+  for (const r of (resultData ?? []) as unknown as ResultRow[]) {
+    const isWca = (r.competitions?.type ?? "").toLowerCase() === "wca";
+    const kind = isWca ? "wca" : "unofficial";
+    const single = r.best_cs ?? null;
+    const avg = r.average_cs ?? null;
+    if (single !== null && single > 0) {
+      const k = `${r.event_id}:${kind}:single`;
+      if (compBest[k] === undefined || single < compBest[k]) compBest[k] = single;
+    }
+    if (avg !== null && avg > 0) {
+      const k = `${r.event_id}:${kind}:average`;
+      if (compBest[k] === undefined || avg < compBest[k]) compBest[k] = avg;
+    }
+  }
 
   // Find minimum per (event, recordType, context)
   const best: Record<string, number> = {};
@@ -334,6 +405,10 @@ export async function getCurrentPbs(
     eventId: id,
     officialSingle: best[`${id}:single:official`] ?? null,
     officialAvg:    best[`${id}:average:official`] ?? null,
+    wcaSingle:        compBest[`${id}:wca:single`] ?? null,
+    wcaAvg:           compBest[`${id}:wca:average`] ?? null,
+    unofficialSingle: compBest[`${id}:unofficial:single`] ?? null,
+    unofficialAvg:    compBest[`${id}:unofficial:average`] ?? null,
     practiceSingle: practiceStats[id]?.single ?? null,
     practiceAo5:    practiceStats[id]?.ao5 ?? null,
     practiceAo12:   practiceStats[id]?.ao12 ?? null,

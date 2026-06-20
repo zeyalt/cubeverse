@@ -37,7 +37,8 @@ export async function createCompetition(
 
   const db = getServiceClient();
   const ownerId = getOwnerId();
-  const cuberId = await getDefaultCuberId(db, ownerId);
+  const cuberId =
+    (formData.get("cuber_id") as string)?.trim() || (await getDefaultCuberId(db, ownerId));
   if (!cuberId) return { error: "No cuber set up." };
 
   const { data: comp, error } = await db
@@ -167,6 +168,18 @@ export async function addResult(
 export async function deleteCompetition(formData: FormData): Promise<void> {
   const id = formData.get("competition_id") as string;
   const db = getServiceClient();
+
+  // WCA competitions are imported records and must not be deleted; only
+  // manually-created (unofficial) competitions can be removed.
+  const { data: comp } = await db
+    .from("competitions")
+    .select("type")
+    .eq("id", id)
+    .maybeSingle();
+  if (!comp || comp.type === "wca") {
+    redirect(`/competitions/${id}`);
+  }
+
   await db.from("competitions").delete().eq("id", id);
   redirect("/?tab=competitions");
 }

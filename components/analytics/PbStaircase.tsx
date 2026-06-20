@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  LineChart, Line, XAxis, YAxis, Tooltip,
   ResponsiveContainer, Legend,
 } from "recharts";
 import type { PbStaircaseData, PbPoint } from "@/lib/analytics";
@@ -11,6 +11,53 @@ import { formatCs } from "@/lib/cubing";
 interface Props { data: PbStaircaseData }
 
 function fmtY(cs: number) { return formatCs(cs); }
+
+interface TooltipPayloadEntry {
+  name?: string;
+  value?: number;
+  color?: string;
+  payload?: { date?: string };
+}
+
+// Compact tooltip: competition date on top, then each visible series' time.
+function ChartTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: TooltipPayloadEntry[];
+}) {
+  if (!active || !payload?.length) return null;
+  const date = payload[0]?.payload?.date;
+  const SERIES = new Set(["Single", "Average"]);
+  const rows = payload.filter((e) => e.name && SERIES.has(e.name));
+  if (!rows.length) return null;
+  return (
+    <div
+      style={{
+        backgroundColor: "rgba(0,0,0,0.85)",
+        border: "1px solid rgba(255,255,255,0.12)",
+        borderRadius: 8,
+        color: "#fff",
+        padding: "5px 8px",
+        fontSize: 11,
+        lineHeight: 1.35,
+      }}
+    >
+      {date && (
+        <div style={{ opacity: 0.65, fontSize: 10, marginBottom: 2 }}>{date}</div>
+      )}
+      {rows.map((entry, i) => (
+        <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+          <span style={{ color: entry.color ?? "#fff" }}>{entry.name}</span>
+          <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+            {typeof entry.value === "number" && entry.value > 0 ? formatCs(entry.value) : "DNF"}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // Merge two series into a unified X domain for the step chart
 function buildSeries(points: PbPoint[], label: string) {
@@ -26,17 +73,14 @@ export function PbStaircase({ data }: Props) {
   const [showSingle, setShowSingle] = useState(true);
   const [showAvg, setShowAvg] = useState(true);
 
-  const hasPractice = data.practiceSingle.length > 0 || data.practiceAvg.length > 0;
   const hasOfficial = data.officialSingle.length > 0 || data.officialAvg.length > 0;
 
-  if (!hasPractice && !hasOfficial) {
-    return <Empty>No PB history yet. Run a solve or import WCA data.</Empty>;
+  if (!hasOfficial) {
+    return <Empty>No competition PB history yet.</Empty>;
   }
 
   // Combine all points into one timeline
   const allPoints = [
-    ...buildSeries(data.practiceSingle, "practiceSingle"),
-    ...buildSeries(data.practiceAvg, "practiceAvg"),
     ...buildSeries(data.officialSingle, "officialSingle"),
     ...buildSeries(data.officialAvg, "officialAvg"),
   ].sort((a, b) => a.ts - b.ts);
@@ -65,10 +109,10 @@ export function PbStaircase({ data }: Props) {
           <button
             key={t}
             onClick={() => t === "single" ? setShowSingle((v) => !v) : setShowAvg((v) => !v)}
-            className={`px-3 py-1 rounded-full border transition-colors ${
+            className={`px-3 py-1 rounded-full border font-bold transition-colors ${
               (t === "single" ? showSingle : showAvg)
-                ? "bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900 border-transparent"
-                : "border-zinc-300 dark:border-zinc-600 text-zinc-400"
+                ? "bg-[#FFD500] text-[#1A1208] border-transparent"
+                : "border-white/20 text-white/50 hover:bg-white/10"
             }`}
           >
             {t === "single" ? "Single" : "Average"}
@@ -78,7 +122,6 @@ export function PbStaircase({ data }: Props) {
 
       <ResponsiveContainer width="100%" height={280}>
         <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
           <XAxis
             dataKey="ts"
             type="number"
@@ -95,32 +138,14 @@ export function PbStaircase({ data }: Props) {
             tick={{ fontSize: 11 }}
             width={55}
           />
-          <Tooltip
-            formatter={(v: unknown, name: unknown) => [
-              typeof v === "number" ? formatCs(v) : "—",
-              String(name).replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase()),
-            ]}
-            labelFormatter={(ts: unknown) =>
-              typeof ts === "number"
-                ? new Date(ts).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
-                : String(ts)
-            }
-          />
+          <Tooltip content={<ChartTooltip />} />
           <Legend wrapperStyle={{ fontSize: 12 }} />
-          {showSingle && hasPractice && (
-            <Line dataKey="practiceSingle" name="Practice Single" type="stepAfter"
-              stroke="#6366f1" strokeWidth={2} dot={false} connectNulls />
-          )}
-          {showAvg && hasPractice && (
-            <Line dataKey="practiceAvg" name="Practice Avg" type="stepAfter"
-              stroke="#6366f1" strokeWidth={2} strokeDasharray="5 3" dot={false} connectNulls />
-          )}
           {showSingle && hasOfficial && (
-            <Line dataKey="officialSingle" name="Official Single" type="stepAfter"
+            <Line dataKey="officialSingle" name="Single" type="stepAfter"
               stroke="#f59e0b" strokeWidth={2} dot={{ r: 4, fill: "#f59e0b" }} connectNulls />
           )}
           {showAvg && hasOfficial && (
-            <Line dataKey="officialAvg" name="Official Avg" type="stepAfter"
+            <Line dataKey="officialAvg" name="Average" type="stepAfter"
               stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 3"
               dot={{ r: 4, fill: "#f59e0b" }} connectNulls />
           )}

@@ -50,7 +50,7 @@ export function CompetitionImprovements({ data }: CompetitionImprovementsProps) 
             </div>
             <div className="flex gap-1">
               <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-white/15 text-white/70 uppercase">
-                {comp.type === "wca" ? "WCA" : "Unofficial"}
+                {comp.type === "wca" ? "WCA" : "Non-WCA"}
               </span>
               <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-white/20 text-white/60 uppercase">
                 {ROUND_LABELS[comp.roundType]}

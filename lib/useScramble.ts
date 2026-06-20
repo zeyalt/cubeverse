@@ -34,10 +34,8 @@ export function useScramble(eventId: string) {
       const mod = await import("scrambow") as any;
       const Scrambow = mod.Scrambow ?? mod.default?.Scrambow ?? mod.default;
       const type = SCRAMBOW_EVENT[eventId] ?? "333";
-      // Generate 2 scrambles and concatenate for longer, harder scrambles
-      const scrambles: string[] = new Scrambow().setType(type).get(2).map((s: any) => s.scramble_string);
-      const result: string = scrambles.join(" ");
-      setScramble(result);
+      const [scramble] = new Scrambow().setType(type).get(1).map((s: any) => s.scramble_string);
+      setScramble(scramble);
     } catch (err) {
       console.error("Scramble generation failed:", err);
       // Deterministic fallback so the user always gets something.

@@ -64,6 +64,10 @@ interface AnalyticsTabData {
     eventId: string;
     officialSingle: number | null;
     officialAvg: number | null;
+    wcaSingle: number | null;
+    wcaAvg: number | null;
+    unofficialSingle: number | null;
+    unofficialAvg: number | null;
     practiceSingle: number | null;
     practiceAo5: number | null;
     practiceAo12: number | null;

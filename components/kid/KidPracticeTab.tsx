@@ -5,6 +5,7 @@ import { X, Target, PartyPopper, SlidersHorizontal, ChevronDown, Trash2, ArrowRi
 import { formatCs, parseToCs, effectiveTime, aoN, DNF } from "@/lib/cubing";
 import { EVENT_SHORT, getEventSticker } from "@/lib/event-theme";
 import { useScramble } from "@/lib/useScramble";
+import { ScramblePreview } from "./ScramblePreview";
 import { recordSolve, type SessionStats } from "@/app/actions/solve";
 import { enqueueSolve } from "@/lib/offline/queue";
 import { getPracticeSetupData, setPracticeGoal, clearPracticeGoal } from "@/app/actions/goals";
@@ -423,26 +424,13 @@ export function KidPracticeTab({
 
       {/* ── Compact setup bar — event + cube dropdowns + session-setup chip ──── */}
       <div className="practice-setup relative z-50 flex shrink-0 flex-col gap-3 px-4 pt-2 pb-2 pointer-events-none">
-        {/* Labels row */}
-        <div className="flex gap-2 px-0.5">
-          <div className="flex-1">
-            <p className="text-[9px] uppercase tracking-wider text-white/40 font-bold">Puzzle</p>
-          </div>
-          <div className="flex-1">
-            <p className="text-[9px] uppercase tracking-wider text-white/40 font-bold">Cube</p>
-          </div>
-          <div className="flex-1">
-            <p className="text-[9px] uppercase tracking-wider text-white/40 font-bold">Target</p>
-          </div>
-        </div>
-
         {/* Controls row */}
         <div className="flex gap-2 pointer-events-auto">
           {/* Event dropdown */}
           <div className="relative flex-1">
             <button
               onClick={() => setEventDropdownOpen(!eventDropdownOpen)}
-              className="sticker w-full flex items-center justify-between rounded-lg border-2 border-white/20 bg-[#1C1916] px-3 py-2.5 font-bold text-sm text-white transition-all hover:bg-white/10"
+              className="sticker w-full h-12 flex items-center justify-between rounded-lg border-2 border-white/20 bg-[#1C1916] px-3 font-bold text-sm text-white transition-all hover:bg-white/10"
             >
               <span className="truncate text-left">{EVENT_SHORT[selectedId] || selectedId}</span>
               <ChevronDown className={`size-4 flex-shrink-0 transition-transform ${eventDropdownOpen ? "rotate-180" : ""}`} />
@@ -474,12 +462,12 @@ export function KidPracticeTab({
           <div className="relative flex-1">
             <button
               onClick={() => setCubeDropdownOpen(!cubeDropdownOpen)}
-              className="sticker w-full flex items-center justify-between rounded-lg border-2 border-white/20 bg-[#1C1916] px-3 py-2.5 font-bold text-sm text-white transition-all hover:bg-white/10"
+              className="sticker w-full h-12 flex items-center justify-between rounded-lg border-2 border-white/20 bg-[#1C1916] px-3 font-bold text-sm text-white transition-all hover:bg-white/10"
             >
               <span className="truncate text-left">
                 {selectedCubeId
                   ? cubes.find((c) => c.id === selectedCubeId)?.name || "Cube"
-                  : "Any"}
+                  : "Any Cube"}
               </span>
               <ChevronDown className={`size-4 flex-shrink-0 transition-transform ${cubeDropdownOpen ? "rotate-180" : ""}`} />
             </button>
@@ -497,7 +485,7 @@ export function KidPracticeTab({
                       : "text-white hover:bg-white/10"
                   }`}
                 >
-                  Any
+                  Any Cube
                 </button>
                 {cubes.map((cube) => (
                   <button
@@ -519,63 +507,57 @@ export function KidPracticeTab({
             )}
           </div>
 
-          {/* Target time slider — unique per puzzle type */}
+          {/* Target time input — unique per puzzle type */}
           <div className="relative flex-1">
-            <div className="border-2 border-[#FFD500]/30 bg-[#FFD500]/5 rounded-lg p-2 flex flex-col gap-2">
-              {/* Target value display */}
-              <div className="text-center">
-                <span className="text-sm font-mono-time font-bold text-[#FFD500]">
-                  {activeGoal ? (activeGoal.target_cs / 100).toFixed(2) : "10.00"}
-                </span>
-              </div>
-
-              {/* Slider + buttons */}
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={async () => {
-                    if (activeGoal && activeGoal.target_cs >= 5050) {
-                      const newCs = Math.round(activeGoal.target_cs - 50);
-                      await setPracticeGoal(cuberId, selectedId, newCs);
-                      const setup = await getPracticeSetupData(cuberId, selectedId);
-                      setActiveGoal(setup.activeGoal);
-                    }
-                  }}
-                  className="flex items-center justify-center w-8 h-8 rounded-md bg-[#1C1916] border border-white/30 text-[#FFD500] hover:bg-white/10 transition-colors [touch-action:manipulation]"
-                  aria-label="Decrease target by 0.5s"
-                  title="−0.5s"
-                >
-                  −
-                </button>
-                <input
-                  type="range"
-                  min="1000"
-                  max="60000"
-                  step="50"
-                  value={activeGoal?.target_cs ?? 2000}
-                  onChange={async (e) => {
-                    const cs = Math.round(parseFloat(e.target.value));
+            <div className="sticker h-12 border-2 border-white/20 bg-[#1C1916] rounded-lg px-1.5 flex items-center gap-1">
+              <button
+                onClick={() => {
+                  const currentCs = activeGoal?.target_cs ?? 1000;
+                  if (currentCs > 350) {
+                    const newCs = Math.round(currentCs - 50);
+                    setActiveGoal({ id: activeGoal?.id ?? "", target_cs: newCs });
+                    void setPracticeGoal(cuberId, selectedId, newCs);
+                    void getPracticeSetupData(cuberId, selectedId).then(setup => setActiveGoal(setup.activeGoal));
+                  }
+                }}
+                className="flex items-center justify-center w-8 h-8 shrink-0 rounded-md bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors [touch-action:manipulation]"
+                aria-label="Decrease target by 0.5s"
+                title="−0.5s"
+              >
+                −
+              </button>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={activeGoal ? (activeGoal.target_cs / 100).toFixed(2) : "10.00"}
+                onChange={async (e) => {
+                  const val = parseFloat(e.target.value);
+                  if (!isNaN(val) && val > 0) {
+                    const cs = Math.round(val * 100);
                     await setPracticeGoal(cuberId, selectedId, cs);
                     const setup = await getPracticeSetupData(cuberId, selectedId);
                     setActiveGoal(setup.activeGoal);
-                  }}
-                  className="flex-1 h-1.5 bg-white/20 rounded-full appearance-none cursor-pointer accent-[#FFD500]"
-                />
-                <button
-                  onClick={async () => {
-                    if (activeGoal && activeGoal.target_cs <= 59950) {
-                      const newCs = Math.round(activeGoal.target_cs + 50);
-                      await setPracticeGoal(cuberId, selectedId, newCs);
-                      const setup = await getPracticeSetupData(cuberId, selectedId);
-                      setActiveGoal(setup.activeGoal);
-                    }
-                  }}
-                  className="flex items-center justify-center w-8 h-8 rounded-md bg-[#1C1916] border border-white/30 text-[#FFD500] hover:bg-white/10 transition-colors [touch-action:manipulation]"
-                  aria-label="Increase target by 0.5s"
-                  title="+0.5s"
-                >
-                  +
-                </button>
-              </div>
+                  }
+                }}
+                className="min-w-0 flex-1 bg-transparent text-center text-sm font-mono-time font-bold text-white placeholder-white/30 focus:outline-none"
+                placeholder="10.00"
+              />
+              <button
+                onClick={() => {
+                  const currentCs = activeGoal?.target_cs ?? 1000;
+                  if (currentCs < 179950) {
+                    const newCs = Math.round(currentCs + 50);
+                    setActiveGoal({ id: activeGoal?.id ?? "", target_cs: newCs });
+                    void setPracticeGoal(cuberId, selectedId, newCs);
+                    void getPracticeSetupData(cuberId, selectedId).then(setup => setActiveGoal(setup.activeGoal));
+                  }
+                }}
+                className="flex items-center justify-center w-8 h-8 shrink-0 rounded-md bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors [touch-action:manipulation]"
+                aria-label="Increase target by 0.5s"
+                title="+0.5s"
+              >
+                +
+              </button>
             </div>
           </div>
         </div>
@@ -608,16 +590,21 @@ export function KidPracticeTab({
         {/* Scramble — pinned to the top of the hero */}
         <div className="practice-scramble shrink-0 pt-1 pointer-events-none">
           <div
-            className="kid-animate-in rounded-lg bg-white/5 w-full max-w-sm mx-auto px-4 py-2 select-none"
+            className="kid-animate-in flex items-center gap-3 rounded-lg bg-white/5 w-full max-w-sm mx-auto px-4 py-2 select-none"
             style={{ animationDelay: "80ms", userSelect: "none", WebkitUserSelect: "none" }}
             onContextMenu={(e) => e.preventDefault()}
           >
             <p
-              className="font-mono-time text-center text-[15px] leading-snug tracking-wide text-white/75"
+              className="font-mono-time flex-1 text-left text-[15px] leading-snug tracking-wide text-white/75"
               style={{ userSelect: "none", WebkitUserSelect: "none" }}
             >
               {scramble ?? "Generating scramble…"}
             </p>
+            <ScramblePreview
+              event={selectedId}
+              scramble={scramble}
+              className="h-24 w-32 shrink-0"
+            />
           </div>
         </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
 import type { DistBin } from "@/lib/analytics";
 import { useTheme } from "@/lib/useTheme";
@@ -65,7 +65,6 @@ export function SolveDistribution({ bins }: Props) {
   return (
     <ResponsiveContainer width="100%" height={220}>
       <BarChart data={bins} margin={{ top: 8, right: 8, left: 0, bottom: 16 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke={cc.grid} />
         <XAxis
           dataKey="label"
           tick={{ fontSize: 10, fill: cc.tick }}

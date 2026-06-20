@@ -1,9 +1,26 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
+import { useFormStatus } from "react-dom";
 import Link from "next/link";
-import { Trophy, Plus, Download, Loader2 } from "lucide-react";
+import { Trophy, Plus, Download, Loader2, X } from "lucide-react";
 import { importWcaResultsKid } from "@/app/actions/import";
+import { createCompetition } from "@/app/actions/competition";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="btn-accent flex min-h-11 flex-1 items-center justify-center gap-2 px-4 disabled:opacity-50 [touch-action:manipulation]"
+    >
+      {pending ? "Saving…" : "Save competition"}
+    </button>
+  );
+}
 
 interface Competition {
   id: string;
@@ -27,6 +44,8 @@ export function KidCompetitionTab({ data: { competitions, cuberId, wcaId } }: Ki
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<{ compsImported: number; resultsImported: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [formState, formAction] = useActionState(createCompetition, { error: null });
   return (
     <div className="space-y-5 px-5 pt-3 pb-6">
       {/* Header */}
@@ -37,13 +56,13 @@ export function KidCompetitionTab({ data: { competitions, cuberId, wcaId } }: Ki
 
       {/* Action buttons — one accent primary, one neutral secondary */}
       <div className="flex gap-2">
-        <Link
-          href="/competitions/new"
+        <button
+          onClick={() => setShowForm((v) => !v)}
           className="btn-accent flex min-h-11 flex-1 items-center justify-center gap-2 px-4 text-center [touch-action:manipulation]"
         >
-          <Plus className="size-4" />
-          Add
-        </Link>
+          {showForm ? <X className="size-4" /> : <Plus className="size-4" />}
+          {showForm ? "Cancel" : "Add"}
+        </button>
         <button
           onClick={() => {
             if (!wcaId) {
@@ -77,6 +96,45 @@ export function KidCompetitionTab({ data: { competitions, cuberId, wcaId } }: Ki
           )}
         </button>
       </div>
+
+      {/* Add competition form (unofficial — WCA comps come via Import) */}
+      {showForm && (
+        <form action={formAction} className="surface space-y-3 p-4">
+          <input type="hidden" name="cuber_id" value={cuberId} />
+          {formState.error && (
+            <p className="text-sm font-bold text-red-400">{formState.error}</p>
+          )}
+
+          <div className="space-y-1">
+            <Label htmlFor="name" className="text-xs font-bold uppercase tracking-wider text-white/60">Name *</Label>
+            <Input id="name" name="name" required placeholder="Friday Night Cubing" className="bg-white/10 border-white/20 text-white placeholder:text-white/30" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="city" className="text-xs font-bold uppercase tracking-wider text-white/60">City</Label>
+              <Input id="city" name="city" placeholder="Singapore" className="bg-white/10 border-white/20 text-white placeholder:text-white/30" />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="country" className="text-xs font-bold uppercase tracking-wider text-white/60">Country</Label>
+              <Input id="country" name="country" placeholder="Singapore" className="bg-white/10 border-white/20 text-white placeholder:text-white/30" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="start_date" className="text-xs font-bold uppercase tracking-wider text-white/60">Start date</Label>
+              <Input id="start_date" name="start_date" type="date" className="bg-white/10 border-white/20 text-white" />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="end_date" className="text-xs font-bold uppercase tracking-wider text-white/60">End date</Label>
+              <Input id="end_date" name="end_date" type="date" className="bg-white/10 border-white/20 text-white" />
+            </div>
+          </div>
+
+          <SubmitButton />
+        </form>
+      )}
 
       {/* Import result messages */}
       {error && (
@@ -115,11 +173,11 @@ export function KidCompetitionTab({ data: { competitions, cuberId, wcaId } }: Ki
                     <span
                       className="inline-block shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide"
                       style={{
-                        backgroundColor: comp.type === "wca" ? "rgba(255,213,0,0.15)" : "rgba(255,255,255,0.08)",
-                        color: comp.type === "wca" ? "#FFD500" : "rgba(255,255,255,0.5)",
+                        backgroundColor: comp.type === "wca" ? "var(--kid-accent-soft)" : "var(--kid-fill-strong)",
+                        color: comp.type === "wca" ? "var(--kid-accent)" : "var(--kid-fg-muted)",
                       }}
                     >
-                      {comp.type === "wca" ? "WCA" : "Unofficial"}
+                      {comp.type === "wca" ? "WCA" : "Non-WCA"}
                     </span>
                   </div>
                   {comp.start_date && (
