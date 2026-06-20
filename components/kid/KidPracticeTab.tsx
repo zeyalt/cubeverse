@@ -428,7 +428,7 @@ export function KidPracticeTab({
           <div className="relative flex-1">
             <button
               onClick={() => setEventDropdownOpen(!eventDropdownOpen)}
-              className="sticker w-full flex items-center justify-between rounded-lg border-2 border-white/10 bg-white/8 px-3 py-2 font-bold text-sm text-white transition-all hover:bg-white/12"
+              className="sticker w-full flex items-center justify-between rounded-lg border-2 border-white/20 bg-[#1C1916] px-3 py-2 font-bold text-sm text-white transition-all hover:bg-white/10"
             >
               <span className="truncate text-left">{EVENT_SHORT[selectedId] || selectedId}</span>
               <ChevronDown className={`size-4 flex-shrink-0 transition-transform ${eventDropdownOpen ? "rotate-180" : ""}`} />
@@ -460,7 +460,7 @@ export function KidPracticeTab({
           <div className="relative flex-1">
             <button
               onClick={() => setCubeDropdownOpen(!cubeDropdownOpen)}
-              className="sticker w-full flex items-center justify-between rounded-lg border-2 border-white/10 bg-white/8 px-3 py-2 font-bold text-sm text-white transition-all hover:bg-white/12"
+              className="sticker w-full flex items-center justify-between rounded-lg border-2 border-white/20 bg-[#1C1916] px-3 py-2 font-bold text-sm text-white transition-all hover:bg-white/10"
             >
               <span className="truncate text-left">
                 {selectedCubeId
@@ -536,7 +536,7 @@ export function KidPracticeTab({
                     (e.target as HTMLInputElement).blur();
                   }
                 }}
-                className="sticker w-full flex items-center rounded-lg border-2 border-white/10 bg-white/8 px-3 py-2 pl-9 font-mono-time text-sm text-[#FFD500] transition-all hover:bg-white/12 focus:outline-none focus:border-[#FFD500]/50 placeholder:text-white/40"
+                className="sticker w-full flex items-center rounded-lg border-2 border-white/20 bg-[#1C1916] px-3 py-2 pl-9 font-mono-time text-sm text-[#FFD500] transition-all hover:bg-white/10 focus:outline-none focus:border-[#FFD500]/50 placeholder:text-white/40"
               />
               {activeGoal && (
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/50">
