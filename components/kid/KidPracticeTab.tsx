@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { X, Target, PartyPopper, SlidersHorizontal, ChevronDown } from "lucide-react";
+import { X, Target, PartyPopper, SlidersHorizontal, ChevronDown, Trash2, ArrowRight } from "lucide-react";
 import { formatCs, parseToCs, effectiveTime, aoN, DNF } from "@/lib/cubing";
 import { EVENT_SHORT, getEventSticker } from "@/lib/event-theme";
 import { useScramble } from "@/lib/useScramble";
@@ -729,40 +729,42 @@ export function KidPracticeTab({
           {/* Penalty bar + session stats */}
           {timerPhase === "stopped" && (
             <div className="mt-6 space-y-3 mx-auto w-full max-w-sm pointer-events-auto">
-              <div className="flex gap-2 justify-between items-stretch">
+              <div className="flex gap-1.5 items-center">
                 <button
                   onClick={() => deleteSolve()}
-                  className="flex-shrink-0 min-h-11 px-3 rounded-lg bg-white/10 text-white text-sm font-medium transition-colors hover:bg-white/20 [touch-action:manipulation]"
+                  className="flex-1 flex items-center justify-center min-h-9 rounded-lg bg-white/10 text-white transition-colors hover:bg-white/20 [touch-action:manipulation]"
+                  aria-label="Delete solve"
                 >
-                  Delete
+                  <Trash2 className="size-4" />
                 </button>
                 <button
                   onClick={() => setPenalty(penalty === "plus2" ? "none" : "plus2")}
-                  className="flex-shrink-0 min-h-11 px-3 rounded-lg font-bold text-sm transition-all [touch-action:manipulation]"
+                  className="flex-1 flex items-center justify-center min-h-9 rounded-lg font-bold text-xs transition-all [touch-action:manipulation]"
                   style={{
                     backgroundColor: penalty === "plus2" ? "#FFD500" : "rgba(255,213,0,0.3)",
                     color: penalty === "plus2" ? "#1A1200" : "#FFD500",
-                    boxShadow: penalty === "plus2" ? "3px 3px 0 #0A0A0A" : "1px 1px 0 rgba(255,213,0,0.2)",
+                    boxShadow: penalty === "plus2" ? "2px 2px 0 #0A0A0A" : "1px 1px 0 rgba(255,213,0,0.2)",
                   }}
                 >
                   +2
                 </button>
                 <button
                   onClick={() => setPenalty(penalty === "dnf" ? "none" : "dnf")}
-                  className="flex-shrink-0 min-h-11 px-3 rounded-lg font-bold text-sm transition-all [touch-action:manipulation]"
+                  className="flex-1 flex items-center justify-center min-h-9 rounded-lg font-bold text-xs transition-all [touch-action:manipulation]"
                   style={{
                     backgroundColor: penalty === "dnf" ? "#B71234" : "rgba(183,18,52,0.3)",
                     color: penalty === "dnf" ? "#FFF" : "#B71234",
-                    boxShadow: penalty === "dnf" ? "3px 3px 0 #0A0A0A" : "1px 1px 0 rgba(183,18,52,0.2)",
+                    boxShadow: penalty === "dnf" ? "2px 2px 0 #0A0A0A" : "1px 1px 0 rgba(183,18,52,0.2)",
                   }}
                 >
                   DNF
                 </button>
                 <button
                   onClick={() => saveAndNext(penalty)}
-                  className="flex-grow min-h-11 px-3 rounded-lg bg-white/20 text-white text-sm font-medium transition-colors hover:bg-white/30 [touch-action:manipulation]"
+                  className="flex-1 flex items-center justify-center min-h-9 rounded-lg bg-white/20 text-white transition-colors hover:bg-white/30 [touch-action:manipulation]"
+                  aria-label="Next solve"
                 >
-                  Next →
+                  <ArrowRight className="size-4" />
                 </button>
               </div>
 
