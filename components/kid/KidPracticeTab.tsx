@@ -445,16 +445,19 @@ export function KidPracticeTab({
         <button
           onClick={() => setSetupSheetOpen(true)}
           aria-label="Session setup"
-          className="flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 transition-colors hover:bg-white/8 active:bg-white/10 pointer-events-auto"
+          className="flex min-h-9 shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 transition-colors hover:bg-white/8 active:bg-white/10 pointer-events-auto"
         >
-          {activeGoal ? (
-            <span className="flex items-center gap-1 text-xs font-mono-time font-bold text-[#FFD500]">
-              <Target className="size-3.5" />
-              {(activeGoal.target_cs / 100).toFixed(2)}
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] uppercase tracking-wider text-white/50">
+              {selectedCubeId
+                ? cubes.find((c) => c.id === selectedCubeId)?.name || "Cube"
+                : "Any"}
             </span>
-          ) : (
-            <span className="text-xs text-white/40">No target</span>
-          )}
+            <span className="flex items-center gap-1 text-xs font-mono-time font-bold text-[#FFD500]">
+              <Target className="size-3" />
+              {activeGoal ? (activeGoal.target_cs / 100).toFixed(2) : "—"}
+            </span>
+          </div>
           <SlidersHorizontal className="size-3.5 text-white/30" />
         </button>
       </div>
@@ -616,7 +619,7 @@ export function KidPracticeTab({
             onContextMenu={(e) => e.preventDefault()}
           >
             <p
-              className="font-mono-time text-center text-[13px] leading-snug tracking-wide text-white/75"
+              className="font-mono-time text-center text-[15px] leading-snug tracking-wide text-white/75"
               style={{ userSelect: "none", WebkitUserSelect: "none" }}
             >
               {scramble ?? "Generating scramble…"}
