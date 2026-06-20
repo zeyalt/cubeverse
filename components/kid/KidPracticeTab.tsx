@@ -422,7 +422,7 @@ export function KidPracticeTab({
     <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden text-white">
 
       {/* ── Compact setup bar — event + cube dropdowns + session-setup chip ──── */}
-      <div className="practice-setup relative z-10 flex shrink-0 flex-col gap-2 px-4 pt-2 pb-2 pointer-events-none">
+      <div className="practice-setup relative z-50 flex shrink-0 flex-col gap-2 px-4 pt-2 pb-2 pointer-events-none">
         <div className="flex gap-2 pointer-events-auto">
           {/* Event dropdown */}
           <div className="relative flex-1">
