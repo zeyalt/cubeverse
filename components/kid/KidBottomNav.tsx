@@ -20,9 +20,8 @@ const TABS = [
 export function KidBottomNav({ activeTab, onSwitch }: KidBottomNavProps) {
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 flex items-stretch border-t border-white/8"
+      className="kid-bottom-nav fixed bottom-0 left-0 right-0 z-50 flex items-stretch border-t border-token"
       style={{
-        background: "rgba(10, 10, 10, 0.92)",
         backdropFilter: "blur(16px)",
         paddingBottom: "env(safe-area-inset-bottom)",
       }}
@@ -41,15 +40,15 @@ export function KidBottomNav({ activeTab, onSwitch }: KidBottomNavProps) {
                 nudges the icon/label up or down. */}
             <span
               className="h-0.5 w-5 rounded-full transition-all"
-              style={{ backgroundColor: active ? "#FFD500" : "transparent" }}
+              style={{ backgroundColor: active ? "var(--kid-accent)" : "transparent" }}
             />
             <Icon
-              className="size-5 transition-colors"
-              style={{ color: active ? "#FFD500" : "rgba(255, 255, 255, 0.4)" }}
+              className={`size-5 transition-colors ${active ? "" : "text-token-muted"}`}
+              style={active ? { color: "var(--kid-accent)" } : undefined}
             />
             <span
-              className="text-[10px] font-bold uppercase tracking-wider transition-colors"
-              style={{ color: active ? "#FFD500" : "rgba(255, 255, 255, 0.4)" }}
+              className={`text-[10px] font-bold uppercase tracking-wider transition-colors ${active ? "" : "text-token-muted"}`}
+              style={active ? { color: "var(--kid-accent)" } : undefined}
             >
               {label}
             </span>

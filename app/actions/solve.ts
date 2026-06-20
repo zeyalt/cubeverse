@@ -179,7 +179,13 @@ export async function getHistoricalSolves(
     return [];
   }
 
-  return (solves ?? []).map((s: any) => ({
+  return (solves ?? []).map((s: {
+    id: string;
+    time_cs: number;
+    penalty: string | null;
+    solved_at: string;
+    scramble: string | null;
+  }) => ({
     id: s.id,
     cs: s.time_cs,
     penalty: s.penalty === "dnf" ? "dnf" : s.penalty === "plus2" ? "plus2" : "none",

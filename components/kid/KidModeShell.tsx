@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
 import { KidHeader } from "./KidHeader";
 import { KidBottomNav } from "./KidBottomNav";
 import { KidPracticeTab } from "./KidPracticeTab";
@@ -127,7 +127,17 @@ interface KidModeShellProps {
   cubesData?: CubesTabData | null;
 }
 
-function TabContent({ tab, ...data }: { tab: Tab } & Record<string, any>) {
+function TabContent({
+  tab,
+  ...data
+}: {
+  tab: Tab;
+  practiceData?: PracticeTabData | null;
+  competitionData?: CompetitionTabData | null;
+  analyticsData?: AnalyticsTabData | null;
+  badgesData?: BadgesTabData | null;
+  cubesData?: CubesTabData | null;
+}) {
   switch (tab) {
     case "practice":
       return data.practiceData ? (
@@ -156,7 +166,6 @@ function TabContent({ tab, ...data }: { tab: Tab } & Record<string, any>) {
 
 function KidModeShellContent({
   cuberName,
-  cuberId,
   currentCuberId,
   cubers,
   activeTab,
@@ -177,7 +186,7 @@ function KidModeShellContent({
   }
 
   return (
-    <div className="kid-canvas relative flex min-h-screen flex-col text-white">
+    <div className="kid-canvas relative flex h-dvh flex-col overflow-hidden text-white">
       <KidHeader
         cuberName={cuberName}
         currentCuberId={currentCuberId}
@@ -187,9 +196,11 @@ function KidModeShellContent({
       />
 
       {/* Tab content + bottom nav are hidden while the cuber switcher is open
-          so the puzzle/scramble/timer/metrics don't show through or overlap. */}
-      <div className={switcherOpen ? "invisible" : ""}>
-        <main className="flex-1 overflow-y-auto kid-tab-enter" style={{ paddingBottom: "calc(4.5rem + env(safe-area-inset-bottom))" }}>
+          so the puzzle/scramble/timer/metrics don't show through or overlap.
+          flex-1 + min-h-0 lets <main> own the remaining viewport height so the
+          practice screen can lay itself out as a real flex column. */}
+      <div className={`flex flex-1 flex-col min-h-0 ${switcherOpen ? "invisible" : ""}`}>
+        <main className="flex flex-1 flex-col min-h-0 overflow-y-auto kid-tab-enter" style={{ paddingBottom: "calc(4.5rem + env(safe-area-inset-bottom))" }}>
           <TabContent
             tab={currentTab}
             practiceData={practiceData}

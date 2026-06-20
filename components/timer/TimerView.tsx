@@ -205,8 +205,11 @@ export function TimerView({
 
   // ── Auto-start inspection when opened from home page ────────────────────────
 
+  // Kick off inspection automatically when requested; the setState inside
+  // startInspection is the intended side effect here.
   useEffect(() => {
     if (autoStartInspection && phase === "idle") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       startInspection();
     }
   }, [autoStartInspection, startInspection, phase]);

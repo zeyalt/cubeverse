@@ -251,41 +251,56 @@
     text-wrap: balance;
   }
 
-  /* Kid playroom — calmer, more refined dark canvas */
+  /* Kid playroom — calmer, more refined canvas (theme-aware) */
   .kid-canvas {
-    background-color: #0E0C0A;
+    background-color: var(--kid-canvas);
     background-image:
-      radial-gradient(circle at 50% -10%, rgba(255, 213, 0, 0.05), transparent 55%),
-      linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+      radial-gradient(circle at 50% -10%, var(--kid-canvas-glow), transparent 55%),
+      linear-gradient(var(--kid-grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--kid-grid) 1px, transparent 1px);
     background-size: auto, 40px 40px, 40px 40px;
   }
   .sticker {
-    border: 2.5px solid #0A0A0A;
-    box-shadow: 4px 4px 0 #0A0A0A;
+    border: 2.5px solid var(--kid-ink);
+    box-shadow: 4px 4px 0 var(--kid-ink);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
   .sticker:active {
     transform: translate(2px, 2px);
-    box-shadow: 2px 2px 0 #0A0A0A;
+    box-shadow: 2px 2px 0 var(--kid-ink);
   }
 
   /* Minimal-pro content surfaces for the data screens (analytics, comps,
      cubes, badges). Crisp 1px hairline border + subtle depth instead of the
      hard offset "sticker" shadow, for a calmer, grown-up look. */
   .surface {
-    background-color: rgba(255, 255, 255, 0.035);
-    border: 1px solid rgba(255, 255, 255, 0.09);
+    background-color: var(--kid-fill);
+    border: 1px solid var(--kid-border-c);
     border-radius: 0.875rem;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 1px 2px var(--kid-shadow);
   }
   .surface-hover {
     transition: background-color 0.15s ease, border-color 0.15s ease;
   }
   .surface-hover:hover {
-    background-color: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.16);
+    background-color: var(--kid-fill-strong);
+    border-color: var(--kid-border-strong);
   }
+
+  /* ── Semantic kid-mode tokens (used by the Settings sheet & theme-aware UI) ── */
+  .text-token { color: var(--kid-fg); }
+  .text-token-muted { color: var(--kid-fg-muted); }
+  .bg-surface { background-color: var(--kid-fill); }
+  .bg-surface-strong { background-color: var(--kid-fill-strong); }
+  .bg-sheet { background-color: var(--kid-sheet); }
+  .border-token { border-color: var(--kid-border-c); }
+  .border-token-strong { border-color: var(--kid-border-strong); }
+  .border-accent { border-color: var(--kid-accent); }
+  .bg-accent-soft { background-color: var(--kid-accent-soft); }
+  .hover\:bg-surface-strong:hover { background-color: var(--kid-fill-strong); }
+  .focus\:border-token-strong:focus { border-color: var(--kid-border-strong); }
+  .kid-bottom-nav { background: var(--kid-nav); }
+  .heat-empty { background-color: var(--kid-heat-empty); }
   /* Single brand accent for primary actions. */
   .btn-accent {
     background-color: #FFD500;
@@ -313,6 +328,24 @@
     border: 2px solid rgba(255, 255, 255, 0.2);
     box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.5);
   }
+
+  /* Practice timer digits — scale with viewport height so the timer stays
+     large on tall screens but shrinks to fit short/landscape viewports
+     instead of overflowing. Width is also bounded so it never clips on
+     very narrow phones. */
+  .timer-display {
+    font-size: clamp(2.25rem, min(16vh, 18vw), 6.25rem);
+  }
+}
+
+/* Short viewports (landscape phones): tighten the practice screen so the
+   scramble, timer and metrics all fit on screen without scrolling. */
+@media (max-height: 520px) {
+  .practice-setup { padding-top: 0.5rem; padding-bottom: 0.25rem; }
+  .practice-scramble { padding-top: 0.25rem; }
+  .practice-scramble > div { padding-top: 0.375rem; padding-bottom: 0.375rem; }
+  .practice-metrics .practice-metric-cell { padding-top: 0.375rem; padding-bottom: 0.375rem; }
+  .practice-hint { display: none; }
 }
 
 @keyframes kid-wiggle {
@@ -413,4 +446,104 @@
   .progress-active::after {
     animation: none !important;
   }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   KID-MODE THEMING
+   Semantic tokens with dark + light values. The kid screens were authored
+   with hard-coded dark utilities (text-white, bg-white/N, border-white/N,
+   bg-[#1C1916]); rather than rewrite hundreds of call sites, light mode
+   retints those utilities in place via low-specificity :where() overrides.
+   New/refactored UI should use the semantic tokens above directly.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Dark theme (default) */
+.theme-dark {
+  --kid-canvas: #0E0C0A;
+  --kid-canvas-glow: rgba(255, 213, 0, 0.05);
+  --kid-grid: rgba(255, 255, 255, 0.018);
+  --kid-fg: #ffffff;
+  --kid-fg-muted: rgba(255, 255, 255, 0.45);
+  --kid-fill: rgba(255, 255, 255, 0.05);
+  --kid-fill-strong: rgba(255, 255, 255, 0.1);
+  --kid-border-c: rgba(255, 255, 255, 0.1);
+  --kid-border-strong: rgba(255, 255, 255, 0.2);
+  --kid-sheet: #1C1916;
+  --kid-shadow: rgba(0, 0, 0, 0.4);
+  --kid-accent: #FFD500;
+  --kid-accent-soft: rgba(255, 213, 0, 0.12);
+  --kid-ink: #0A0A0A;
+  --kid-nav: rgba(10, 10, 10, 0.92);
+  --kid-heat-empty: rgba(255, 255, 255, 0.07);
+}
+
+/* Light theme — warm paper canvas, dark ink (mirrors the comp-notebook palette) */
+.theme-light {
+  --kid-canvas: #F4EFE6;
+  --kid-canvas-glow: rgba(255, 213, 0, 0.12);
+  --kid-grid: rgba(26, 18, 8, 0.04);
+  --kid-fg: #1A1208;
+  --kid-fg-muted: rgba(26, 18, 8, 0.55);
+  --kid-fill: rgba(26, 18, 8, 0.04);
+  --kid-fill-strong: rgba(26, 18, 8, 0.08);
+  --kid-border-c: rgba(26, 18, 8, 0.12);
+  --kid-border-strong: rgba(26, 18, 8, 0.25);
+  --kid-sheet: #FFFCF7;
+  --kid-shadow: rgba(26, 18, 8, 0.12);
+  --kid-accent: #C79A00;
+  --kid-accent-soft: rgba(199, 154, 0, 0.14);
+  --kid-ink: rgba(26, 18, 8, 0.22);
+  --kid-nav: rgba(255, 252, 247, 0.92);
+  --kid-heat-empty: rgba(26, 18, 8, 0.1);
+}
+
+/* ── Light-mode retint of legacy hard-coded dark utilities ──────────────────
+   :where() keeps specificity at 0 so these don't fight component-level
+   overrides; we re-assert via the theme class for the win where needed. */
+.theme-light :where(.text-white) { color: #1A1208; }
+.theme-light :where(.text-white\/90) { color: rgba(26, 18, 8, 0.9); }
+.theme-light :where(.text-white\/80) { color: rgba(26, 18, 8, 0.8); }
+.theme-light :where(.text-white\/75) { color: rgba(26, 18, 8, 0.75); }
+.theme-light :where(.text-white\/70) { color: rgba(26, 18, 8, 0.7); }
+.theme-light :where(.text-white\/60) { color: rgba(26, 18, 8, 0.6); }
+.theme-light :where(.text-white\/55) { color: rgba(26, 18, 8, 0.55); }
+.theme-light :where(.text-white\/50) { color: rgba(26, 18, 8, 0.5); }
+.theme-light :where(.text-white\/45) { color: rgba(26, 18, 8, 0.5); }
+.theme-light :where(.text-white\/40) { color: rgba(26, 18, 8, 0.45); }
+.theme-light :where(.text-white\/35) { color: rgba(26, 18, 8, 0.4); }
+.theme-light :where(.text-white\/30) { color: rgba(26, 18, 8, 0.38); }
+
+.theme-light :where(.bg-white\/5) { background-color: rgba(26, 18, 8, 0.04); }
+.theme-light :where(.bg-white\/8) { background-color: rgba(26, 18, 8, 0.06); }
+.theme-light :where(.bg-white\/10) { background-color: rgba(26, 18, 8, 0.07); }
+.theme-light :where(.bg-white\/12) { background-color: rgba(26, 18, 8, 0.09); }
+.theme-light :where(.bg-white\/15) { background-color: rgba(26, 18, 8, 0.11); }
+.theme-light :where(.bg-white\/20) { background-color: rgba(26, 18, 8, 0.14); }
+.theme-light :where(.bg-white\/30) { background-color: rgba(26, 18, 8, 0.2); }
+
+.theme-light :where(.border-white\/5) { border-color: rgba(26, 18, 8, 0.06); }
+.theme-light :where(.border-white\/8) { border-color: rgba(26, 18, 8, 0.08); }
+.theme-light :where(.border-white\/10) { border-color: rgba(26, 18, 8, 0.12); }
+.theme-light :where(.border-white\/15) { border-color: rgba(26, 18, 8, 0.16); }
+.theme-light :where(.border-white\/20) { border-color: rgba(26, 18, 8, 0.2); }
+.theme-light :where(.border-white\/25) { border-color: rgba(26, 18, 8, 0.25); }
+.theme-light :where(.border-white\/30) { border-color: rgba(26, 18, 8, 0.3); }
+.theme-light :where(.border-white\/40) { border-color: rgba(26, 18, 8, 0.4); }
+
+/* Sheets / elevated panels that hard-coded the dark sheet colour */
+.theme-light :where(.bg-\[\#1C1916\]) { background-color: #FFFCF7; }
+
+/* The metrics strip hard-codes an opaque dark fill via inline style; retint it */
+.theme-light .practice-metrics { background: rgba(244, 239, 230, 0.92) !important; }
+
+/* Divider lines inside the metrics grid */
+.theme-light :where(.divide-white\/8) > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(26, 18, 8, 0.08);
+}
+
+/* A touch more contrast in light mode for the scramble card, which sits
+   directly on the bright canvas and otherwise reads too faint. */
+.theme-light .practice-scramble > div {
+  background-color: rgba(26, 18, 8, 0.06);
+  border: 1px solid rgba(26, 18, 8, 0.08);
 }

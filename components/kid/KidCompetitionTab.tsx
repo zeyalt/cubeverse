@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Trophy, MapPin, Calendar, Plus, Download, Loader2 } from "lucide-react";
+import { Trophy, Plus, Download, Loader2 } from "lucide-react";
 import { importWcaResultsKid } from "@/app/actions/import";
 
 interface Competition {

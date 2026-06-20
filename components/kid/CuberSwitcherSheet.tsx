@@ -1,9 +1,10 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { switchCuber } from "@/app/actions/onboarding";
-import { X, Plus } from "lucide-react";
+import { switchCuber, deleteCuber } from "@/app/actions/onboarding";
+import { X, Plus, Trash2, Loader2 } from "lucide-react";
 
 const AVATAR_HEX: Record<string, string> = {
   gold: "#FFD500",
@@ -34,7 +35,15 @@ export function CuberSwitcherSheet({
   currentCuberId,
   onClose,
 }: CuberSwitcherSheetProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
+
+  // Which cuber row is awaiting delete confirmation (null = none).
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const canDelete = cubers.length > 1;
 
   // Drag-to-dismiss / drag-to-expand state
   const [dragY, setDragY] = useState(0);
@@ -48,6 +57,21 @@ export function CuberSwitcherSheet({
       return;
     }
     startTransition(() => switchCuber(cuberId));
+  }
+
+  async function handleDelete(cuberId: string) {
+    setDeleteError(null);
+    setDeletingId(cuberId);
+    const result = await deleteCuber(cuberId);
+    setDeletingId(null);
+    if (result.error) {
+      setDeleteError(result.error);
+      setConfirmingId(null);
+      return;
+    }
+    // Server data (the cubers list / current cuber) changed — refresh to reflect it.
+    setConfirmingId(null);
+    router.refresh();
   }
 
   function onDragStart(clientY: number) {
@@ -127,32 +151,79 @@ export function CuberSwitcherSheet({
           {cubers.map((cuber) => {
             const isActive = cuber.id === currentCuberId;
             const color = AVATAR_HEX[cuber.avatar_color] ?? "#0046AD";
+            const isConfirming = confirmingId === cuber.id;
+            const isDeleting = deletingId === cuber.id;
+            const name = cuber.display_name ?? cuber.name;
+
+            // Inline confirm state replaces the row content for that cuber.
+            if (isConfirming) {
+              return (
+                <div
+                  key={cuber.id}
+                  className="flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3"
+                >
+                  <span className="flex-1 text-left text-sm font-medium text-white">
+                    Delete <span className="font-bold">{name}</span> and all their data?
+                  </span>
+                  <button
+                    onClick={() => setConfirmingId(null)}
+                    disabled={isDeleting}
+                    className="min-h-9 rounded-lg bg-white/10 px-3 text-sm font-bold text-white/80 transition-colors hover:bg-white/15 disabled:opacity-50 [touch-action:manipulation]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleDelete(cuber.id)}
+                    disabled={isDeleting}
+                    className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-red-500 px-3 text-sm font-bold text-white transition-colors hover:bg-red-600 disabled:opacity-50 [touch-action:manipulation]"
+                  >
+                    {isDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                    Delete
+                  </button>
+                </div>
+              );
+            }
+
             return (
-              <button
+              <div
                 key={cuber.id}
-                onClick={() => handleSwitch(cuber.id)}
-                disabled={isPending}
-                className="sticker w-full flex items-center gap-3 rounded-xl border-2 border-white/10 bg-white/8 px-4 py-3 transition-all hover:bg-white/12 disabled:opacity-50"
+                className="sticker flex items-center gap-2 rounded-xl border-2 border-white/10 bg-white/8 pr-2 transition-all"
                 style={{
                   boxShadow: isActive ? `0 0 0 3px #FFD500` : "2px 2px 0 rgba(0,0,0,0.2)",
                 }}
               >
-                <div
-                  className="size-8 shrink-0 rounded-full border-2"
-                  style={{
-                    backgroundColor: color,
-                    borderColor: isActive ? "#FFD500" : "rgba(255,255,255,0.2)",
-                  }}
-                />
-                <span className="flex-1 text-left font-medium text-white">
-                  {cuber.display_name ?? cuber.name}
-                </span>
-                {isActive && (
-                  <span className="text-sm font-bold text-[#FFD500]">✓</span>
+                <button
+                  onClick={() => handleSwitch(cuber.id)}
+                  disabled={isPending}
+                  className="flex flex-1 items-center gap-3 px-4 py-3 disabled:opacity-50 [touch-action:manipulation]"
+                >
+                  <div
+                    className="size-8 shrink-0 rounded-full border-2"
+                    style={{
+                      backgroundColor: color,
+                      borderColor: isActive ? "#FFD500" : "rgba(255,255,255,0.2)",
+                    }}
+                  />
+                  <span className="flex-1 text-left font-medium text-white">{name}</span>
+                  {isActive && <span className="text-sm font-bold text-[#FFD500]">✓</span>}
+                </button>
+                {canDelete && (
+                  <button
+                    onClick={() => { setDeleteError(null); setConfirmingId(cuber.id); }}
+                    disabled={isPending}
+                    aria-label={`Delete ${name}`}
+                    className="flex size-9 shrink-0 items-center justify-center rounded-lg text-white/40 transition-colors hover:bg-red-500/15 hover:text-red-400 disabled:opacity-50 [touch-action:manipulation]"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
                 )}
-              </button>
+              </div>
             );
           })}
+
+          {deleteError && (
+            <p className="px-1 pt-1 text-sm font-medium text-red-400">{deleteError}</p>
+          )}
         </div>
 
         {/* Add cuber button */}

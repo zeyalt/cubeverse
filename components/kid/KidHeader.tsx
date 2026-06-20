@@ -34,7 +34,7 @@ export function KidHeader({ cuberName, currentCuberId, cubers, onOpenSettings, o
   const initial = (cuberName?.trim()?.[0] ?? "C").toUpperCase();
 
   return (
-    <header className="relative z-10 flex items-center justify-between gap-3 px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-1">
+    <header className="relative z-10 flex items-center justify-between gap-3 px-5 pt-[max(0.75rem,env(safe-area-inset-top))] pb-0.5">
       <button
         onClick={onOpenSwitcher}
         className="group flex items-center gap-2.5 text-left transition-opacity active:opacity-70 [touch-action:manipulation]"

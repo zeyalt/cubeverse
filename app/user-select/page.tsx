@@ -3,7 +3,6 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { getServiceClient } from "@/lib/supabase/service";
 import { getOwnerId } from "@/lib/owner";
-import { KidHeader } from "@/components/kid/KidHeader";
 import { switchCuber } from "@/app/actions/onboarding";
 
 const AVATAR_HEX: Record<string, string> = {
@@ -16,13 +15,6 @@ const AVATAR_HEX: Record<string, string> = {
   red: "#F44336",
   cyan: "#00BCD4",
 };
-
-interface Cuber {
-  id: string;
-  name: string;
-  display_name: string | null;
-  avatar_color: string | null;
-}
 
 export default async function UserSelectPage() {
   const db = getServiceClient();
@@ -62,7 +54,7 @@ export default async function UserSelectPage() {
             Pick your cuber
           </p>
           <h1 className="font-display mt-2 text-3xl font-extrabold leading-tight">
-            Who's cubing?
+            Who&apos;s cubing?
           </h1>
         </div>
       </header>

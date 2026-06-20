@@ -167,7 +167,7 @@ async function ingestSingle(
     .select("id", { count: "exact", head: true })
     .eq("session_id", sessionId);
 
-  const { data, error } = await db
+  const { data } = await db
     .from("solves")
     .insert({
       owner_id: ownerId,

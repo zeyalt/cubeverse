@@ -370,8 +370,17 @@ export async function getCompetitionImprovements(
 
   if (!data || data.length === 0) return [];
 
-  const rows = (data as any[])
-    .filter((r) => r.competitions && r.competitions.start_date)
+  type ImprovementRow = {
+    best_cs: number | null;
+    average_cs: number | null;
+    round_type: string | null;
+    competitions: { name: string; start_date: string; type: string } | null;
+  };
+
+  const rows = (data as unknown as ImprovementRow[])
+    .filter((r): r is ImprovementRow & { competitions: NonNullable<ImprovementRow["competitions"]> } =>
+      Boolean(r.competitions && r.competitions.start_date)
+    )
     .sort((a, b) => {
       const dateA = new Date(a.competitions.start_date).getTime();
       const dateB = new Date(b.competitions.start_date).getTime();

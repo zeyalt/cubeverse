@@ -7,7 +7,6 @@ import { getOwnerId } from "@/lib/owner";
 import { KidModeShell } from "@/components/kid/KidModeShell";
 import { effectiveTime, aoN, DNF } from "@/lib/cubing";
 import type { Penalty } from "@/lib/cubing";
-import { computeStreak } from "@/lib/streak";
 import { getCurrentPbs } from "@/lib/analytics";
 import { getAnalyticsData } from "@/app/actions/analytics";
 
@@ -224,6 +223,9 @@ export default async function Home({
     }
 
     return (
+      // The try/catch guards the awaited data fetches above (redirecting to
+      // onboarding on failure), not render errors from this element.
+      // eslint-disable-next-line react-hooks/error-boundaries
       <KidModeShell
         cuberName={cuber?.display_name ?? cuber?.name ?? "Cuber"}
         cuberId={currentCuberId}

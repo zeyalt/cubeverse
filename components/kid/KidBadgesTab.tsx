@@ -100,15 +100,15 @@ export function KidBadgesTab({
       {/* Progress bar */}
       <div className="surface px-4 py-3.5">
         <div className="mb-2 flex items-center justify-between text-sm">
-          <span className="font-medium text-white/90">Progress</span>
-          <span className="font-display font-bold" style={{ color: "#FFD500" }}>
+          <span className="font-medium text-token">Progress</span>
+          <span className="font-display font-bold" style={{ color: "var(--kid-accent)" }}>
             {pct}%
           </span>
         </div>
-        <div className="h-2.5 overflow-hidden rounded-full bg-white/10">
+        <div className="h-2.5 overflow-hidden rounded-full bg-surface-strong">
           <div
             className="h-full rounded-full transition-all"
-            style={{ width: `${pct}%`, backgroundColor: "#FFD500" }}
+            style={{ width: `${pct}%`, backgroundColor: "var(--kid-accent)" }}
           />
         </div>
       </div>
@@ -183,26 +183,25 @@ function BadgeCard({
   return (
     <div
       className={`rounded-2xl border p-3 text-center transition-all ${
-        unlocked
-          ? "border-[#FFD500]/30 bg-[#FFD500]/[0.07] ring-1 ring-[#FFD500]/10"
-          : "border-white/8 bg-white/[0.025]"
+        unlocked ? "border-accent bg-accent-soft" : "border-token bg-surface"
       }`}
     >
       <div className="mb-2.5 flex justify-center">
         <span
           className={`flex size-10 items-center justify-center rounded-full ${
-            unlocked ? "bg-[#FFD500]/15 text-[#FFD500]" : "bg-white/5 text-white/30"
+            unlocked ? "bg-accent-soft" : "bg-surface-strong text-token-muted"
           }`}
+          style={unlocked ? { color: "var(--kid-accent)" } : undefined}
         >
           <Icon className="size-5" strokeWidth={2} />
         </span>
       </div>
-      <p className={`text-xs font-bold leading-tight ${unlocked ? "text-white" : "text-white/45"}`}>{label}</p>
+      <p className={`text-xs font-bold leading-tight ${unlocked ? "text-token" : "text-token-muted"}`}>{label}</p>
       {description && (
-        <p className="mt-1 text-[10px] text-white/55 font-mono-time">{description}</p>
+        <p className="mt-1 text-[10px] text-token-muted font-mono-time">{description}</p>
       )}
       {unlocked && unlockedAt && (
-        <p className="mt-1 text-[9px] font-medium text-[#FFD500]">
+        <p className="mt-1 text-[9px] font-bold" style={{ color: "var(--kid-accent)" }}>
           {new Date(unlockedAt).toLocaleDateString("en-GB", {
             day: "numeric",
             month: "short",

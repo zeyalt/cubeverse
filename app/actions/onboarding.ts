@@ -3,6 +3,7 @@
 import { getServiceClient } from "@/lib/supabase/service";
 import { getOwnerId } from "@/lib/owner";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 
 export type FormState = { error: string | null; redirectTo?: string };
 
@@ -109,4 +110,56 @@ export async function switchCuber(cuberId: string): Promise<void> {
     .update({ current_cuber_id: cuberId })
     .eq("owner_id", ownerId);
   redirect("/");
+}
+
+/**
+ * Permanently delete a cuber and all of their data (solves, cubes, achievements,
+ * competitions, notes — all cascade via FK). Refuses to delete the last cuber so
+ * the app always has someone to show. If the deleted cuber was the default or
+ * current one, those settings are reassigned to a remaining cuber.
+ */
+export async function deleteCuber(
+  cuberId: string
+): Promise<{ error: string | null }> {
+  const db = getServiceClient();
+  const ownerId = getOwnerId();
+
+  // Refuse to delete the only remaining cuber.
+  const { data: allCubers, error: listErr } = await db
+    .from("cubers")
+    .select("id")
+    .eq("owner_id", ownerId);
+
+  if (listErr) return { error: listErr.message };
+  if (!allCubers || allCubers.length <= 1) {
+    return { error: "You can't delete your only cuber." };
+  }
+  if (!allCubers.some((c) => c.id === cuberId)) {
+    return { error: "Cuber not found." };
+  }
+
+  // Read current settings so we can reassign default/current if needed.
+  const { data: settings } = await db
+    .from("app_settings")
+    .select("default_cuber_id, current_cuber_id")
+    .eq("owner_id", ownerId)
+    .maybeSingle();
+
+  // Delete the cuber — child rows cascade; settings columns set null via FK.
+  const { error: delErr } = await db.from("cubers").delete().eq("id", cuberId);
+  if (delErr) return { error: delErr.message };
+
+  // Pick a fallback cuber for any setting that pointed at the deleted one.
+  const fallbackId = allCubers.find((c) => c.id !== cuberId)?.id;
+  if (fallbackId) {
+    const update: { default_cuber_id?: string; current_cuber_id?: string } = {};
+    if (settings?.default_cuber_id === cuberId) update.default_cuber_id = fallbackId;
+    if (settings?.current_cuber_id === cuberId) update.current_cuber_id = fallbackId;
+    if (Object.keys(update).length > 0) {
+      await db.from("app_settings").update(update).eq("owner_id", ownerId);
+    }
+  }
+
+  revalidatePath("/");
+  return { error: null };
 }

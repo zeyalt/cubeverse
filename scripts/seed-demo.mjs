@@ -41,13 +41,13 @@ async function seed() {
   console.log("→ Clearing existing data...");
   try {
     await db.from("app_settings").delete().eq("owner_id", ownerId);
-  } catch (e) {
+  } catch {
     console.log("  (app_settings not found yet)");
   }
 
   try {
     await db.from("cubers").delete().eq("owner_id", ownerId);
-  } catch (e) {
+  } catch {
     console.log("  (cubers not found yet)");
   }
 

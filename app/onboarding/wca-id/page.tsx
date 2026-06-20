@@ -6,22 +6,21 @@ import Link from "next/link";
 
 export default function OnboardingWcaIdPage() {
   const router = useRouter();
-  const [name, setName] = useState("");
-
   const [wcaId, setWcaId] = useState("");
   const [error, setError] = useState("");
-  const [wcaData, setWcaData] = useState<any>(null);
+  const [wcaData, setWcaData] = useState<{
+    name?: string;
+    country?: { name?: string };
+  } | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const wcaIdRegex = /^\d{4}[A-Z]{4}\d{2}$/i;
 
   useEffect(() => {
-    // Get name from sessionStorage
+    // Redirect back to step 1 if the name wasn't captured.
     const storedName = sessionStorage.getItem("onboarding_name");
     if (!storedName) {
       router.push("/onboarding/name");
-    } else {
-      setName(storedName);
     }
   }, [router]);
 
@@ -93,7 +92,7 @@ export default function OnboardingWcaIdPage() {
       <div className="w-full max-w-md space-y-6 text-center kid-animate-in">
         <div>
           <h2 className="font-display text-3xl font-bold mb-2">Your WCA ID</h2>
-          <p className="text-sm text-white/60">Optional — we'll import your competition data</p>
+          <p className="text-sm text-white/60">Optional — we&apos;ll import your competition data</p>
         </div>
 
         <div className="space-y-3">

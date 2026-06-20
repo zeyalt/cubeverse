@@ -65,12 +65,14 @@ function buildGrid(
   return { days, cols: col + 1 };
 }
 
-function cellColor(count: number, max: number): string {
-  if (count === 0) return "bg-[#EDE6DA]";
+// Filled-intensity classes (work on both themes). Empty cells use a theme
+// token so they read against both the dark and the light paper canvas.
+function intensityClass(count: number, max: number): string {
+  if (count === 0) return "heat-empty";
   const intensity = Math.ceil((count / Math.max(max, 1)) * 4);
   return [
-    "bg-[#A8C4F0]",
     "bg-[#6B9AE8]",
+    "bg-[#3D7BDD]",
     "bg-[#0046AD]",
     "bg-[#002D6E]",
   ][intensity - 1] ?? "bg-[#002D6E]";
@@ -116,7 +118,7 @@ export function PracticeHeatmap({ counts, weeks = 52, startDate, endDate }: Prop
       <div className="inline-flex flex-col gap-0.5 min-w-max">
         {/* Year label */}
         {yearLabel && (
-          <div className="ml-8 mb-0.5 text-zinc-400 font-bold" style={{ fontSize: 10 }}>
+          <div className="ml-8 mb-0.5 text-token-muted font-bold" style={{ fontSize: 10 }}>
             {yearLabel}
           </div>
         )}
@@ -126,7 +128,7 @@ export function PracticeHeatmap({ counts, weeks = 52, startDate, endDate }: Prop
           {Array.from({ length: cols }, (_, c) => {
             const lbl = monthLabels.find((m) => m.col === flip(c));
             return (
-              <div key={c} className="text-xs text-zinc-400 shrink-0" style={{ fontSize: 9, width: "14px" }}>
+              <div key={c} className="text-xs text-token-muted shrink-0" style={{ fontSize: 9, width: "14px" }}>
                 {lbl?.label ?? ""}
               </div>
             );
@@ -136,7 +138,7 @@ export function PracticeHeatmap({ counts, weeks = 52, startDate, endDate }: Prop
         {/* Day rows */}
         {[0, 1, 2, 3, 4, 5, 6].map((row) => (
           <div key={row} className="flex items-center gap-0.5">
-            <span className="w-7 text-right text-zinc-400 mr-1 shrink-0" style={{ fontSize: 9 }}>
+            <span className="w-7 text-right text-token-muted mr-1 shrink-0" style={{ fontSize: 9 }}>
               {DAYS[row]}
             </span>
             {Array.from({ length: cols }, (_, c) => {
@@ -147,7 +149,7 @@ export function PracticeHeatmap({ counts, weeks = 52, startDate, endDate }: Prop
                 <div
                   key={c}
                   title={`${cell.date}: ${cell.count} solve${cell.count !== 1 ? "s" : ""}`}
-                  className={`w-3.5 h-3.5 rounded-sm shrink-0 ${cellColor(cell.count, max)}`}
+                  className={`w-3.5 h-3.5 rounded-sm shrink-0 ${intensityClass(cell.count, max)}`}
                 />
               );
             })}
@@ -155,10 +157,10 @@ export function PracticeHeatmap({ counts, weeks = 52, startDate, endDate }: Prop
         ))}
 
         {/* Legend */}
-        <div className="flex items-center gap-1.5 mt-4 mb-1 ml-8 text-zinc-400" style={{ fontSize: 10 }}>
+        <div className="flex items-center gap-1.5 mt-4 mb-1 ml-8 text-token-muted" style={{ fontSize: 10 }}>
           <span className="mr-0.5">Less</span>
           {[0, 1, 2, 3, 4].map((i) => (
-            <div key={i} className={`w-3.5 h-3.5 rounded-sm ${i === 0 ? "bg-[#EDE6DA]" : cellColor(i, 4)}`} />
+            <div key={i} className={`w-3.5 h-3.5 rounded-sm ${i === 0 ? "heat-empty" : intensityClass(i, 4)}`} />
           ))}
           <span className="ml-0.5">More</span>
         </div>

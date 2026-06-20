@@ -77,18 +77,17 @@ export interface ActivityBadge {
   key: string;
   label: string;
   description: string;
-  emoji: string;
 }
 
 export const ACTIVITY_BADGES: ActivityBadge[] = [
-  { key: "new_pb",                 label: "Personal Best",       emoji: "⭐", description: "Set a new personal best" },
-  { key: "first_comp",             label: "First Competition",   emoji: "🏅", description: "Competed in your first competition" },
-  { key: "5_comps",                label: "5 Competitions",      emoji: "🏆", description: "Competed in 5 competitions" },
-  { key: "100_solves",             label: "100 Solves",          emoji: "💯", description: "100 practice solves" },
-  { key: "1000_solves",            label: "1000 Solves",         emoji: "🚀", description: "1000 practice solves" },
-  { key: "streak_7",               label: "Week Streak",         emoji: "🔥", description: "7 days of practice in a row" },
-  { key: "streak_30",              label: "Month Streak",        emoji: "🌟", description: "30 days of practice in a row" },
-  { key: "all_events_in_one_comp", label: "All Events",          emoji: "🎯", description: "Competed in all 7 active events at one competition" },
+  { key: "new_pb",                 label: "Personal Best",       description: "Set a new personal best" },
+  { key: "first_comp",             label: "First Competition",   description: "Competed in your first competition" },
+  { key: "5_comps",                label: "5 Competitions",      description: "Competed in 5 competitions" },
+  { key: "100_solves",             label: "100 Solves",          description: "100 practice solves" },
+  { key: "1000_solves",            label: "1000 Solves",         description: "1000 practice solves" },
+  { key: "streak_7",               label: "Week Streak",         description: "7 days of practice in a row" },
+  { key: "streak_30",              label: "Month Streak",        description: "30 days of practice in a row" },
+  { key: "all_events_in_one_comp", label: "All Events",          description: "Competed in all 7 active events at one competition" },
 ];
 
 /**
@@ -227,20 +226,10 @@ export async function checkAndUnlockBadges(
 export interface BadgeInfo {
   key: string;
   label: string;
-  emoji: string;
   description?: string;
   eventId?: string;
   recordType?: RecordType;
 }
-
-const TIER_EMOJI: Record<string, string> = {
-  "333": "🧊",
-  "222": "🟨",
-  pyram: "🔺",
-  skewb: "💎",
-  clock: "🕐",
-  "444": "🟧",
-};
 
 /** Resolve a badge key to display metadata (tier or activity). */
 export function getBadgeInfo(key: string): BadgeInfo {
@@ -249,7 +238,6 @@ export function getBadgeInfo(key: string): BadgeInfo {
     return {
       key: tier.key,
       label: tier.label,
-      emoji: TIER_EMOJI[tier.eventId] ?? "🏅",
       eventId: tier.eventId,
       recordType: tier.recordType,
     };
@@ -259,11 +247,10 @@ export function getBadgeInfo(key: string): BadgeInfo {
     return {
       key: activity.key,
       label: activity.label,
-      emoji: activity.emoji,
       description: activity.description,
     };
   }
-  return { key, label: key.replace(/_/g, " "), emoji: "🏅" };
+  return { key, label: key.replace(/_/g, " ") };
 }
 
 /** All badge definitions for the achievements shelf (tiers + activity). */

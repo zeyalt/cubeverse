@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { ChevronRight, X } from "lucide-react";
+import { X, Target, PartyPopper, SlidersHorizontal } from "lucide-react";
 import { formatCs, parseToCs, effectiveTime, aoN, DNF } from "@/lib/cubing";
 import { EVENT_SHORT, getEventSticker } from "@/lib/event-theme";
 import { useScramble } from "@/lib/useScramble";
@@ -81,7 +81,9 @@ export function KidPracticeTab({
   const [liveTimes, setLiveTimes] = useState<number[]>(recentTimes);
 
   // Resync if the server sends a fresh list (e.g. after navigation/refresh).
+  // Intentionally mirrors the incoming prop into local state.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLiveTimes(recentTimes);
   }, [recentTimes]);
 
@@ -117,30 +119,6 @@ export function KidPracticeTab({
   const [setupSheetOpen, setSetupSheetOpen] = useState(false);
 
   const timerRef = useRef<TimerRefs>(makeTimerRefs());
-
-  // Measure the gap between the setup bar and the metrics strip so the tap
-  // zone spans exactly that region (no hardcoded offsets that can overlap).
-  const setupBarRef = useRef<HTMLDivElement>(null);
-  const metricsRef = useRef<HTMLDivElement>(null);
-  const [tapZone, setTapZone] = useState<{ top: number; bottom: number }>({ top: 0, bottom: 0 });
-
-  useEffect(() => {
-    function measure() {
-      const setupBottom = setupBarRef.current?.getBoundingClientRect().bottom ?? 0;
-      const metricsTop = metricsRef.current?.getBoundingClientRect().top ?? window.innerHeight;
-      setTapZone({ top: setupBottom, bottom: window.innerHeight - metricsTop });
-    }
-    measure();
-    window.addEventListener("resize", measure);
-    const id = setInterval(measure, 500); // catch async layout shifts (scramble load, stats panel)
-    return () => {
-      window.removeEventListener("resize", measure);
-      clearInterval(id);
-    };
-  }, []);
-
-  const selected = events.find((e) => e.id === selectedId) ?? events[0];
-  const sticker = getEventSticker(selectedId);
 
   function handleSelectEvent(id: string) {
     setSelectedId(id);
@@ -433,13 +411,13 @@ export function KidPracticeTab({
   }
 
   return (
-    <div className="relative flex flex-col text-white">
+    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden text-white">
 
-      {/* ── Compact setup bar ─────────────────────────────────────────────── */}
-      <div ref={setupBarRef} className="relative z-10 px-4 pt-4 pb-2 space-y-2 pointer-events-none">
+      {/* ── Compact setup bar — pills + session-setup chip on one row ──────── */}
+      <div className="practice-setup relative z-10 flex shrink-0 items-center gap-2 px-4 pt-2 pb-2 pointer-events-none">
 
-        {/* Row 1: puzzle pills */}
-        <div className="flex gap-2 overflow-x-auto scrollbar-none pointer-events-auto">
+        {/* Puzzle pills — scroll horizontally, take remaining width */}
+        <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto scrollbar-none pointer-events-auto">
           {events.map((ev) => {
             const s = getEventSticker(ev.id);
             const active = ev.id === selectedId;
@@ -447,12 +425,12 @@ export function KidPracticeTab({
               <button
                 key={ev.id}
                 onClick={() => handleSelectEvent(ev.id)}
-                className="flex min-h-9 shrink-0 items-center rounded-lg border-2 px-3 py-1.5 text-xs font-bold transition-all [touch-action:manipulation]"
+                className="flex min-h-9 shrink-0 items-center rounded-lg border px-3 py-1.5 text-xs font-bold transition-all [touch-action:manipulation]"
                 style={{
-                  backgroundColor: active ? s.face : "rgba(255,255,255,0.06)",
-                  color: active ? s.ink : "rgba(255,255,255,0.7)",
-                  borderColor: active ? "#0A0A0A" : "rgba(255,255,255,0.12)",
-                  boxShadow: active ? "3px 3px 0 #0A0A0A" : "none",
+                  backgroundColor: active ? s.face : "var(--kid-fill)",
+                  color: active ? s.ink : "var(--kid-fg-muted)",
+                  borderColor: active ? s.face : "var(--kid-border-strong)",
+                  boxShadow: active ? `0 0 0 1px ${s.face}` : "none",
                   transitionDuration: "120ms",
                 }}
               >
@@ -462,35 +440,21 @@ export function KidPracticeTab({
           })}
         </div>
 
-        {/* Row 2: single setup row → opens bottom sheet */}
+        {/* Session-setup chip — cube + target, opens the setup sheet */}
         <button
           onClick={() => setSetupSheetOpen(true)}
-          className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 transition-colors hover:bg-white/8 active:bg-white/10 pointer-events-auto"
+          aria-label="Session setup"
+          className="flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 transition-colors hover:bg-white/8 active:bg-white/10 pointer-events-auto"
         >
-          <div className="flex items-center gap-2 text-xs text-white/50 min-w-0">
-            {/* Cube */}
-            <span className="truncate">
-              {selectedCubeId
-                ? (cubes.find((c) => c.id === selectedCubeId)?.name ?? "Unknown")
-                : cubes.length > 0 ? "Any cube" : "No cubes set up"}
+          {activeGoal ? (
+            <span className="flex items-center gap-1 text-xs font-mono-time font-bold text-[#FFD500]">
+              <Target className="size-3.5" />
+              {(activeGoal.target_cs / 100).toFixed(2)}
             </span>
-            {/* Goal */}
-            {activeGoal && (
-              <>
-                <span className="text-white/20">·</span>
-                <span className="text-[#FFD500] font-mono-time font-bold">
-                  🎯 {(activeGoal.target_cs / 100).toFixed(2)}
-                </span>
-              </>
-            )}
-            {!activeGoal && (
-              <>
-                <span className="text-white/20">·</span>
-                <span className="text-white/30">No target</span>
-              </>
-            )}
-          </div>
-          <ChevronRight className="size-4 text-white/20 shrink-0" />
+          ) : (
+            <span className="text-xs text-white/40">No target</span>
+          )}
+          <SlidersHorizontal className="size-3.5 text-white/30" />
         </button>
       </div>
 
@@ -620,34 +584,17 @@ export function KidPracticeTab({
         </>
       )}
 
-      {/* Scramble — floats at top of hero, size varies */}
+      {/* ── Hero ───────────────────────────────────────────────────────────
+          One flex column that fills the space between the setup bar and the
+          metrics strip. Scramble sits at the top, the timer is centred in the
+          leftover space, and post-solve controls sit below — so nothing can
+          overlap on any viewport (portrait, landscape, tablet, desktop).
+          The whole region is the tap target for starting inspection. */}
       <div
-        className="relative z-10 px-5 pt-3 pointer-events-none"
-        style={{ touchAction: "none" }}
-      >
-        <div
-          className="kid-animate-in rounded-lg bg-white/5 w-full max-w-sm mx-auto cursor-pointer transition-opacity hover:opacity-80 px-4 py-3 select-none"
-          style={{ animationDelay: "80ms", userSelect: "none", WebkitUserSelect: "none" }}
-          onContextMenu={(e) => e.preventDefault()}
-        >
-          <p
-            className="font-mono-time text-center text-sm leading-relaxed tracking-wide text-white/80"
-            style={{ userSelect: "none", WebkitUserSelect: "none" }}
-          >
-            {scramble ?? "Generating scramble…"}
-          </p>
-        </div>
-      </div>
-
-      {/* Large tapable area covering hero region (from below setup box to above metrics).
-          Bounds are measured at runtime so it never overlaps the setup bar or metrics. */}
-      <div
-        className="fixed left-0 right-0 z-20 flex items-center justify-center px-5"
+        className="relative z-10 flex min-h-0 flex-1 flex-col px-5"
         style={{
-          top: tapZone.top,
-          bottom: tapZone.bottom,
-          // Disable the big tap zone while the solve is stopped so the user can
-          // interact with the penalty / Delete / Next buttons without re-triggering.
+          // Disable taps while the solve is stopped so the penalty / Delete /
+          // Next buttons are usable without re-triggering inspection.
           pointerEvents: timerPhase === "stopped" ? "none" : "auto",
           touchAction: "none",
         }}
@@ -660,18 +607,32 @@ export function KidPracticeTab({
           onPressEnd();
         }}
       >
-        {/* Timer — FIXED to viewport center, never moves regardless of scramble height */}
-        <div
-          className="kid-animate-in fixed left-0 right-0 z-20 flex items-center justify-center px-5 pointer-events-none"
-          style={{ top: "50%", transform: "translateY(-50%)", animationDelay: "80ms" }}
-        >
+        {/* Scramble — pinned to the top of the hero */}
+        <div className="practice-scramble shrink-0 pt-1 pointer-events-none">
+          <div
+            className="kid-animate-in rounded-lg bg-white/5 w-full max-w-sm mx-auto px-4 py-2 select-none"
+            style={{ animationDelay: "80ms", userSelect: "none", WebkitUserSelect: "none" }}
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            <p
+              className="font-mono-time text-center text-[13px] leading-snug tracking-wide text-white/75"
+              style={{ userSelect: "none", WebkitUserSelect: "none" }}
+            >
+              {scramble ?? "Generating scramble…"}
+            </p>
+          </div>
+        </div>
+
+        {/* Timer — centred in the space that remains between scramble and
+            post-solve controls. flex-1 means it always gets the leftover room. */}
+        <div className="kid-animate-in flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden" style={{ animationDelay: "80ms" }}>
           <div className="w-full max-w-sm mx-auto">
 
           {/* Timer display */}
           <div
             className="w-full cursor-pointer select-none text-center"
           >
-            <p className="font-mono-time text-[5.5rem] font-semibold leading-none tracking-tighter sm:text-[6.5rem] select-none" style={{ userSelect: "none", WebkitUserSelect: "none" }}>
+            <p className="timer-display font-mono-time font-semibold leading-none tracking-tighter select-none" style={{ userSelect: "none", WebkitUserSelect: "none" }}>
               {timerPhase === "inspecting" || timerPhase === "holding" || timerPhase === "ready"
                 ? inspSec > 0 ? String(inspSec) : "+2"
                 : timerPhase === "stopped"
@@ -680,18 +641,19 @@ export function KidPracticeTab({
                 ? formatCs(displayCs)
                 : "0.00"}
             </p>
-            <p className="mt-3 text-sm text-white/45 select-none" style={{ userSelect: "none", WebkitUserSelect: "none" }}>
-              {timerPhase === "inspecting"
-                ? inspSec <= 3 ? "Start now!" : "Inspecting…"
-                : timerPhase === "holding"
-                ? timerRef.current.inspTimer ? "" : (showHoldMsg ? "Release to start inspection" : "")
-                : timerPhase === "ready"
-                ? timerRef.current.inspTimer ? "Release to start" : "Release to start inspection"
-                : timerPhase === "running"
-                ? ""
-                : timerPhase === "stopped"
-                ? ""
-                : "Tap to start inspection"}
+            <p className="practice-hint mt-3 text-sm text-white/45 select-none" style={{ userSelect: "none", WebkitUserSelect: "none" }}>
+              {(() => {
+                // The live timer reads its ref during render on purpose to pick
+                // the correct hint for the current phase.
+                /* eslint-disable react-hooks/refs */
+                if (timerPhase === "inspecting") return inspSec <= 3 ? "Start now!" : "Inspecting…";
+                if (timerPhase === "holding") return timerRef.current.inspTimer ? "" : (showHoldMsg ? "Release to start inspection" : "");
+                if (timerPhase === "ready") return timerRef.current.inspTimer ? "Release to start" : "Release to start inspection";
+                if (timerPhase === "running") return "";
+                if (timerPhase === "stopped") return "";
+                return "Tap to start inspection";
+                /* eslint-enable react-hooks/refs */
+              })()}
             </p>
           </div>
 
@@ -755,8 +717,9 @@ export function KidPracticeTab({
                     </div>
                   </div>
                   {stats.isPb && (
-                    <p className="mt-2 text-center text-xs font-bold text-[#FFD500] animate-bounce">
-                      🎉 NEW PB!
+                    <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs font-bold text-[#FFD500] animate-bounce">
+                      <PartyPopper className="size-3.5" />
+                      NEW PB!
                     </p>
                   )}
                 </div>
@@ -767,14 +730,12 @@ export function KidPracticeTab({
         </div>
       </div>
 
-      {/* Stats strip - fixed above bottom nav */}
+      {/* Stats strip — in-flow at the bottom of the practice column, directly
+          above the bottom nav. shrink-0 so it always keeps its height. */}
       <div
-        ref={metricsRef}
-        className="fixed left-0 right-0 z-30 border-t border-white/8 kid-animate-in select-none"
+        className="practice-metrics shrink-0 border-t border-white/8 kid-animate-in select-none"
         style={{
-          bottom: "calc(4.5rem + env(safe-area-inset-bottom))",
           background: "rgba(10,10,10,0.88)",
-          backdropFilter: "blur(12px)",
           animationDelay: "200ms",
           userSelect: "none",
           WebkitUserSelect: "none",
@@ -791,7 +752,7 @@ export function KidPracticeTab({
           ] as const).map(({ label, value }) => (
             <div
               key={label}
-              className="flex flex-col items-center py-2.5 px-1 select-none"
+              className="practice-metric-cell flex flex-col items-center py-2.5 px-1 select-none"
               style={{ userSelect: "none", WebkitUserSelect: "none" }}
             >
               <p
@@ -809,7 +770,7 @@ export function KidPracticeTab({
             </div>
           ))}
           <div
-            className="flex flex-col items-center py-2.5 px-1 select-none"
+            className="practice-metric-cell flex flex-col items-center py-2.5 px-1 select-none"
             style={{ userSelect: "none", WebkitUserSelect: "none" }}
           >
             <p

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { X, Moon, Sun, Download, Upload, Loader2, Check, ChevronDown, Trash2 } from "lucide-react";
-import { exportAllData } from "@/app/actions/export";
+import { useState, useRef } from "react";
+import { X, Moon, Sun, Upload, Loader2, Check, ChevronDown, Trash2 } from "lucide-react";
 import { importTwistyTimerData, clearImportedSolves } from "@/app/actions/import";
+import { useTheme } from "@/lib/useTheme";
 
 const EVENTS = [
   { id: "333", label: "3×3×3" },
@@ -21,30 +21,8 @@ interface SettingsSheetProps {
   cuberId: string;
 }
 
-function useTheme() {
-  const [theme, setThemeState] = useState<"dark" | "light">("dark");
-
-  useEffect(() => {
-    const stored = localStorage.getItem("theme");
-    const isDark = stored ? stored === "dark" : document.documentElement.classList.contains("dark");
-    setThemeState(isDark ? "dark" : "light");
-  }, []);
-
-  function setTheme(t: "dark" | "light") {
-    setThemeState(t);
-    localStorage.setItem("theme", t);
-    document.documentElement.classList.toggle("dark", t === "dark");
-  }
-
-  return { theme, setTheme };
-}
-
 export function SettingsSheet({ onClose, cuberId }: SettingsSheetProps) {
   const { theme, setTheme } = useTheme();
-
-  // Export state
-  const [exporting, setExporting] = useState(false);
-  const [exportDone, setExportDone] = useState(false);
 
   // Import state
   const [importEventId, setImportEventId] = useState("333");
@@ -59,28 +37,6 @@ export function SettingsSheet({ onClose, cuberId }: SettingsSheetProps) {
   const [clearResult, setClearResult] = useState<{ deletedCount: number } | null>(null);
   const [clearError, setClearError] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
-
-  async function handleExport() {
-    setExporting(true);
-    setExportDone(false);
-    try {
-      const data = await exportAllData();
-      if (!data) throw new Error("Export failed");
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `cubeverse-export-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      setExportDone(true);
-      setTimeout(() => setExportDone(false), 3000);
-    } catch {
-      alert("Export failed. Please try again.");
-    } finally {
-      setExporting(false);
-    }
-  }
 
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -104,6 +60,9 @@ export function SettingsSheet({ onClose, cuberId }: SettingsSheetProps) {
     }
   }
 
+  const selectClass =
+    "w-full appearance-none rounded-lg border border-token bg-surface px-3 py-2 text-sm font-semibold text-token focus:outline-none focus:border-token-strong";
+
   return (
     <>
       {/* Backdrop */}
@@ -112,200 +71,182 @@ export function SettingsSheet({ onClose, cuberId }: SettingsSheetProps) {
       {/* Dialog */}
       <div className="fixed inset-0 z-50 flex items-center justify-center px-4 pointer-events-none">
         <div
-          className="bg-[#1C1916] rounded-2xl border-2 border-white/15 p-6 w-full max-w-sm pointer-events-auto space-y-6"
-          style={{ boxShadow: "0 24px 48px rgba(0,0,0,0.6)" }}
+          className="settings-sheet bg-sheet rounded-2xl border border-token w-full max-w-sm pointer-events-auto flex max-h-[85dvh] flex-col"
+          style={{ boxShadow: "0 24px 48px rgba(0,0,0,0.45)" }}
         >
           {/* Header */}
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-xl font-bold text-white">Settings</h2>
+          <div className="flex shrink-0 items-center justify-between px-5 pt-5 pb-3">
+            <h2 className="font-display text-lg font-bold text-token">Settings</h2>
             <button
               onClick={onClose}
-              className="flex size-8 items-center justify-center rounded-lg bg-white/10 transition-colors hover:bg-white/20"
+              aria-label="Close"
+              className="flex size-8 items-center justify-center rounded-lg bg-surface text-token transition-colors hover:bg-surface-strong [touch-action:manipulation]"
             >
-              <X className="size-5" />
+              <X className="size-4" />
             </button>
           </div>
 
-          {/* Theme */}
-          <div className="space-y-3">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">Appearance</p>
-            <div className="flex gap-2">
+          {/* Scrollable body */}
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 space-y-5">
+            {/* Theme */}
+            <section className="space-y-2">
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-token-muted">Appearance</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setTheme("dark")}
+                  aria-pressed={theme === "dark"}
+                  className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-bold transition-all [touch-action:manipulation] ${
+                    theme === "dark"
+                      ? "border-accent bg-accent-soft text-token"
+                      : "border-token bg-surface text-token-muted hover:bg-surface-strong"
+                  }`}
+                >
+                  <Moon className="size-4" />
+                  Dark
+                </button>
+                <button
+                  onClick={() => setTheme("light")}
+                  aria-pressed={theme === "light"}
+                  className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg border text-sm font-bold transition-all [touch-action:manipulation] ${
+                    theme === "light"
+                      ? "border-accent bg-accent-soft text-token"
+                      : "border-token bg-surface text-token-muted hover:bg-surface-strong"
+                  }`}
+                >
+                  <Sun className="size-4" />
+                  Light
+                </button>
+              </div>
+            </section>
+
+            {/* Twisty Timer Import */}
+            <section className="space-y-2">
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-token-muted">Import from Twisty Timer</p>
+
+              <div className="relative">
+                <select
+                  value={importEventId}
+                  onChange={(e) => setImportEventId(e.target.value)}
+                  className={selectClass}
+                >
+                  {EVENTS.map((ev) => (
+                    <option key={ev.id} value={ev.id} className="bg-sheet">
+                      {ev.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-token-muted pointer-events-none" />
+              </div>
+
               <button
-                onClick={() => setTheme("dark")}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 py-3 font-bold transition-all ${
-                  theme === "dark"
-                    ? "border-[#0A0A0A] bg-[#1A1208] text-white"
-                    : "border-white/10 bg-white/5 text-white/50 hover:bg-white/10"
-                }`}
-                style={theme === "dark" ? { boxShadow: "3px 3px 0 #0A0A0A" } : undefined}
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importing}
+                className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-token bg-surface px-3 text-sm font-bold text-token transition-colors hover:bg-surface-strong disabled:opacity-50 [touch-action:manipulation]"
               >
-                <Moon className="size-4" />
-                Dark
-              </button>
-              <button
-                onClick={() => setTheme("light")}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-xl border-2 py-3 font-bold transition-all ${
-                  theme === "light"
-                    ? "border-[#0A0A0A] bg-[#F4EFE6] text-[#1A1208]"
-                    : "border-white/10 bg-white/5 text-white/50 hover:bg-white/10"
-                }`}
-                style={theme === "light" ? { boxShadow: "3px 3px 0 #0A0A0A" } : undefined}
-              >
-                <Sun className="size-4" />
-                Light
-              </button>
-            </div>
-          </div>
-
-          {/* Export */}
-          <div className="space-y-3">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">Data</p>
-            <button
-              onClick={handleExport}
-              disabled={exporting}
-              className="sticker w-full flex items-center justify-between rounded-xl border-2 border-[#0A0A0A] bg-[#0046AD] px-4 py-3 font-bold text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
-              style={{ boxShadow: "4px 4px 0 #0A0A0A" }}
-            >
-              <span className="flex items-center gap-2">
-                {exporting ? <Loader2 className="size-4 animate-spin" /> : exportDone ? <Check className="size-4" /> : <Download className="size-4" />}
-                {exporting ? "Exporting…" : exportDone ? "Downloaded!" : "Export data"}
-              </span>
-              <span className="text-xs text-white/60 font-normal">JSON backup</span>
-            </button>
-          </div>
-
-          {/* Twisty Timer Import */}
-          <div className="space-y-3">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">Import from Twisty Timer</p>
-
-            {/* Event selector */}
-            <div className="relative">
-              <select
-                value={importEventId}
-                onChange={(e) => setImportEventId(e.target.value)}
-                className="w-full appearance-none rounded-xl border-2 border-white/15 bg-white/8 px-4 py-3 font-bold text-white focus:outline-none focus:border-white/30"
-              >
-                {EVENTS.map((ev) => (
-                  <option key={ev.id} value={ev.id} className="bg-[#1C1916]">
-                    {ev.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-white/40 pointer-events-none" />
-            </div>
-
-            {/* File picker */}
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={importing}
-              className="sticker w-full flex items-center justify-between rounded-xl border-2 border-[#0A0A0A] bg-[#009B48] px-4 py-3 font-bold text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-50"
-              style={{ boxShadow: "4px 4px 0 #0A0A0A" }}
-            >
-              <span className="flex items-center gap-2">
                 {importing ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
                 {importing ? "Importing…" : "Choose .txt file"}
-              </span>
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".txt"
-              className="hidden"
-              onChange={handleImportFile}
-            />
-
-            {importResult && (
-              <div className="flex items-start gap-2 rounded-lg border border-green-500/40 bg-green-500/10 px-3 py-2 text-sm font-bold text-green-400">
-                <Check className="size-4 shrink-0 mt-0.5" />
-                <div>
-                  <p>Imported {importResult.solvesImported} of {importResult.solvesParsed} solve{importResult.solvesParsed !== 1 ? "s" : ""}</p>
-                  {importResult.solvesImported < importResult.solvesParsed && (
-                    <p className="text-xs font-normal text-green-400/70 mt-0.5">
-                      {importResult.solvesParsed - importResult.solvesImported} skipped (already imported)
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-            {importError && (
-              <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm font-bold text-red-400">
-                {importError}
-              </div>
-            )}
-          </div>
-
-          {/* Clear imported solves */}
-          <div className="space-y-3">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">Remove Imported Solves</p>
-
-            <div className="relative">
-              <select
-                value={clearEventId}
-                onChange={(e) => { setClearEventId(e.target.value); setConfirmClear(false); setClearResult(null); setClearError(null); }}
-                className="w-full appearance-none rounded-xl border-2 border-white/15 bg-white/8 px-4 py-3 font-bold text-white focus:outline-none focus:border-white/30"
-              >
-                <option value="all" className="bg-[#1C1916]">All events</option>
-                {EVENTS.map((ev) => (
-                  <option key={ev.id} value={ev.id} className="bg-[#1C1916]">{ev.label}</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-white/40 pointer-events-none" />
-            </div>
-
-            {!confirmClear ? (
-              <button
-                onClick={() => setConfirmClear(true)}
-                className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-white/15 bg-white/8 px-4 py-3 font-bold text-red-400 transition-all hover:bg-red-500/10 hover:border-red-500/30"
-              >
-                <Trash2 className="size-4" />
-                Clear imported solves
               </button>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-xs text-white/50 text-center">
-                  This will permanently delete all Twisty Timer solves{clearEventId !== "all" ? ` for ${EVENTS.find(e => e.id === clearEventId)?.label}` : " across all events"}. Are you sure?
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setConfirmClear(false)}
-                    className="flex-1 rounded-xl border-2 border-white/10 bg-white/8 py-2.5 font-bold text-white/60 hover:bg-white/12"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setClearing(true);
-                      setClearResult(null);
-                      setClearError(null);
-                      const result = await clearImportedSolves(cuberId, clearEventId);
-                      setClearing(false);
-                      setConfirmClear(false);
-                      if (result.error) {
-                        setClearError(result.error);
-                      } else {
-                        setClearResult({ deletedCount: result.deletedCount });
-                      }
-                    }}
-                    disabled={clearing}
-                    className="flex-1 rounded-xl border-2 border-red-500/50 bg-red-500/20 py-2.5 font-bold text-red-400 hover:bg-red-500/30 disabled:opacity-50"
-                  >
-                    {clearing ? <Loader2 className="size-4 animate-spin mx-auto" /> : "Yes, delete"}
-                  </button>
-                </div>
-              </div>
-            )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".txt"
+                className="hidden"
+                onChange={handleImportFile}
+              />
 
-            {clearResult && (
-              <div className="flex items-center gap-2 rounded-lg border border-green-500/40 bg-green-500/10 px-3 py-2 text-sm font-bold text-green-400">
-                <Check className="size-4 shrink-0" />
-                Deleted {clearResult.deletedCount} solve{clearResult.deletedCount !== 1 ? "s" : ""}
+              {importResult && (
+                <div className="flex items-start gap-2 rounded-lg border border-green-500/40 bg-green-500/10 px-3 py-2 text-sm font-bold text-green-500">
+                  <Check className="size-4 shrink-0 mt-0.5" />
+                  <div>
+                    <p>Imported {importResult.solvesImported} of {importResult.solvesParsed} solve{importResult.solvesParsed !== 1 ? "s" : ""}</p>
+                    {importResult.solvesImported < importResult.solvesParsed && (
+                      <p className="text-xs font-normal text-green-500/70 mt-0.5">
+                        {importResult.solvesParsed - importResult.solvesImported} skipped (already imported)
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+              {importError && (
+                <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm font-bold text-red-500">
+                  {importError}
+                </div>
+              )}
+            </section>
+
+            {/* Clear imported solves */}
+            <section className="space-y-2">
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-token-muted">Remove Imported Solves</p>
+
+              <div className="relative">
+                <select
+                  value={clearEventId}
+                  onChange={(e) => { setClearEventId(e.target.value); setConfirmClear(false); setClearResult(null); setClearError(null); }}
+                  className={selectClass}
+                >
+                  <option value="all" className="bg-sheet">All events</option>
+                  {EVENTS.map((ev) => (
+                    <option key={ev.id} value={ev.id} className="bg-sheet">{ev.label}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-token-muted pointer-events-none" />
               </div>
-            )}
-            {clearError && (
-              <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm font-bold text-red-400">
-                {clearError}
-              </div>
-            )}
+
+              {!confirmClear ? (
+                <button
+                  onClick={() => setConfirmClear(true)}
+                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-token bg-surface px-3 text-sm font-bold text-red-500 transition-all hover:bg-red-500/10 hover:border-red-500/30 [touch-action:manipulation]"
+                >
+                  <Trash2 className="size-4" />
+                  Clear imported solves
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-token-muted text-center">
+                    This will permanently delete all Twisty Timer solves{clearEventId !== "all" ? ` for ${EVENTS.find(e => e.id === clearEventId)?.label}` : " across all events"}. Are you sure?
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setConfirmClear(false)}
+                      className="min-h-10 flex-1 rounded-lg border border-token bg-surface text-sm font-bold text-token-muted hover:bg-surface-strong [touch-action:manipulation]"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={async () => {
+                        setClearing(true);
+                        setClearResult(null);
+                        setClearError(null);
+                        const result = await clearImportedSolves(cuberId, clearEventId);
+                        setClearing(false);
+                        setConfirmClear(false);
+                        if (result.error) {
+                          setClearError(result.error);
+                        } else {
+                          setClearResult({ deletedCount: result.deletedCount });
+                        }
+                      }}
+                      disabled={clearing}
+                      className="min-h-10 flex-1 rounded-lg border border-red-500/50 bg-red-500/20 text-sm font-bold text-red-500 hover:bg-red-500/30 disabled:opacity-50 [touch-action:manipulation]"
+                    >
+                      {clearing ? <Loader2 className="size-4 animate-spin mx-auto" /> : "Yes, delete"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {clearResult && (
+                <div className="flex items-center gap-2 rounded-lg border border-green-500/40 bg-green-500/10 px-3 py-2 text-sm font-bold text-green-500">
+                  <Check className="size-4 shrink-0" />
+                  Deleted {clearResult.deletedCount} solve{clearResult.deletedCount !== 1 ? "s" : ""}
+                </div>
+              )}
+              {clearError && (
+                <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm font-bold text-red-500">
+                  {clearError}
+                </div>
+              )}
+            </section>
           </div>
         </div>
       </div>

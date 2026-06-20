@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { formatCs } from "@/lib/cubing";
 import { EVENT_SHORT } from "@/lib/event-theme";
 import { ChevronDown } from "lucide-react";
@@ -65,7 +65,6 @@ export function KidAnalyticsTab({
   const [compTypeFilter, setCompTypeFilter] = useState<"all" | "wca" | "unofficial">("all");
   const [selectedCubeIds, setSelectedCubeIds] = useState<Set<string>>(new Set());
   const [dateRange, setDateRange] = useState<DateRange>("all");
-  const [isPending, startTransition] = useTransition();
   const [timesOpen, setTimesOpen] = useState(false);
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editingCs, setEditingCs] = useState<number>(0);
@@ -83,12 +82,13 @@ export function KidAnalyticsTab({
     setAnalyticsData(data);
   }, [cuberId]);
 
-  // Fetch on mount and event change
+  // Fetch on mount and event change — this effect synchronises with an external
+  // system (the database), so the setState inside refreshAll is intentional.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refreshAll(selectedEventId);
   }, [selectedEventId, refreshAll]);
 
-  const selected = events.find((e) => e.id === selectedEventId) ?? events[0];
   const selectedPb = pbs.find((p) => p.eventId === selectedEventId);
 
   const handleEventChange = (eventId: string) => {

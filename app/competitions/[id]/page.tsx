@@ -42,7 +42,11 @@ export default async function KidCompetitionDetailPage({
       competition={comp}
       results={(results ?? []).map((r) => ({
         ...r,
-        solves: r.solves ? [...(r.solves as any[])].sort((a, b) => a.position - b.position) : [],
+        solves: r.solves
+          ? [...r.solves].sort(
+              (a, b) => (a as { position: number }).position - (b as { position: number }).position
+            )
+          : [],
       }))}
       events={events ?? []}
       cuberId={cuberId}

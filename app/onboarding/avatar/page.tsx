@@ -19,31 +19,25 @@ const AVATAR_COLORS = [
 
 export default function OnboardingAvatarPage() {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [wcaId, setWcaId] = useState("");
   const [selectedColor, setSelectedColor] = useState("blue");
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
-    // Get name and WCA ID from sessionStorage
-    const storedName = sessionStorage.getItem("onboarding_name");
-    const storedWcaId = sessionStorage.getItem("onboarding_wca_id");
-
-    if (!storedName) {
+    // Redirect back to step 1 if the name wasn't captured.
+    if (!sessionStorage.getItem("onboarding_name")) {
       router.push("/onboarding/name");
-    } else {
-      setName(storedName);
-      setWcaId(storedWcaId || "");
     }
   }, [router]);
 
   function handleSubmit() {
+    const name = sessionStorage.getItem("onboarding_name") ?? "";
+    const storedWcaId = sessionStorage.getItem("onboarding_wca_id");
     startTransition(async () => {
       try {
         const result = await completeOnboarding({
           name,
-          wcaId: wcaId === "skip" || !wcaId ? null : wcaId,
+          wcaId: storedWcaId === "skip" || !storedWcaId ? null : storedWcaId,
           avatarColor: selectedColor,
         });
 
@@ -59,7 +53,7 @@ export default function OnboardingAvatarPage() {
         if (result.redirectTo) {
           router.push(result.redirectTo);
         }
-      } catch (err) {
+      } catch {
         setError("Failed to complete onboarding");
       }
     });

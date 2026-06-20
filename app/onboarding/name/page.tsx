@@ -49,8 +49,8 @@ export default function OnboardingNamePage() {
       {/* Content */}
       <div className="w-full max-w-md space-y-6 text-center kid-animate-in">
         <div>
-          <h2 className="font-display text-3xl font-bold mb-2">What's your name?</h2>
-          <p className="text-sm text-white/60">This is how we'll greet you!</p>
+          <h2 className="font-display text-3xl font-bold mb-2">What&apos;s your name?</h2>
+          <p className="text-sm text-white/60">This is how we&apos;ll greet you!</p>
         </div>
 
         <div className="space-y-3">

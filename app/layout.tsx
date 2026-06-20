@@ -50,8 +50,19 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${plexSans.variable} ${fraunces.variable} ${rubik.variable} ${plexMono.variable} h-full`}
+      suppressHydrationWarning
+      className={`${plexSans.variable} ${fraunces.variable} ${rubik.variable} ${plexMono.variable} theme-dark h-full`}
     >
+      <head>
+        {/* Apply the saved theme before first paint to avoid a flash of the
+            wrong theme. Defaults to dark when nothing is stored. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{var t=localStorage.getItem('theme');var l=t==='light';var c=document.documentElement.classList;c.toggle('theme-light',l);c.toggle('theme-dark',!l);}catch(e){}})();",
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">
         <ServiceWorkerRegister />
         {children}

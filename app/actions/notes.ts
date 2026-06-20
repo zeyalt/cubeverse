@@ -67,7 +67,14 @@ export async function getCompetitionNotes(
       return [];
     }
 
-    return (data ?? []).map((row: any) => ({
+    return (data ?? []).map((row: {
+      id: string;
+      competition_id: string;
+      event_id: string | null;
+      round_type: string | null;
+      content: string;
+      updated_at: string;
+    }) => ({
       id: row.id,
       competitionId: row.competition_id,
       eventId: row.event_id,

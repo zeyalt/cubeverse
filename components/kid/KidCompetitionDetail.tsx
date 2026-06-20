@@ -1,9 +1,8 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { addResultKid, deleteResultKid } from "@/app/actions/competition";
 import { saveCompetitionNote } from "@/app/actions/notes";
 import { formatCs, DNF } from "@/lib/cubing";
@@ -422,7 +421,6 @@ export function KidCompetitionDetail({
     });
     return map;
   });
-  const [, startTransition] = useTransition();
 
   return (
     <div className="kid-canvas min-h-screen flex flex-col text-white">
