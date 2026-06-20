@@ -17,6 +17,7 @@ export interface SolveInput {
   timeCs: number;
   penalty: "none" | "plus2" | "dnf";
   scramble: string | null;
+  cubeId?: string; // optional: which cube was used
 }
 
 export interface SessionStats {
@@ -70,6 +71,7 @@ export async function recordSolve(input: SolveInput): Promise<SessionStats> {
       time_cs: input.timeCs,
       penalty: input.penalty,
       scramble: input.scramble ?? undefined,
+      ...(input.cubeId && { cube_id: input.cubeId }),
     },
   ]);
 

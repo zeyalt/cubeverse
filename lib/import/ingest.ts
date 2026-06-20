@@ -7,6 +7,7 @@ export interface ParsedSolve {
   scramble?: string;
   solved_at?: string; // ISO date; defaults to now
   comment?: string;
+  cube_id?: string;   // optional: which cube was used
 }
 
 const SESSION_WINDOW_MS = 2 * 60 * 60 * 1000; // 2-hour inactivity window
@@ -182,6 +183,7 @@ async function ingestSingle(
       position: (existingCount ?? 0) + 1,
       solved_at: solve.solved_at ?? new Date().toISOString(),
       source,
+      ...(solve.cube_id && { cube_id: solve.cube_id }),
     })
     .select("id")
     .single();

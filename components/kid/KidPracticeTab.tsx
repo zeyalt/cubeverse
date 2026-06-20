@@ -382,6 +382,7 @@ export function KidPracticeTab({
       timeCs: cs,
       penalty: chosenPenalty,
       scramble: currentScramble,
+      ...(selectedCubeId && { cubeId: selectedCubeId }),
     };
 
     if (!navigator.onLine) {
@@ -660,36 +661,38 @@ export function KidPracticeTab({
           {/* Penalty bar + session stats */}
           {timerPhase === "stopped" && (
             <div className="mt-6 space-y-3 mx-auto w-full max-w-sm pointer-events-auto">
-              <div className="grid grid-cols-3 gap-2">
-                {([
-                  { p: "none" as Penalty, label: "OK", face: "#009B48", ink: "#FFF" },
-                  { p: "plus2" as Penalty, label: "+2", face: "#FFD500", ink: "#1A1200" },
-                  { p: "dnf" as Penalty, label: "DNF", face: "#B71234", ink: "#FFF" },
-                ] as const).map(({ p, label, face, ink }) => (
-                  <button
-                    key={p}
-                    onClick={() => setPenalty(p)}
-                    className={`sticker flex min-h-11 items-center justify-center rounded-lg py-2 font-bold text-sm transition-all [touch-action:manipulation] ${penalty === p ? "scale-105" : ""}`}
-                    style={{
-                      backgroundColor: face,
-                      color: ink,
-                      boxShadow: penalty === p ? "3px 3px 0 #0A0A0A" : "1px 1px 0 #0A0A0A",
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 justify-between items-stretch">
                 <button
                   onClick={() => deleteSolve()}
-                  className="flex min-h-11 flex-1 items-center justify-center rounded-lg py-2 bg-white/10 text-white text-sm font-medium transition-colors hover:bg-white/20 [touch-action:manipulation]"
+                  className="flex-shrink-0 min-h-11 px-3 rounded-lg bg-white/10 text-white text-sm font-medium transition-colors hover:bg-white/20 [touch-action:manipulation]"
                 >
                   Delete
                 </button>
                 <button
+                  onClick={() => setPenalty(penalty === "plus2" ? "none" : "plus2")}
+                  className="flex-shrink-0 min-h-11 px-3 rounded-lg font-bold text-sm transition-all [touch-action:manipulation]"
+                  style={{
+                    backgroundColor: penalty === "plus2" ? "#FFD500" : "rgba(255,213,0,0.3)",
+                    color: penalty === "plus2" ? "#1A1200" : "#FFD500",
+                    boxShadow: penalty === "plus2" ? "3px 3px 0 #0A0A0A" : "1px 1px 0 rgba(255,213,0,0.2)",
+                  }}
+                >
+                  +2
+                </button>
+                <button
+                  onClick={() => setPenalty(penalty === "dnf" ? "none" : "dnf")}
+                  className="flex-shrink-0 min-h-11 px-3 rounded-lg font-bold text-sm transition-all [touch-action:manipulation]"
+                  style={{
+                    backgroundColor: penalty === "dnf" ? "#B71234" : "rgba(183,18,52,0.3)",
+                    color: penalty === "dnf" ? "#FFF" : "#B71234",
+                    boxShadow: penalty === "dnf" ? "3px 3px 0 #0A0A0A" : "1px 1px 0 rgba(183,18,52,0.2)",
+                  }}
+                >
+                  DNF
+                </button>
+                <button
                   onClick={() => saveAndNext(penalty)}
-                  className="flex min-h-11 flex-1 items-center justify-center rounded-lg py-2 bg-white/20 text-white text-sm font-medium transition-colors hover:bg-white/30 [touch-action:manipulation]"
+                  className="flex-grow min-h-11 px-3 rounded-lg bg-white/20 text-white text-sm font-medium transition-colors hover:bg-white/30 [touch-action:manipulation]"
                 >
                   Next →
                 </button>
