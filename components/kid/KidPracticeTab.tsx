@@ -504,45 +504,59 @@ export function KidPracticeTab({
               </div>
             )}
           </div>
-          {/* Target time input */}
+          {/* Target time slider — unique per puzzle type */}
           <div className="relative flex-1">
-            <div className="relative">
-              <Target className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#FFD500] pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Target"
-                value={goalInput}
-                onChange={(e) => setGoalInput(e.target.value)}
-                onBlur={async () => {
-                  if (goalInput.trim()) {
-                    try {
-                      const cs = Math.round(parseFloat(goalInput) * 100);
-                      if (cs > 0) {
-                        await setPracticeGoal(cuberId, selectedId, cs);
-                        const setup = await getPracticeSetupData(cuberId, selectedId);
-                        setActiveGoal(setup.activeGoal);
-                      }
-                    } catch (err) {
-                      console.error("Failed to set goal:", err);
-                    }
-                  } else {
-                    await clearPracticeGoal(cuberId, selectedId);
-                    setActiveGoal(null);
-                  }
-                  setGoalInput("");
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    (e.target as HTMLInputElement).blur();
+            <div className="flex items-center gap-1">
+              <button
+                onClick={async () => {
+                  if (activeGoal && activeGoal.target_cs >= 5050) {
+                    const newCs = Math.round(activeGoal.target_cs - 50);
+                    await setPracticeGoal(cuberId, selectedId, newCs);
+                    const setup = await getPracticeSetupData(cuberId, selectedId);
+                    setActiveGoal(setup.activeGoal);
                   }
                 }}
-                className="sticker w-full flex items-center rounded-lg border-2 border-white/20 bg-[#1C1916] px-3 py-2 pl-9 font-mono-time text-sm text-[#FFD500] transition-all hover:bg-white/10 focus:outline-none focus:border-[#FFD500]/50 placeholder:text-white/40"
-              />
-              {activeGoal && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/50">
-                  {(activeGoal.target_cs / 100).toFixed(2)}
-                </span>
-              )}
+                className="flex items-center justify-center w-9 h-9 rounded-md bg-[#1C1916] border border-white/20 text-[#FFD500] font-bold hover:bg-white/10 transition-colors [touch-action:manipulation]"
+                aria-label="Decrease target by 0.5s"
+              >
+                −0.5
+              </button>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <Target className="size-3.5 text-[#FFD500] flex-shrink-0" />
+                  <input
+                    type="range"
+                    min="1000"
+                    max="60000"
+                    step="50"
+                    value={activeGoal?.target_cs ?? 2000}
+                    onChange={async (e) => {
+                      const cs = Math.round(parseFloat(e.target.value));
+                      await setPracticeGoal(cuberId, selectedId, cs);
+                      const setup = await getPracticeSetupData(cuberId, selectedId);
+                      setActiveGoal(setup.activeGoal);
+                    }}
+                    className="w-full h-1.5 bg-white/20 rounded-full appearance-none cursor-pointer accent-[#FFD500]"
+                  />
+                  <span className="text-xs font-mono-time text-[#FFD500] min-w-[3.5rem] text-right">
+                    {activeGoal ? (activeGoal.target_cs / 100).toFixed(2) : "10.00"}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  if (activeGoal && activeGoal.target_cs <= 59950) {
+                    const newCs = Math.round(activeGoal.target_cs + 50);
+                    await setPracticeGoal(cuberId, selectedId, newCs);
+                    const setup = await getPracticeSetupData(cuberId, selectedId);
+                    setActiveGoal(setup.activeGoal);
+                  }
+                }}
+                className="flex items-center justify-center w-9 h-9 rounded-md bg-[#1C1916] border border-white/20 text-[#FFD500] font-bold hover:bg-white/10 transition-colors [touch-action:manipulation]"
+                aria-label="Increase target by 0.5s"
+              >
+                +0.5
+              </button>
             </div>
           </div>
         </div>
