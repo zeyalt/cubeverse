@@ -427,10 +427,10 @@ export function KidPracticeTab({
         {/* Controls row */}
         <div className="flex gap-2 pointer-events-auto">
           {/* Event dropdown */}
-          <div className="relative flex-1 min-w-0">
+          <div className="relative flex-[0.85] min-w-0">
             <button
               onClick={() => setEventDropdownOpen(!eventDropdownOpen)}
-              className="sticker w-full h-12 flex items-center justify-between gap-1 rounded-lg border-2 border-white/20 bg-[#1C1916] px-3 font-bold text-sm text-white transition-all hover:bg-white/10"
+              className="sticker w-full h-12 flex items-center justify-between gap-1 rounded-lg border-2 border-white/20 bg-[#1C1916] px-2.5 font-bold text-xs text-white transition-all hover:bg-white/10"
             >
               <span className="truncate text-left flex-1 min-w-0">{EVENT_SHORT[selectedId] || selectedId}</span>
               <ChevronDown className={`size-4 flex-shrink-0 transition-transform ${eventDropdownOpen ? "rotate-180" : ""}`} />
@@ -459,10 +459,10 @@ export function KidPracticeTab({
           </div>
 
           {/* Cube dropdown */}
-          <div className="relative flex-1 min-w-0">
+          <div className="relative flex-[0.85] min-w-0">
             <button
               onClick={() => setCubeDropdownOpen(!cubeDropdownOpen)}
-              className="sticker w-full h-12 flex items-center justify-between gap-1 rounded-lg border-2 border-white/20 bg-[#1C1916] px-3 font-bold text-sm text-white transition-all hover:bg-white/10"
+              className="sticker w-full h-12 flex items-center justify-between gap-1 rounded-lg border-2 border-white/20 bg-[#1C1916] px-2.5 font-bold text-xs text-white transition-all hover:bg-white/10"
             >
               <span className="truncate text-left flex-1 min-w-0">
                 {selectedCubeId
@@ -508,7 +508,7 @@ export function KidPracticeTab({
           </div>
 
           {/* Target time input — unique per puzzle type */}
-          <div className="relative flex-1 min-w-0">
+          <div className="relative flex-[1.35] min-w-0">
             <div className="sticker h-12 border-2 border-white/20 bg-[#1C1916] rounded-lg px-1.5 flex items-center gap-1">
               <button
                 onClick={() => {
@@ -539,7 +539,7 @@ export function KidPracticeTab({
                     setActiveGoal(setup.activeGoal);
                   }
                 }}
-                className="min-w-0 flex-1 bg-transparent text-center text-sm font-mono-time font-bold text-white placeholder-white/30 focus:outline-none"
+                className="min-w-0 flex-1 bg-transparent text-center text-xs font-mono-time font-bold text-white placeholder-white/30 focus:outline-none"
                 placeholder="10.00"
               />
               <button
