@@ -729,17 +729,17 @@ export function KidPracticeTab({
           {/* Penalty bar + session stats */}
           {timerPhase === "stopped" && (
             <div className="mt-6 space-y-3 mx-auto w-full max-w-sm pointer-events-auto">
-              <div className="flex gap-1 items-center">
+              <div className="flex gap-1 items-center justify-center">
                 <button
                   onClick={() => deleteSolve()}
-                  className="flex-1 flex items-center justify-center min-h-6 rounded-md bg-white/10 text-white transition-colors hover:bg-white/20 [touch-action:manipulation]"
+                  className="flex items-center justify-center w-8 min-h-9 rounded-md bg-white/10 text-white transition-colors hover:bg-white/20 [touch-action:manipulation]"
                   aria-label="Delete solve"
                 >
-                  <Trash2 className="size-3" />
+                  <Trash2 className="size-3.5" />
                 </button>
                 <button
                   onClick={() => setPenalty(penalty === "plus2" ? "none" : "plus2")}
-                  className="flex-1 flex items-center justify-center min-h-6 rounded-md font-bold text-[10px] transition-all [touch-action:manipulation]"
+                  className="flex items-center justify-center w-8 min-h-9 rounded-md font-bold text-xs transition-all [touch-action:manipulation]"
                   style={{
                     backgroundColor: penalty === "plus2" ? "#FFD500" : "rgba(255,213,0,0.3)",
                     color: penalty === "plus2" ? "#1A1200" : "#FFD500",
@@ -750,7 +750,7 @@ export function KidPracticeTab({
                 </button>
                 <button
                   onClick={() => setPenalty(penalty === "dnf" ? "none" : "dnf")}
-                  className="flex-1 flex items-center justify-center min-h-6 rounded-md font-bold text-[10px] transition-all [touch-action:manipulation]"
+                  className="flex items-center justify-center w-8 min-h-9 rounded-md font-bold text-xs transition-all [touch-action:manipulation]"
                   style={{
                     backgroundColor: penalty === "dnf" ? "#B71234" : "rgba(183,18,52,0.3)",
                     color: penalty === "dnf" ? "#FFF" : "#B71234",
@@ -761,7 +761,7 @@ export function KidPracticeTab({
                 </button>
                 <button
                   onClick={() => saveAndNext(penalty)}
-                  className="flex-1 flex items-center justify-center min-h-6 rounded-md bg-white/20 text-white transition-colors hover:bg-white/30 [touch-action:manipulation]"
+                  className="flex items-center justify-center w-8 min-h-9 rounded-md bg-white/20 text-white transition-colors hover:bg-white/30 [touch-action:manipulation]"
                   aria-label="Next solve"
                 >
                   <ArrowRight className="size-4" />
