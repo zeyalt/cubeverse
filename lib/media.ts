@@ -2,6 +2,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 const BUCKET = "media";
 
+/** Create the public media bucket if it doesn't exist (service role only). */
+async function ensureBucket(db: SupabaseClient): Promise<void> {
+  const { error } = await db.storage.createBucket(BUCKET, { public: true });
+  // Ignore "already exists" races; surface anything else.
+  if (error && !/exist/i.test(error.message)) {
+    throw new Error(`Could not create media bucket: ${error.message}`);
+  }
+}
+
 export async function uploadMediaFile(
   db: SupabaseClient,
   ownerId: string,
@@ -12,11 +21,15 @@ export async function uploadMediaFile(
   const path = `${ownerId}/${cuberId}/${crypto.randomUUID()}.${ext}`;
 
   const buffer = Buffer.from(await file.arrayBuffer());
+  const opts = { contentType: file.type || "image/jpeg", upsert: false };
 
-  const { error } = await db.storage.from(BUCKET).upload(path, buffer, {
-    contentType: file.type || "image/jpeg",
-    upsert: false,
-  });
+  let { error } = await db.storage.from(BUCKET).upload(path, buffer, opts);
+
+  // Self-heal if the bucket hasn't been provisioned in this Supabase project yet.
+  if (error && /bucket not found/i.test(error.message)) {
+    await ensureBucket(db);
+    ({ error } = await db.storage.from(BUCKET).upload(path, buffer, opts));
+  }
 
   if (error) throw new Error(error.message);
 

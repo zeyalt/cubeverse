@@ -421,6 +421,7 @@ export async function getCurrentPbs(
 // ─── Competition Improvements ──────────────────────────────────────────────────
 
 export interface CompetitionImprovement {
+  competitionId: string;
   competitionName: string;
   date: string;
   type: "wca" | "unofficial";
@@ -446,6 +447,7 @@ export async function getCompetitionImprovements(
   if (!data || data.length === 0) return [];
 
   type ImprovementRow = {
+    competition_id: string;
     best_cs: number | null;
     average_cs: number | null;
     round_type: string | null;
@@ -475,6 +477,7 @@ export async function getCompetitionImprovements(
     const roundType = (curr.round_type as string) ?? "final";
 
     results.push({
+      competitionId: curr.competition_id as string,
       competitionName: curr.competitions.name as string,
       date: fmtDate(curr.competitions.start_date as string),
       type: (curr.competitions.type as string).toLowerCase() === "wca" ? "wca" : "unofficial",

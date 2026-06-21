@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { formatCs } from "@/lib/cubing";
 import { EVENT_SHORT } from "@/lib/event-theme";
 import { getAnalyticsData, type AnalyticsPayload } from "@/app/actions/analytics";
@@ -59,7 +60,10 @@ export function KidAnalyticsTab({
   pbs,
   cubes,
 }: KidAnalyticsTabProps) {
-  const [subTab, setSubTab] = useState<"practice" | "competition">("practice");
+  const searchParams = useSearchParams();
+  const [subTab, setSubTab] = useState<"practice" | "competition">(
+    searchParams.get("sub") === "competition" ? "competition" : "practice"
+  );
   const [selectedEventId, setSelectedEventId] = useState(defaultEventId);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsPayload>(initialAnalyticsData);
   const [selectedCubeIds, setSelectedCubeIds] = useState<Set<string>>(new Set());
@@ -467,9 +471,7 @@ export function KidAnalyticsTab({
           {/* Competition Improvements */}
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">Competition Improvements</p>
-            <div className="surface p-4">
-              <CompetitionImprovements data={analyticsData.competitionImprovements} />
-            </div>
+            <CompetitionImprovements data={analyticsData.competitionImprovements} />
           </div>
         </div>
       )}

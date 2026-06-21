@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { addResultKid, deleteResultKid, deleteCompetition } from "@/app/actions/competition";
 import { saveCompetitionNote } from "@/app/actions/notes";
 import { formatCs, DNF } from "@/lib/cubing";
@@ -413,6 +413,11 @@ export function KidCompetitionDetail({
   notes,
 }: KidCompetitionDetailProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromAnalytics = searchParams.get("from") === "analytics";
+  const goBack = () =>
+    fromAnalytics ? router.push("/?tab=analytics&sub=competition") : router.back();
+  const isWca = competition.type === "wca";
   const [showAddForm, setShowAddForm] = useState(false);
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
   const [noteTexts, setNoteTexts] = useState<Record<string, string>>(() => {
@@ -427,15 +432,15 @@ export function KidCompetitionDetail({
   return (
     <div className="kid-canvas min-h-screen flex flex-col text-white">
       {/* Header */}
-      <header className="relative z-10 flex items-center gap-3 px-5 pt-[max(1.5rem,env(safe-area-inset-top))] pb-4">
+      <header className="relative z-10 flex items-start gap-3 px-5 pt-[max(1.5rem,env(safe-area-inset-top))] pb-4">
         <button
-          onClick={() => router.back()}
-          className="sticker-ghost flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/10 transition-transform active:scale-95"
+          onClick={goBack}
+          className="sticker-ghost flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/10 transition-transform active:scale-95 mt-0.5"
         >
           <ArrowLeft className="size-5" />
         </button>
         <div className="flex-1 min-w-0">
-          <h1 className="font-display text-2xl font-extrabold truncate">{competition.name}</h1>
+          <h1 className="font-display text-2xl font-extrabold break-words">{competition.name}</h1>
           <div className="mt-1 flex items-center gap-2 flex-wrap">
             {(competition.city || competition.country) && (
               <p className="text-xs text-white/50">
@@ -485,7 +490,9 @@ export function KidCompetitionDetail({
         {results.length === 0 ? (
           <div className="rounded-xl bg-white/8 px-6 py-12 text-center">
             <p className="text-lg text-white/50">No results yet</p>
-            <p className="mt-1 text-xs text-white/40">Tap + to add your first result</p>
+            {!isWca && (
+              <p className="mt-1 text-xs text-white/40">Tap + to add your first result</p>
+            )}
           </div>
         ) : (
           results.map((result) => (
@@ -518,21 +525,24 @@ export function KidCompetitionDetail({
         )}
       </main>
 
-      {/* Floating + button */}
-      <button
-        onClick={() => setShowAddForm(true)}
-        className="sticker fixed z-30 flex size-14 items-center justify-center rounded-2xl border-2 border-[#0A0A0A] bg-[#009B48] text-white transition-transform hover:scale-110 active:scale-95"
-        style={{
-          right: "1.25rem",
-          bottom: "calc(1.5rem + 4.5rem + env(safe-area-inset-bottom))",
-          boxShadow: "4px 4px 0 #0A0A0A",
-        }}
-      >
-        <Plus className="size-7" />
-      </button>
+      {/* Floating + button — only for manual (non-WCA) comps; WCA results are
+          imported and shouldn't be edited by hand. */}
+      {!isWca && (
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="sticker fixed z-30 flex size-14 items-center justify-center rounded-2xl border-2 border-[#0A0A0A] bg-[#009B48] text-white transition-transform hover:scale-110 active:scale-95"
+          style={{
+            right: "1.25rem",
+            bottom: "calc(1.5rem + 4.5rem + env(safe-area-inset-bottom))",
+            boxShadow: "4px 4px 0 #0A0A0A",
+          }}
+        >
+          <Plus className="size-7" />
+        </button>
+      )}
 
       {/* Add result sheet */}
-      {showAddForm && (
+      {showAddForm && !isWca && (
         <AddResultSheet
           competitionId={competition.id}
           events={events}
