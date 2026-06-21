@@ -29,7 +29,6 @@ export function useTheme() {
   useEffect(() => {
     const sync = () => {
       const t = currentTheme();
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setThemeState((prev) => (prev === t ? prev : t));
     };
     sync();

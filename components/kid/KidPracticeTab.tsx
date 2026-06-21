@@ -1,15 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { X, Target, PartyPopper, SlidersHorizontal, ChevronDown, Trash2, ArrowRight } from "lucide-react";
-import { formatCs, parseToCs, effectiveTime, aoN, DNF } from "@/lib/cubing";
-import { EVENT_SHORT, getEventSticker } from "@/lib/event-theme";
+import { PartyPopper, ChevronDown, Trash2, ArrowRight } from "lucide-react";
+import { formatCs, effectiveTime, aoN, DNF } from "@/lib/cubing";
+import { EVENT_SHORT } from "@/lib/event-theme";
 import { useScramble } from "@/lib/useScramble";
 import { ScramblePreview } from "./ScramblePreview";
 import { EventIcon } from "./EventIcon";
 import { recordSolve, type SessionStats } from "@/app/actions/solve";
 import { enqueueSolve } from "@/lib/offline/queue";
-import { getPracticeSetupData, setPracticeGoal, clearPracticeGoal } from "@/app/actions/goals";
+import { getPracticeSetupData, setPracticeGoal } from "@/app/actions/goals";
 
 interface Event {
   id: string;
@@ -116,9 +116,6 @@ export function KidPracticeTab({
   const [cubes, setCubes] = useState<Cube[]>(initialCubes);
   const [selectedCubeId, setSelectedCubeId] = useState<string | null>(null);
   const [activeGoal, setActiveGoal] = useState(initialGoal);
-  const [editingGoal, setEditingGoal] = useState(false);
-  const [goalInput, setGoalInput] = useState("");
-  const [setupSheetOpen, setSetupSheetOpen] = useState(false);
   const [eventDropdownOpen, setEventDropdownOpen] = useState(false);
   const [cubeDropdownOpen, setCubeDropdownOpen] = useState(false);
 
@@ -127,7 +124,6 @@ export function KidPracticeTab({
   function handleSelectEvent(id: string) {
     setSelectedId(id);
     setSelectedCubeId(null);
-    setEditingGoal(false);
     startTransition(async () => {
       const setup = await getPracticeSetupData(cuberId, id);
       setCubes(setup.cubes);
@@ -363,6 +359,9 @@ export function KidPracticeTab({
     if (timerPhase === "stopped") {
       nextScramble();
     }
+    // Fire only on timer-phase transitions; nextScramble identity changes with
+    // the event and must not retrigger a scramble on its own.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timerPhase]);
 
   function deleteSolve() {

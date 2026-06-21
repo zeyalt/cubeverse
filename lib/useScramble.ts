@@ -34,6 +34,7 @@ export function useScramble(eventId: string) {
       const mod = await import("scrambow") as any;
       const Scrambow = mod.Scrambow ?? mod.default?.Scrambow ?? mod.default;
       const type = SCRAMBOW_EVENT[eventId] ?? "333";
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const [scramble] = new Scrambow().setType(type).get(1).map((s: any) => s.scramble_string);
       setScramble(scramble);
     } catch (err) {

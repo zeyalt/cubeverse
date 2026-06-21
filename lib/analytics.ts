@@ -37,11 +37,6 @@ export interface DistBin {
   count: number;
 }
 
-export interface ConsistencyPoint {
-  index: number;
-  stdDev: number | null; // cs
-}
-
 export type HeatmapCounts = Record<string, number>; // YYYY-MM-DD → count
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -61,17 +56,6 @@ function rollingAoN(times: number[], n: number): (number | null)[] {
   });
 }
 
-function rollingStdDev(times: number[], window: number): (number | null)[] {
-  return times.map((_, i) => {
-    if (i < window - 1) return null;
-    const slice = times.slice(i - window + 1, i + 1).filter((t) => t > 0);
-    if (slice.length < 2) return null;
-    const mean = slice.reduce((a, b) => a + b, 0) / slice.length;
-    const variance =
-      slice.reduce((s, t) => s + (t - mean) ** 2, 0) / (slice.length - 1);
-    return Math.round(Math.sqrt(variance));
-  });
-}
 
 // ─── PB Staircase ─────────────────────────────────────────────────────────────
 
@@ -234,33 +218,6 @@ export async function getSolveDistribution(
   return Object.entries(bins).map(([b, count]) => ({
     label: formatCs(Number(b)),
     count,
-  }));
-}
-
-// ─── Consistency (rolling std dev) ───────────────────────────────────────────
-
-export async function getConsistency(
-  db: SupabaseClient,
-  cuberId: string,
-  eventId: string,
-  window = 20
-): Promise<ConsistencyPoint[]> {
-  const { data } = await db
-    .from("solves")
-    .select("time_cs, penalty")
-    .eq("cuber_id", cuberId)
-    .eq("event_id", eventId)
-    .eq("context", "practice")
-    .order("solved_at")
-    .limit(2000);
-
-  const effs = (data ?? [])
-    .map((r) => effectiveTime(r.time_cs as number, r.penalty as Penalty))
-    .filter((t) => t > 0);
-
-  return rollingStdDev(effs, window).map((v, i) => ({
-    index: i + 1,
-    stdDev: v,
   }));
 }
 
