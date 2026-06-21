@@ -89,7 +89,7 @@ export default async function Home({
         db
           .from("cubes")
           .select("id, name, event_id")
-          .eq("cuber_id", currentCuberId)
+          .eq("owner_id", ownerId)
           .eq("event_id", validEventId)
           .order("is_main", { ascending: false })
           .order("name"),
@@ -180,7 +180,7 @@ export default async function Home({
       const { data: cubes } = await db
         .from("cubes")
         .select("id, name")
-        .eq("cuber_id", currentCuberId)
+        .eq("owner_id", ownerId)
         .order("is_main", { ascending: false })
         .order("created_at");
 
@@ -212,7 +212,7 @@ export default async function Home({
       const { data: cubes } = await db
         .from("cubes")
         .select("id, name, brand, event_id, is_main, photo_url, acquired_on, notes")
-        .eq("cuber_id", currentCuberId)
+        .eq("owner_id", ownerId)
         .order("is_main", { ascending: false })
         .order("created_at");
 

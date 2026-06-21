@@ -39,7 +39,7 @@ export async function createCube(
     await db
       .from("cubes")
       .update({ is_main: false })
-      .eq("cuber_id", cuberId)
+      .eq("owner_id", ownerId)
       .eq("event_id", eventId);
   }
 
@@ -76,19 +76,12 @@ export async function setMainCube(cubeId: string, eventId: string | null): Promi
   const ownerId = getOwnerId();
 
   if (eventId) {
-    const { data: cube } = await db
+    // Clear the current main across the shared (owner-scoped) collection.
+    await db
       .from("cubes")
-      .select("cuber_id")
-      .eq("id", cubeId)
-      .single();
-
-    if (cube) {
-      await db
-        .from("cubes")
-        .update({ is_main: false })
-        .eq("cuber_id", cube.cuber_id)
-        .eq("event_id", eventId);
-    }
+      .update({ is_main: false })
+      .eq("owner_id", ownerId)
+      .eq("event_id", eventId);
   }
 
   await db.from("cubes").update({ is_main: true }).eq("id", cubeId).eq("owner_id", ownerId);

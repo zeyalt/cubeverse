@@ -22,12 +22,14 @@ export async function getPracticeSetupData(
   recentTimes: number[];
 }> {
   const db = getServiceClient();
+  const ownerId = getOwnerId();
 
   const [{ data: cubes }, { data: goal }, { data: solves }] = await Promise.all([
     db
+      // Cubes are a shared collection across all cubers (owner-scoped).
       .from("cubes")
       .select("id, name, event_id")
-      .eq("cuber_id", cuberId)
+      .eq("owner_id", ownerId)
       .eq("event_id", eventId)
       .order("is_main", { ascending: false })
       .order("name"),
