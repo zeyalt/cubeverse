@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import { setEventCookie } from "@/lib/eventCookie";
 import { formatCs } from "@/lib/cubing";
 import { EVENT_SHORT } from "@/lib/event-theme";
 import { getAnalyticsData, type AnalyticsPayload } from "@/app/actions/analytics";
@@ -94,6 +95,7 @@ export function KidAnalyticsTab({
 
   const handleEventChange = (eventId: string) => {
     setSelectedEventId(eventId);
+    setEventCookie(eventId); // share selection with practice / cubes / timer
   };
 
   const toLocalYMD = (d: Date): string => {

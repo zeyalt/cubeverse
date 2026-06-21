@@ -9,6 +9,7 @@ import { Plus, Star, Trash2, Edit2, Check, X } from "lucide-react";
 import { nativeSelectClass } from "@/lib/ui";
 import { EmptyState } from "@/components/ui/empty-state";
 import { EventIcon } from "@/components/kid/EventIcon";
+import { setEventCookie } from "@/lib/eventCookie";
 
 interface CubeRow {
   id: string;
@@ -67,13 +68,19 @@ function SubmitButton() {
 export function CubesView({
   cubes,
   events,
+  defaultEventId,
 }: {
   cubes: CubeRow[];
   events: EventOption[];
+  defaultEventId?: string;
 }) {
   const [state, action] = useActionState(createCube, { error: null });
   const [showForm, setShowForm] = useState(false);
-  const [eventFilter, setEventFilter] = useState<string>("all"); // "all" | eventId | "general"
+  // Default to the puzzle selected elsewhere in the app (shared via cookie),
+  // but only if it actually has cubes — otherwise show everything.
+  const [eventFilter, setEventFilter] = useState<string>(() =>
+    defaultEventId && cubes.some((c) => c.eventId === defaultEventId) ? defaultEventId : "all"
+  );
   const [isPending, startTransition] = useTransition();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -126,7 +133,14 @@ export function CubesView({
             All
           </FilterPill>
           {eventsWithCubes.map((e) => (
-            <FilterPill key={e.id} active={eventFilter === e.id} onClick={() => setEventFilter(e.id)}>
+            <FilterPill
+              key={e.id}
+              active={eventFilter === e.id}
+              onClick={() => {
+                setEventFilter(e.id);
+                setEventCookie(e.id); // share selection with practice / analytics
+              }}
+            >
               <EventIcon event={e.id} className="text-base" />
               {e.name}
             </FilterPill>

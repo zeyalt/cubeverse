@@ -98,39 +98,48 @@ export function SolvesOverTime({ data, targetCs }: Props) {
 
   const xKey = xAxis === "index" ? "index" : "ts";
 
+  // Shared style for buttons inside the segmented (gapless) toggle groups.
+  const segBtn =
+    "flex min-h-9 cursor-pointer items-center px-3 py-1.5 transition-colors font-bold [touch-action:manipulation]";
+
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-2 text-xs">
+      <div className="flex gap-2 text-xs">
         {/* X-axis toggle */}
         <div className="flex rounded-lg border border-token overflow-hidden text-xs bg-surface">
           <button
             onClick={() => setXAxis("index")}
-            className={`flex min-h-9 cursor-pointer items-center px-3 py-1.5 transition-colors font-bold [touch-action:manipulation] ${xAxis === "index" ? "bg-[#FFD500] text-black" : "text-token-muted"}`}
+            className={`${segBtn} ${xAxis === "index" ? "bg-[#FFD500] text-black" : "text-token-muted"}`}
           >
             Solve #
           </button>
           <button
             onClick={() => setXAxis("ts")}
-            className={`flex min-h-9 cursor-pointer items-center px-3 py-1.5 transition-colors font-bold [touch-action:manipulation] ${xAxis === "ts" ? "bg-[#FFD500] text-black" : "text-token-muted"}`}
+            className={`${segBtn} ${xAxis === "ts" ? "bg-[#FFD500] text-black" : "text-token-muted"}`}
           >
             Date
           </button>
         </div>
 
-        {[
-          { key: "ao5",   label: "Ao5",    val: showAo5,   set: setShowAo5 },
-          { key: "ao12",  label: "Ao12",   val: showAo12,  set: setShowAo12 },
-          { key: "ao50",  label: "Ao50",   val: showAo50,  set: setShowAo50 },
-          { key: "comps", label: "Comps",  val: showComps, set: setShowComps },
-        ].map(({ key, label, val, set }) => (
-          <button key={key} onClick={() => set((v: boolean) => !v)}
-            className={`flex min-h-9 cursor-pointer items-center px-3 py-1.5 rounded-lg border font-bold transition-colors [touch-action:manipulation] ${
-              val
-                ? "bg-[#FFD500] text-black border-[#FFD500]"
-                : "bg-surface text-token-muted border-token"
-            }`}
-          >{label}</button>
-        ))}
+        {/* Average toggles — gapless segmented group; each uses its line colour */}
+        <div className="flex rounded-lg border border-token overflow-hidden text-xs bg-surface">
+          {([
+            { key: "ao5",  label: "Ao5",  val: showAo5,  set: setShowAo5,  active: "bg-[#FFD500] text-black" },
+            { key: "ao12", label: "Ao12", val: showAo12, set: setShowAo12, active: "bg-[#0046AD] text-white" },
+            { key: "ao50", label: "Ao50", val: showAo50, set: setShowAo50, active: "bg-[#009B48] text-white" },
+          ] as const).map(({ key, label, val, set, active }) => (
+            <button key={key} onClick={() => set((v: boolean) => !v)}
+              className={`${segBtn} ${val ? active : "text-token-muted"}`}
+            >{label}</button>
+          ))}
+        </div>
+
+        {/* Competition markers */}
+        <button onClick={() => setShowComps((v) => !v)}
+          className={`flex min-h-9 cursor-pointer items-center px-3 py-1.5 rounded-lg border font-bold transition-colors [touch-action:manipulation] ${
+            showComps ? "bg-[#FFD500] text-black border-[#FFD500]" : "bg-surface text-token-muted border-token"
+          }`}
+        >Comps</button>
       </div>
 
       <ResponsiveContainer width="100%" height={380}>
@@ -191,8 +200,8 @@ export function SolvesOverTime({ data, targetCs }: Props) {
             }
           />
           {showAo5  && <Line dataKey="ao5"  name="Ao5"  type="natural" stroke="#FFD500" strokeWidth={3} dot={false} connectNulls isAnimationActive={false} />}
-          {showAo12 && <Line dataKey="ao12" name="Ao12" type="natural" stroke="#0046AD" strokeWidth={2.5} dot={false} connectNulls isAnimationActive={false} />}
-          {showAo50 && <Line dataKey="ao50" name="Ao50" type="natural" stroke="#009B48" strokeWidth={2.5} dot={false} connectNulls isAnimationActive={false} />}
+          {showAo12 && <Line dataKey="ao12" name="Ao12" type="natural" stroke="#0046AD" strokeWidth={3} dot={false} connectNulls isAnimationActive={false} />}
+          {showAo50 && <Line dataKey="ao50" name="Ao50" type="natural" stroke="#009B48" strokeWidth={3} dot={false} connectNulls isAnimationActive={false} />}
         </ComposedChart>
       </ResponsiveContainer>
     </div>

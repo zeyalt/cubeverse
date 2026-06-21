@@ -110,6 +110,7 @@ interface CubesTabData {
   cubes: CubeRow[];
   events: EventOption[];
   cuberId: string;
+  defaultEventId: string;
 }
 
 interface Cuber {

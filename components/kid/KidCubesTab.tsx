@@ -24,17 +24,18 @@ interface KidCubesTabProps {
     cubes: CubeRow[];
     events: EventOption[];
     cuberId: string;
+    defaultEventId: string;
   };
 }
 
-export function KidCubesTab({ data: { cubes, events } }: KidCubesTabProps) {
+export function KidCubesTab({ data: { cubes, events, defaultEventId } }: KidCubesTabProps) {
   return (
     <div className="kid-cubes-wrapper px-5 pt-3 pb-6">
       <div className="mb-5">
         <h2 className="font-display text-2xl font-extrabold tracking-tight text-white">Cubes</h2>
         <p className="mt-0.5 text-sm text-white/50">Your collection</p>
       </div>
-      <CubesView cubes={cubes} events={events} />
+      <CubesView cubes={cubes} events={events} defaultEventId={defaultEventId} />
     </div>
   );
 }

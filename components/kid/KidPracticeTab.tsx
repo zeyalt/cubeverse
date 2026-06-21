@@ -5,6 +5,7 @@ import { PartyPopper, ChevronDown, Trash2, ArrowRight } from "lucide-react";
 import { formatCs, effectiveTime, aoN, DNF } from "@/lib/cubing";
 import { EVENT_SHORT } from "@/lib/event-theme";
 import { useScramble } from "@/lib/useScramble";
+import { setEventCookie } from "@/lib/eventCookie";
 import { ScramblePreview } from "./ScramblePreview";
 import { EventIcon } from "./EventIcon";
 import { recordSolve, type SessionStats } from "@/app/actions/solve";
@@ -124,6 +125,7 @@ export function KidPracticeTab({
   function handleSelectEvent(id: string) {
     setSelectedId(id);
     setSelectedCubeId(null);
+    setEventCookie(id); // share selection with analytics / cubes / timer
     startTransition(async () => {
       const setup = await getPracticeSetupData(cuberId, id);
       setCubes(setup.cubes);

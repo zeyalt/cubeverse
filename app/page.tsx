@@ -237,6 +237,7 @@ export default async function Home({
           name: e.name as string,
         })),
         cuberId: currentCuberId,
+        defaultEventId: validEventId,
       };
     }
 
