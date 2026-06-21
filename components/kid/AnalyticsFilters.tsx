@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { EVENT_SHORT } from "@/lib/event-theme";
 import { ChevronDown } from "lucide-react";
+import { EventIcon } from "./EventIcon";
 
 interface Event {
   id: string;
@@ -95,7 +96,10 @@ export function AnalyticsFilters({
             aria-label="Filter by event"
             className="sticker w-full flex min-h-11 cursor-pointer items-center justify-between rounded-lg border-2 border-white/10 bg-white/8 px-3 py-2 font-bold text-sm text-white transition-all hover:bg-white/12 [touch-action:manipulation]"
           >
-            <span className="truncate text-left flex-1">{selectedEventLabel}</span>
+            <span className="flex flex-1 min-w-0 items-center gap-1.5">
+              <EventIcon event={selectedEventId} className="shrink-0 text-base" />
+              <span className="truncate text-left">{selectedEventLabel}</span>
+            </span>
             <ChevronDown className={`size-4 flex-shrink-0 transition-transform ${eventOpen ? "rotate-180" : ""}`} />
           </button>
 
@@ -110,12 +114,13 @@ export function AnalyticsFilters({
                     onEventChange(e.id);
                     setEventOpen(false);
                   }}
-                  className={`w-full text-left px-3 py-2.5 font-bold text-sm transition-colors [touch-action:manipulation] ${
+                  className={`w-full flex items-center gap-2 text-left px-3 py-2.5 font-bold text-sm transition-colors [touch-action:manipulation] ${
                     selectedEventId === e.id
                       ? "bg-[#FFD500]/20 text-[#FFD500]"
                       : "text-white hover:bg-white/10"
                   }`}
                 >
+                  <EventIcon event={e.id} className="shrink-0 text-base" />
                   {EVENT_SHORT[e.id] || e.id}
                 </button>
               ))}

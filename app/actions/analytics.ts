@@ -23,6 +23,8 @@ export interface AnalyticsPayload {
   pbStaircase: PbStaircaseData;
   competitionImprovements: CompetitionImprovement[];
   heatmap: HeatmapCounts;
+  /** Active practice single-target for this event, in centiseconds (null = none). */
+  targetCs: number | null;
 }
 
 export async function getAnalyticsData(
@@ -31,7 +33,7 @@ export async function getAnalyticsData(
 ): Promise<AnalyticsPayload> {
   const db = getServiceClient();
 
-  const [solvesOverTime, distribution, consistency, pbStaircase, competitionImprovements, heatmap] =
+  const [solvesOverTime, distribution, consistency, pbStaircase, competitionImprovements, heatmap, goal] =
     await Promise.all([
       getSolvesOverTime(db, cuberId, eventId),
       getSolveDistribution(db, cuberId, eventId),
@@ -39,6 +41,14 @@ export async function getAnalyticsData(
       getPbStaircase(db, cuberId, eventId),
       getCompetitionImprovements(db, cuberId, eventId),
       getHeatmapCounts(db, cuberId),
+      db
+        .from("goals")
+        .select("target_cs")
+        .eq("cuber_id", cuberId)
+        .eq("event_id", eventId)
+        .eq("record_type", "single")
+        .eq("status", "active")
+        .maybeSingle(),
     ]);
 
   return {
@@ -48,5 +58,6 @@ export async function getAnalyticsData(
     pbStaircase,
     competitionImprovements,
     heatmap,
+    targetCs: (goal.data?.target_cs as number | undefined) ?? null,
   };
 }

@@ -135,7 +135,7 @@ export default async function Home({
         recentTimes: times,
       };
     } else if (activeTab === "competitions") {
-      const [{ data: comps }, { data: cuber }] = await Promise.all([
+      const [{ data: comps }, { data: cuber }, { data: compResults }] = await Promise.all([
         db
           .from("competitions")
           .select("id, name, type, city, country, start_date, end_date")
@@ -146,10 +146,28 @@ export default async function Home({
           .select("wca_id")
           .eq("id", currentCuberId)
           .single(),
+        db
+          .from("results")
+          .select("competition_id, event_id")
+          .eq("cuber_id", currentCuberId),
       ]);
 
+      // Distinct events per competition, kept in canonical event order.
+      const eventOrder = new Map((events ?? []).map((e, i) => [e.id as string, i]));
+      const eventsByComp = new Map<string, Set<string>>();
+      for (const r of compResults ?? []) {
+        const cid = r.competition_id as string;
+        if (!eventsByComp.has(cid)) eventsByComp.set(cid, new Set());
+        eventsByComp.get(cid)!.add(r.event_id as string);
+      }
+
       competitionData = {
-        competitions: comps ?? [],
+        competitions: (comps ?? []).map((c) => ({
+          ...c,
+          eventIds: [...(eventsByComp.get(c.id as string) ?? [])].sort(
+            (a, b) => (eventOrder.get(a) ?? 99) - (eventOrder.get(b) ?? 99)
+          ),
+        })),
         cuberId: currentCuberId,
         wcaId: cuber?.wca_id ?? null,
       };

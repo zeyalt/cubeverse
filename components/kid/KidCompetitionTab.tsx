@@ -8,6 +8,7 @@ import { importWcaResultsKid } from "@/app/actions/import";
 import { createCompetition } from "@/app/actions/competition";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { EventIcon } from "./EventIcon";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -30,6 +31,7 @@ interface Competition {
   country: string | null;
   start_date: string | null;
   end_date: string | null;
+  eventIds: string[];
 }
 
 interface KidCompetitionTabProps {
@@ -179,6 +181,13 @@ export function KidCompetitionTab({ data: { competitions, cuberId, wcaId } }: Ki
                     >
                       {comp.type === "wca" ? "WCA" : "Non-WCA"}
                     </span>
+                    {comp.eventIds.length > 0 && (
+                      <span className="flex items-center gap-1 text-white/60">
+                        {comp.eventIds.map((eid) => (
+                          <EventIcon key={eid} event={eid} className="text-sm" />
+                        ))}
+                      </span>
+                    )}
                   </div>
                   {comp.start_date && (
                     <p className="text-[11px] text-white/40 mt-0.5">

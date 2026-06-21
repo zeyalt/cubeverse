@@ -6,6 +6,7 @@ import { formatCs, parseToCs, effectiveTime, aoN, DNF } from "@/lib/cubing";
 import { EVENT_SHORT, getEventSticker } from "@/lib/event-theme";
 import { useScramble } from "@/lib/useScramble";
 import { ScramblePreview } from "./ScramblePreview";
+import { EventIcon } from "./EventIcon";
 import { recordSolve, type SessionStats } from "@/app/actions/solve";
 import { enqueueSolve } from "@/lib/offline/queue";
 import { getPracticeSetupData, setPracticeGoal, clearPracticeGoal } from "@/app/actions/goals";
@@ -432,7 +433,10 @@ export function KidPracticeTab({
               onClick={() => setEventDropdownOpen(!eventDropdownOpen)}
               className="sticker w-full h-12 flex items-center justify-between gap-1 rounded-lg border-2 border-white/20 bg-[#1C1916] px-2.5 font-bold text-xs text-white transition-all hover:bg-white/10"
             >
-              <span className="truncate text-left flex-1 min-w-0">{EVENT_SHORT[selectedId] || selectedId}</span>
+              <span className="flex flex-1 min-w-0 items-center gap-1.5">
+                <EventIcon event={selectedId} className="shrink-0 text-base" />
+                <span className="truncate text-left">{EVENT_SHORT[selectedId] || selectedId}</span>
+              </span>
               <ChevronDown className={`size-4 flex-shrink-0 transition-transform ${eventDropdownOpen ? "rotate-180" : ""}`} />
             </button>
 
@@ -445,12 +449,13 @@ export function KidPracticeTab({
                       handleSelectEvent(ev.id);
                       setEventDropdownOpen(false);
                     }}
-                    className={`w-full text-left px-3 py-2 font-bold text-sm transition-colors ${
+                    className={`w-full flex items-center gap-2 text-left px-3 py-2 font-bold text-sm transition-colors ${
                       selectedId === ev.id
                         ? "bg-[#FFD500]/20 text-[#FFD500]"
                         : "text-white hover:bg-white/10"
                     }`}
                   >
+                    <EventIcon event={ev.id} className="shrink-0 text-base" />
                     {EVENT_SHORT[ev.id] || ev.id}
                   </button>
                 ))}
@@ -603,7 +608,7 @@ export function KidPracticeTab({
             <ScramblePreview
               event={selectedId}
               scramble={scramble}
-              className="h-24 w-32 shrink-0"
+              className="h-28 w-40 shrink-0"
             />
           </div>
         </div>

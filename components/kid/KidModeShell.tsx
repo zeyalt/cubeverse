@@ -45,6 +45,7 @@ interface CompetitionTabData {
     country: string | null;
     start_date: string | null;
     end_date: string | null;
+    eventIds: string[];
   }>;
   cuberId: string;
   wcaId: string | null;

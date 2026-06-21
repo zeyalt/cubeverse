@@ -10,7 +10,7 @@ import { formatCs } from "@/lib/cubing";
 import { useTheme } from "@/lib/useTheme";
 import { chartColors, type ChartColors } from "@/lib/chartTheme";
 
-interface Props { data: SolvesOverTimeData }
+interface Props { data: SolvesOverTimeData; targetCs?: number | null }
 
 // Custom SVG marker for competition reference lines — a small filled dot at the
 // top of the line, replacing the previous emoji label for a cleaner look.
@@ -76,7 +76,7 @@ function ChartTooltip({
   );
 }
 
-export function SolvesOverTime({ data }: Props) {
+export function SolvesOverTime({ data, targetCs }: Props) {
   const [showAo5, setShowAo5]   = useState(true);
   const [showAo12, setShowAo12] = useState(false);
   const [showAo50, setShowAo50] = useState(false);
@@ -153,6 +153,22 @@ export function SolvesOverTime({ data }: Props) {
             width={55}
           />
           <Tooltip content={<ChartTooltip colors={cc} />} />
+
+          {targetCs != null && targetCs > 0 && (
+            <ReferenceLine
+              y={targetCs}
+              stroke="#FFD500"
+              strokeDasharray="5 4"
+              strokeWidth={1.5}
+              label={{
+                value: `Target ${formatCs(targetCs)}`,
+                position: "insideTopRight",
+                fill: "#FFD500",
+                fontSize: 10,
+                fontWeight: 700,
+              }}
+            />
+          )}
 
           {showComps && compMarkers.map((marker) => {
             const xVal = xAxis === "index"

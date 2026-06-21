@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Plus, Star, Trash2, Edit2, Check, X } from "lucide-react";
 import { nativeSelectClass } from "@/lib/ui";
 import { EmptyState } from "@/components/ui/empty-state";
+import { EventIcon } from "@/components/kid/EventIcon";
 
 interface CubeRow {
   id: string;
@@ -24,6 +25,30 @@ interface CubeRow {
 interface EventOption {
   id: string;
   name: string;
+}
+
+function FilterPill({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors [touch-action:manipulation] ${
+        active
+          ? "border-transparent bg-[#FFD500] text-[#1A1208]"
+          : "border-white/20 text-white/60 hover:bg-white/10"
+      }`}
+    >
+      {children}
+    </button>
+  );
 }
 
 function SubmitButton() {
@@ -48,6 +73,7 @@ export function CubesView({
 }) {
   const [state, action] = useActionState(createCube, { error: null });
   const [showForm, setShowForm] = useState(false);
+  const [eventFilter, setEventFilter] = useState<string>("all"); // "all" | eventId | "general"
   const [isPending, startTransition] = useTransition();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -69,6 +95,17 @@ export function CubesView({
     setEditingId(null);
   };
 
+  // Puzzle-type filter — show a pill per event that actually has cubes, in the
+  // canonical event order, plus a "General" bucket for cubes with no event.
+  const eventsWithCubes = events.filter((e) => cubes.some((c) => c.eventId === e.id));
+  const hasGeneral = cubes.some((c) => !c.eventId);
+  const showFilter = cubes.length > 0 && eventsWithCubes.length + (hasGeneral ? 1 : 0) > 1;
+  const visibleCubes = cubes.filter((c) => {
+    if (eventFilter === "all") return true;
+    if (eventFilter === "general") return !c.eventId;
+    return c.eventId === eventFilter;
+  });
+
   return (
     <div className="space-y-4 pb-20">
       {/* Add Cube Button - Always Visible */}
@@ -80,6 +117,26 @@ export function CubesView({
           <Plus className="size-5" />
           Add Cube
         </button>
+      )}
+
+      {/* Puzzle-type filter pills */}
+      {showFilter && (
+        <div className="flex flex-wrap gap-2">
+          <FilterPill active={eventFilter === "all"} onClick={() => setEventFilter("all")}>
+            All
+          </FilterPill>
+          {eventsWithCubes.map((e) => (
+            <FilterPill key={e.id} active={eventFilter === e.id} onClick={() => setEventFilter(e.id)}>
+              <EventIcon event={e.id} className="text-base" />
+              {e.name}
+            </FilterPill>
+          ))}
+          {hasGeneral && (
+            <FilterPill active={eventFilter === "general"} onClick={() => setEventFilter("general")}>
+              General
+            </FilterPill>
+          )}
+        </div>
       )}
 
       {cubes.length === 0 && !showForm && (
@@ -146,7 +203,7 @@ export function CubesView({
       {/* Cubes List */}
       {cubes.length > 0 && (
         <div className="space-y-2">
-          {cubes.map((c) => (
+          {visibleCubes.map((c) => (
             editingId === c.id ? (
               // Edit Mode
               <div
@@ -279,7 +336,12 @@ export function CubesView({
                     </div>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {c.brand && <span className="text-xs text-white/60">{c.brand}</span>}
-                      {c.eventName && <span className="text-xs text-[#0046AD] font-bold">{c.eventName}</span>}
+                      {c.eventName && (
+                        <span className="inline-flex items-center gap-1 text-xs text-[#0046AD] font-bold">
+                          {c.eventId && <EventIcon event={c.eventId} className="text-sm" />}
+                          {c.eventName}
+                        </span>
+                      )}
                     </div>
                   </div>
 

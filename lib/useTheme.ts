@@ -21,11 +21,24 @@ export function useTheme() {
   // such as charts gets the correct colours immediately — no dark→light flip.
   const [theme, setThemeState] = useState<Theme>(currentTheme);
 
-  // Safety re-sync after mount in case the class changed between render and mount.
+  // Track the actual <html> class so EVERY consumer stays in sync with the live
+  // theme — not just the component that toggled it. Each useTheme() call has its
+  // own state, so without this an already-mounted chart would keep a stale theme
+  // (e.g. the default dark palette) after the user switches to light. Also acts
+  // as a post-hydration re-sync if the class changed between render and mount.
   useEffect(() => {
-    const t = currentTheme();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setThemeState((prev) => (prev === t ? prev : t));
+    const sync = () => {
+      const t = currentTheme();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setThemeState((prev) => (prev === t ? prev : t));
+    };
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => observer.disconnect();
   }, []);
 
   function setTheme(t: Theme) {

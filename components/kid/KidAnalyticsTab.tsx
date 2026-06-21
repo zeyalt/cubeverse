@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { formatCs } from "@/lib/cubing";
 import { EVENT_SHORT } from "@/lib/event-theme";
-import { ChevronDown } from "lucide-react";
 import { getAnalyticsData, type AnalyticsPayload } from "@/app/actions/analytics";
 import { getHistoricalSolves, deleteSolve, updateSolve } from "@/app/actions/solve";
 import { AnalyticsFilters, type DateRange } from "./AnalyticsFilters";
@@ -13,6 +12,7 @@ import { SolvesOverTime } from "@/components/analytics/SolvesOverTime";
 import { SolveDistribution } from "@/components/analytics/SolveDistribution";
 import { PbStaircase } from "@/components/analytics/PbStaircase";
 import { CompetitionImprovements } from "@/components/analytics/CompetitionImprovements";
+import { EventIcon } from "./EventIcon";
 import type { CurrentPb } from "@/lib/analytics";
 
 interface Event {
@@ -69,7 +69,6 @@ export function KidAnalyticsTab({
   const [editingCs, setEditingCs] = useState<number>(0);
   const [editingPenalty, setEditingPenalty] = useState<"none" | "plus2" | "dnf">("none");
   const [sessionTimes, setSessionTimes] = useState<Array<{ id: string; cs: number; penalty: "none" | "plus2" | "dnf"; timestamp: number; scramble: string | null }>>([]);
-  const [eventDropdownOpen, setEventDropdownOpen] = useState(false);
 
   const refreshAll = useCallback(async (eventId: string) => {
     const [solves, data] = await Promise.all([
@@ -201,7 +200,7 @@ export function KidAnalyticsTab({
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">Solves Over Time</p>
             <div className="surface p-4">
-              <SolvesOverTime data={filteredSolvesOverTime} />
+              <SolvesOverTime data={filteredSolvesOverTime} targetCs={analyticsData.targetCs} />
             </div>
           </div>
 
@@ -362,9 +361,12 @@ export function KidAnalyticsTab({
       {/* Competition Sub-tab */}
       {subTab === "competition" && (
         <div className="space-y-6">
-          {/* Personal Records table */}
+          {/* ── All-events overview ─────────────────────────────────────── */}
           <div className="space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-white/40">Personal Records</p>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-white/40">Personal Records</p>
+              <p className="text-[11px] text-white/35">Best results across all events</p>
+            </div>
             <div className="overflow-x-auto rounded-lg border border-white/10 bg-white/5">
               <table className="w-full text-sm">
                 <thead>
@@ -401,7 +403,10 @@ export function KidAnalyticsTab({
                       className={idx !== pbs.length - 1 ? "border-b border-white/5" : ""}
                     >
                       <td className="px-4 py-3 font-medium text-white">
-                        {EVENT_NAMES[pb.eventId] || pb.eventId}
+                        <span className="flex items-center gap-2">
+                          <EventIcon event={pb.eventId} className="shrink-0 text-base text-white/70" />
+                          {EVENT_NAMES[pb.eventId] || pb.eventId}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-center font-mono-time font-bold text-white">
                         {fmt(pb.wcaSingle)}
@@ -422,36 +427,33 @@ export function KidAnalyticsTab({
             </div>
           </div>
 
-          {/* Event filter — drives PB Progression + Competition Improvements */}
-          <div className="relative">
-            <button
-              onClick={() => setEventDropdownOpen(!eventDropdownOpen)}
-              className="sticker w-full flex items-center justify-between rounded-lg border-2 border-white/10 bg-white/8 px-3 py-2 font-bold text-sm text-white transition-all hover:bg-white/12"
-            >
-              <span className="truncate text-left flex-1">{EVENT_SHORT[selectedEventId] || selectedEventId}</span>
-              <ChevronDown className={`size-4 flex-shrink-0 transition-transform ${eventDropdownOpen ? "rotate-180" : ""}`} />
-            </button>
+          {/* ── Per-event progress ──────────────────────────────────────── */}
+          <div className="border-t border-white/10 pt-5 space-y-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-white/40">Event Progress</p>
+              <p className="text-[11px] text-white/35">Pick a puzzle to see its history</p>
+            </div>
 
-            {eventDropdownOpen && (
-              <div className="absolute top-full left-0 right-0 mt-1 z-50 rounded-lg border border-white/10 bg-[#1C1916] shadow-lg max-h-48 overflow-y-auto">
-                {events.map((e) => (
+            {/* Event pill filter */}
+            <div className="flex flex-wrap gap-2">
+              {events.map((e) => {
+                const active = selectedEventId === e.id;
+                return (
                   <button
                     key={e.id}
-                    onClick={() => {
-                      handleEventChange(e.id);
-                      setEventDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 font-bold text-sm transition-colors ${
-                      selectedEventId === e.id
-                        ? "bg-[#FFD500]/20 text-[#FFD500]"
-                        : "text-white hover:bg-white/10"
+                    onClick={() => handleEventChange(e.id)}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors [touch-action:manipulation] ${
+                      active
+                        ? "border-transparent bg-[#FFD500] text-[#1A1208]"
+                        : "border-white/20 text-white/60 hover:bg-white/10"
                     }`}
                   >
+                    <EventIcon event={e.id} className="text-base" />
                     {EVENT_SHORT[e.id] || e.id}
                   </button>
-                ))}
-              </div>
-            )}
+                );
+              })}
+            </div>
           </div>
 
           {/* PB Staircase */}

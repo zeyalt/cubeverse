@@ -7,6 +7,7 @@ import { addResultKid, deleteResultKid, deleteCompetition } from "@/app/actions/
 import { saveCompetitionNote } from "@/app/actions/notes";
 import { formatCs, DNF } from "@/lib/cubing";
 import { getEventSticker, EVENT_SHORT } from "@/lib/event-theme";
+import { EventIcon } from "./EventIcon";
 import { ArrowLeft, Plus, Trash2, MessageSquare } from "lucide-react";
 import type { CompetitionNote } from "@/app/actions/notes";
 
@@ -121,10 +122,10 @@ function ResultCard({
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <div
-            className="size-8 shrink-0 flex items-center justify-center rounded-lg font-bold text-xs"
+            className="size-8 shrink-0 flex items-center justify-center rounded-lg"
             style={{ backgroundColor: sticker.face, color: sticker.ink }}
           >
-            {EVENT_SHORT[result.event_id] ?? result.event_id}
+            <EventIcon event={result.event_id} className="text-lg" />
           </div>
           <div>
             <p className="font-bold text-white">{event?.name ?? result.event_id}</p>
@@ -313,13 +314,14 @@ function AddResultSheet({
                     key={ev.id}
                     type="button"
                     onClick={() => setSelectedEventId(ev.id)}
-                    className="event-sticker shrink-0 rounded-xl border-2 border-[#0A0A0A] px-4 py-2 text-sm font-bold transition-transform active:scale-95"
+                    className="event-sticker shrink-0 flex items-center gap-1.5 rounded-xl border-2 border-[#0A0A0A] px-4 py-2 text-sm font-bold transition-transform active:scale-95"
                     style={{
                       backgroundColor: active ? s.face : "rgba(255,255,255,0.1)",
                       color: active ? s.ink : "rgba(255,255,255,0.7)",
                       boxShadow: active ? `3px 3px 0 #0A0A0A` : "none",
                     }}
                   >
+                    <EventIcon event={ev.id} className="text-base" />
                     {EVENT_SHORT[ev.id] ?? ev.id}
                   </button>
                 );

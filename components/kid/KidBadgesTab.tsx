@@ -20,6 +20,7 @@ import {
   Award,
   type LucideIcon,
 } from "lucide-react";
+import { EventIcon } from "./EventIcon";
 
 // Lucide icon per activity badge key (replaces emoji for a cleaner, consistent look).
 const ACTIVITY_ICONS: Record<string, LucideIcon> = {
@@ -141,7 +142,8 @@ export function KidBadgesTab({
       {/* Event-based badges */}
       {[...eventGroups.entries()].map(([eventId, tiers]) => (
         <section key={eventId} className="space-y-3">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">
+          <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.2em] text-white/40">
+            <EventIcon event={eventId} className="text-sm" />
             {EVENT_LABELS[eventId] ?? eventId}
           </p>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
