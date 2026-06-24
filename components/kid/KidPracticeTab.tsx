@@ -8,7 +8,7 @@ import { useScramble } from "@/lib/useScramble";
 import { setEventCookie } from "@/lib/eventCookie";
 import { ScramblePreview } from "./ScramblePreview";
 import { EventIcon } from "./EventIcon";
-import { recordSolve, type SessionStats } from "@/app/actions/solve";
+import { recordSolve, updateSolve, deleteSolve as deleteSolveAction, type SessionStats } from "@/app/actions/solve";
 import { enqueueSolve } from "@/lib/offline/queue";
 import { getPracticeSetupData, setPracticeGoal } from "@/app/actions/goals";
 
@@ -117,10 +117,18 @@ export function KidPracticeTab({
   const [cubes, setCubes] = useState<Cube[]>(initialCubes);
   const [selectedCubeId, setSelectedCubeId] = useState<string | null>(null);
   const [activeGoal, setActiveGoal] = useState(initialGoal);
+  // While the target field is being typed, hold the raw string so the controlled
+  // value doesn't reformat/snap on every keystroke. Committed on blur/Enter.
+  const [targetDraft, setTargetDraft] = useState<string | null>(null);
   const [eventDropdownOpen, setEventDropdownOpen] = useState(false);
   const [cubeDropdownOpen, setCubeDropdownOpen] = useState(false);
 
   const timerRef = useRef<TimerRefs>(makeTimerRefs());
+  // Id of the solve recorded on the most recent stop, so the post-stop
+  // penalty/delete controls can edit or remove it.
+  const lastSolveIdRef = useRef<string | null>(null);
+  // Guards against persisting the same stop twice (effect re-entrancy).
+  const recordedThisStopRef = useRef(false);
 
   function handleSelectEvent(id: string) {
     setSelectedId(id);
@@ -357,34 +365,15 @@ export function KidPracticeTab({
     };
   }, [onPressStart, onPressEnd, resetInspection]);
 
-  useEffect(() => {
-    if (timerPhase === "stopped") {
-      nextScramble();
-    }
-    // Fire only on timer-phase transitions; nextScramble identity changes with
-    // the event and must not retrigger a scramble on its own.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timerPhase]);
-
-  function deleteSolve() {
-    goPhase("idle");
-    setDisplayCs(0);
-    setPenalty("none");
-    setInspSec(15);
-    nextScramble();
-  }
-
-  function saveAndNext(chosenPenalty: Penalty) {
+  // Persist the solve the instant it's stopped (not on "Next"). The post-stop
+  // controls then edit (updateSolve) or remove (deleteSolve) this saved row.
+  function persistSolve(chosenPenalty: Penalty) {
     const cs = timerRef.current.finalCs;
     const currentScramble = scramble || "";
+    lastSolveIdRef.current = null;
 
-    // Roll the 6 metrics forward immediately with this solve's effective time.
+    // Roll the live metrics forward immediately with this solve's effective time.
     setLiveTimes((prev) => [...prev, effectiveTime(cs, chosenPenalty)]);
-
-    goPhase("idle");
-    setDisplayCs(0);
-    setPenalty("none");
-    setInspSec(15);
 
     const solveInput = {
       cuberId,
@@ -401,6 +390,7 @@ export function KidPracticeTab({
       );
       setStats((prev) => ({
         sessionId: prev?.sessionId ?? "offline",
+        solveId: null,
         count: (prev?.count ?? 0) + 1,
         bestCs: prev?.bestCs ?? null,
         ao5: prev?.ao5 ?? null,
@@ -413,6 +403,7 @@ export function KidPracticeTab({
 
     recordSolve(solveInput)
       .then((result) => {
+        lastSolveIdRef.current = result.solveId;
         setStats(result);
       })
       .catch((err) => {
@@ -420,6 +411,80 @@ export function KidPracticeTab({
         enqueueSolve(solveInput).catch(console.error);
       });
   }
+
+  // Toggle a penalty on the already-saved solve: update the live metric and the
+  // persisted row.
+  function applyPenalty(chosenPenalty: Penalty) {
+    setPenalty(chosenPenalty);
+    const cs = timerRef.current.finalCs;
+    setLiveTimes((prev) => {
+      if (prev.length === 0) return prev;
+      const copy = [...prev];
+      copy[copy.length - 1] = effectiveTime(cs, chosenPenalty);
+      return copy;
+    });
+    const id = lastSolveIdRef.current;
+    if (id) updateSolve(id, cs, chosenPenalty).catch(console.error);
+  }
+
+  // Discard the just-recorded solve (deletes the saved row + rolls metrics back).
+  function discardSolve() {
+    const id = lastSolveIdRef.current;
+    if (id) deleteSolveAction(id).catch(console.error);
+    lastSolveIdRef.current = null;
+    setLiveTimes((prev) => prev.slice(0, -1));
+    goPhase("idle");
+    setDisplayCs(0);
+    setPenalty("none");
+    setInspSec(15);
+    nextScramble();
+  }
+
+  // Advance to the next solve (the row was already saved on stop).
+  function next() {
+    lastSolveIdRef.current = null;
+    goPhase("idle");
+    setDisplayCs(0);
+    setPenalty("none");
+    setInspSec(15);
+  }
+
+  // Target time bounds: 3.00s … 30:00 (in centiseconds).
+  const TARGET_MIN_CS = 300;
+  const TARGET_MAX_CS = 180000;
+
+  function saveTarget(cs: number) {
+    setActiveGoal({ id: activeGoal?.id ?? "", target_cs: cs });
+    void setPracticeGoal(cuberId, selectedId, cs);
+    void getPracticeSetupData(cuberId, selectedId).then((setup) => setActiveGoal(setup.activeGoal));
+  }
+
+  // Commit the typed target draft (clamped to bounds) when the field loses focus.
+  function commitTargetDraft() {
+    if (targetDraft === null) return;
+    const val = parseFloat(targetDraft);
+    if (!isNaN(val) && val > 0) {
+      const cs = Math.min(TARGET_MAX_CS, Math.max(TARGET_MIN_CS, Math.round(val * 100)));
+      saveTarget(cs);
+    }
+    setTargetDraft(null);
+  }
+
+  useEffect(() => {
+    if (timerPhase === "stopped") {
+      // Record the solve the moment it stops, then prepare the next scramble.
+      if (!recordedThisStopRef.current) {
+        recordedThisStopRef.current = true;
+        persistSolve(penalty);
+        nextScramble();
+      }
+    } else {
+      recordedThisStopRef.current = false;
+    }
+    // Fire only on timer-phase transitions; the other values are captured fresh
+    // from the render that flipped the phase to "stopped".
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timerPhase]);
 
   return (
     <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden text-white">
@@ -519,11 +584,8 @@ export function KidPracticeTab({
               <button
                 onClick={() => {
                   const currentCs = activeGoal?.target_cs ?? 1000;
-                  if (currentCs > 350) {
-                    const newCs = Math.round(currentCs - 50);
-                    setActiveGoal({ id: activeGoal?.id ?? "", target_cs: newCs });
-                    void setPracticeGoal(cuberId, selectedId, newCs);
-                    void getPracticeSetupData(cuberId, selectedId).then(setup => setActiveGoal(setup.activeGoal));
+                  if (currentCs > TARGET_MIN_CS) {
+                    saveTarget(Math.max(TARGET_MIN_CS, Math.round(currentCs - 50)));
                   }
                 }}
                 className="flex items-center justify-center w-8 h-8 shrink-0 rounded-md bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors [touch-action:manipulation]"
@@ -535,27 +597,19 @@ export function KidPracticeTab({
               <input
                 type="text"
                 inputMode="decimal"
-                value={activeGoal ? (activeGoal.target_cs / 100).toFixed(2) : "10.00"}
-                onChange={async (e) => {
-                  const val = parseFloat(e.target.value);
-                  if (!isNaN(val) && val > 0) {
-                    const cs = Math.round(val * 100);
-                    await setPracticeGoal(cuberId, selectedId, cs);
-                    const setup = await getPracticeSetupData(cuberId, selectedId);
-                    setActiveGoal(setup.activeGoal);
-                  }
-                }}
+                value={targetDraft !== null ? targetDraft : activeGoal ? (activeGoal.target_cs / 100).toFixed(2) : "10.00"}
+                onFocus={() => setTargetDraft(activeGoal ? (activeGoal.target_cs / 100).toFixed(2) : "10.00")}
+                onChange={(e) => setTargetDraft(e.target.value)}
+                onBlur={commitTargetDraft}
+                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
                 className="min-w-0 flex-1 bg-transparent text-center text-[11px] font-mono-time font-bold text-white placeholder-white/30 focus:outline-none"
                 placeholder="10.00"
               />
               <button
                 onClick={() => {
                   const currentCs = activeGoal?.target_cs ?? 1000;
-                  if (currentCs < 179950) {
-                    const newCs = Math.round(currentCs + 50);
-                    setActiveGoal({ id: activeGoal?.id ?? "", target_cs: newCs });
-                    void setPracticeGoal(cuberId, selectedId, newCs);
-                    void getPracticeSetupData(cuberId, selectedId).then(setup => setActiveGoal(setup.activeGoal));
+                  if (currentCs < TARGET_MAX_CS) {
+                    saveTarget(Math.min(TARGET_MAX_CS, Math.round(currentCs + 50)));
                   }
                 }}
                 className="flex items-center justify-center w-8 h-8 shrink-0 rounded-md bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors [touch-action:manipulation]"
@@ -609,7 +663,7 @@ export function KidPracticeTab({
             <ScramblePreview
               event={selectedId}
               scramble={scramble}
-              className="h-28 w-40 shrink-0"
+              className="h-32 w-48 shrink-0"
             />
           </div>
         </div>
@@ -653,14 +707,14 @@ export function KidPracticeTab({
             <div className="mt-6 space-y-3 mx-auto w-full max-w-sm pointer-events-auto">
               <div className="flex gap-2 items-center justify-center">
                 <button
-                  onClick={() => deleteSolve()}
+                  onClick={() => discardSolve()}
                   className="flex items-center justify-center w-14 h-14 rounded-lg bg-white/10 text-white transition-colors hover:bg-white/20 [touch-action:manipulation]"
                   aria-label="Delete solve"
                 >
                   <Trash2 className="size-6" />
                 </button>
                 <button
-                  onClick={() => setPenalty(penalty === "plus2" ? "none" : "plus2")}
+                  onClick={() => applyPenalty(penalty === "plus2" ? "none" : "plus2")}
                   className="flex items-center justify-center w-14 h-14 rounded-lg font-bold text-lg transition-all [touch-action:manipulation]"
                   style={{
                     backgroundColor: penalty === "plus2" ? "#FFD500" : "rgba(255,213,0,0.3)",
@@ -671,7 +725,7 @@ export function KidPracticeTab({
                   +2
                 </button>
                 <button
-                  onClick={() => setPenalty(penalty === "dnf" ? "none" : "dnf")}
+                  onClick={() => applyPenalty(penalty === "dnf" ? "none" : "dnf")}
                   className="flex items-center justify-center w-14 h-14 rounded-lg font-bold text-lg transition-all [touch-action:manipulation]"
                   style={{
                     backgroundColor: penalty === "dnf" ? "#B71234" : "rgba(183,18,52,0.3)",
@@ -682,7 +736,7 @@ export function KidPracticeTab({
                   DNF
                 </button>
                 <button
-                  onClick={() => saveAndNext(penalty)}
+                  onClick={() => next()}
                   className="flex items-center justify-center w-14 h-14 rounded-lg bg-white/20 text-white transition-colors hover:bg-white/30 [touch-action:manipulation]"
                   aria-label="Next solve"
                 >

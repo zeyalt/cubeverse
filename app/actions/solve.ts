@@ -22,6 +22,7 @@ export interface SolveInput {
 
 export interface SessionStats {
   sessionId: string;
+  solveId: string | null; // id of the just-recorded solve (for later edit/delete)
   count: number;
   bestCs: number | null; // null = no solves; -1 = all DNF
   ao5: number | null;    // null = fewer than 5 solves
@@ -33,7 +34,7 @@ export interface SessionStats {
 async function computeStats(
   db: ReturnType<typeof getServiceClient>,
   sessionId: string
-): Promise<{ stats: Omit<SessionStats, "sessionId" | "isPb" | "newBadges">; solveIds: string[] }> {
+): Promise<{ stats: Omit<SessionStats, "sessionId" | "solveId" | "isPb" | "newBadges">; solveIds: string[] }> {
   const { data: rows } = await db
     .from("solves")
     .select("id, time_cs, penalty")
@@ -145,7 +146,7 @@ export async function recordSolve(input: SolveInput): Promise<SessionStats> {
   });
   newBadges.push(...activityBadges);
 
-  return { sessionId, ...stats, isPb, newBadges };
+  return { sessionId, solveId: solveId ?? null, ...stats, isPb, newBadges };
 }
 
 export async function deleteSolve(solveId: string): Promise<void> {

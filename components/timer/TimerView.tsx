@@ -277,6 +277,7 @@ export function TimerView({
       );
       setStats((prev) => ({
         sessionId: prev?.sessionId ?? "offline",
+        solveId: null,
         count: (prev?.count ?? 0) + 1,
         bestCs: prev?.bestCs ?? null,
         ao5: prev?.ao5 ?? null,

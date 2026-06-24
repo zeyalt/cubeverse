@@ -44,7 +44,7 @@ function FilterPill({
       className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors [touch-action:manipulation] ${
         active
           ? "border-transparent bg-[#FFD500] text-[#1A1208]"
-          : "border-white/20 text-white/60 hover:bg-white/10"
+          : "border-white/20 text-[var(--kid-fg)]/60 hover:bg-white/10"
       }`}
     >
       {children}
@@ -170,17 +170,17 @@ export function CubesView({
 
           <div className="space-y-1">
             <Label htmlFor="name" className="text-xs font-bold uppercase text-white/60">Name *</Label>
-            <Input id="name" name="name" required placeholder="RS3M 2020" className="bg-white/10 border-white/20 text-white placeholder:text-white/30" />
+            <Input id="name" name="name" required placeholder="RS3M 2020" className="bg-white/10 border-white/20 text-[var(--kid-fg)] placeholder:text-[var(--kid-fg-muted)]" />
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label htmlFor="brand" className="text-xs font-bold uppercase text-white/60">Brand</Label>
-              <Input id="brand" name="brand" placeholder="MoYu" className="bg-white/10 border-white/20 text-white placeholder:text-white/30" />
+              <Input id="brand" name="brand" placeholder="MoYu" className="bg-white/10 border-white/20 text-[var(--kid-fg)] placeholder:text-[var(--kid-fg-muted)]" />
             </div>
             <div className="space-y-1">
               <Label htmlFor="event_id" className="text-xs font-bold uppercase text-white/60">Event</Label>
-              <select id="event_id" name="event_id" className={`${nativeSelectClass} bg-white/10 border-white/20 text-white`}>
+              <select id="event_id" name="event_id" className={`${nativeSelectClass} bg-white/10 border-white/20 text-[var(--kid-fg)]`}>
                 <option value="">General</option>
                 {events.map((e) => (
                   <option key={e.id} value={e.id}>
@@ -193,7 +193,7 @@ export function CubesView({
 
           <div className="space-y-1">
             <Label htmlFor="photo" className="text-xs font-bold uppercase text-white/60">Photo</Label>
-            <Input id="photo" name="photo" type="file" accept="image/*" className="bg-white/10 border-white/20 text-white file:bg-white/10 file:border-0 file:text-white file:font-bold" />
+            <Input id="photo" name="photo" type="file" accept="image/*" className="bg-white/10 border-white/20 text-[var(--kid-fg)] file:bg-white/10 file:border-0 file:text-[var(--kid-fg)] file:font-bold" />
           </div>
 
           <label className="flex items-center gap-2 text-sm text-white/80">
@@ -233,7 +233,7 @@ export function CubesView({
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-white/30"
+                    className="bg-white/10 border-white/20 text-[var(--kid-fg)] placeholder:text-[var(--kid-fg-muted)]"
                   />
                 </div>
 
@@ -243,7 +243,7 @@ export function CubesView({
                     <Input
                       value={editBrand}
                       onChange={(e) => setEditBrand(e.target.value)}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/30"
+                      className="bg-white/10 border-white/20 text-[var(--kid-fg)] placeholder:text-[var(--kid-fg-muted)]"
                     />
                   </div>
                   <div className="space-y-1">
@@ -251,7 +251,7 @@ export function CubesView({
                     <select
                       value={editEvent}
                       onChange={(e) => setEditEvent(e.target.value)}
-                      className={`${nativeSelectClass} bg-white/10 border-white/20 text-white`}
+                      className={`${nativeSelectClass} bg-white/10 border-white/20 text-[var(--kid-fg)]`}
                     >
                       <option value="">General</option>
                       {events.map((e) => (
@@ -269,7 +269,7 @@ export function CubesView({
                     type="file"
                     accept="image/*"
                     onChange={(e) => setEditPhoto(e.target.files?.[0] || null)}
-                    className="bg-white/10 border-white/20 text-white file:bg-white/10 file:border-0 file:text-white file:font-bold"
+                    className="bg-white/10 border-white/20 text-[var(--kid-fg)] file:bg-white/10 file:border-0 file:text-[var(--kid-fg)] file:font-bold"
                   />
                 </div>
 

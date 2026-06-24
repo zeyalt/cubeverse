@@ -100,11 +100,11 @@ export function SolvesOverTime({ data, targetCs }: Props) {
 
   // Shared style for buttons inside the segmented (gapless) toggle groups.
   const segBtn =
-    "flex min-h-9 cursor-pointer items-center px-3 py-1.5 transition-colors font-bold [touch-action:manipulation]";
+    "flex min-h-8 cursor-pointer items-center px-2.5 py-1 transition-colors font-bold [touch-action:manipulation]";
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-2 text-xs">
+      <div className="flex gap-1.5 text-[11px]">
         {/* X-axis toggle */}
         <div className="flex rounded-lg border border-token overflow-hidden text-xs bg-surface">
           <button
@@ -136,7 +136,7 @@ export function SolvesOverTime({ data, targetCs }: Props) {
 
         {/* Competition markers */}
         <button onClick={() => setShowComps((v) => !v)}
-          className={`flex min-h-9 cursor-pointer items-center px-3 py-1.5 rounded-lg border font-bold transition-colors [touch-action:manipulation] ${
+          className={`flex min-h-8 cursor-pointer items-center px-2.5 py-1 rounded-lg border font-bold transition-colors [touch-action:manipulation] ${
             showComps ? "bg-[#FFD500] text-black border-[#FFD500]" : "bg-surface text-token-muted border-token"
           }`}
         >Comps</button>
