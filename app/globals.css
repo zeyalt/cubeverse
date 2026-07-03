@@ -401,14 +401,19 @@ body {
 .kid-cubes-wrapper input,
 .kid-cubes-wrapper textarea,
 .kid-cubes-wrapper select {
-  background: rgba(255, 255, 255, 0.08) !important;
-  border-color: rgba(255, 255, 255, 0.15) !important;
-  color: white !important;
+  background: var(--kid-fill) !important;
+  border-color: var(--kid-border-c) !important;
+  color: var(--kid-fg) !important;
 }
 
 .kid-cubes-wrapper input::placeholder,
 .kid-cubes-wrapper textarea::placeholder {
-  color: rgba(255, 255, 255, 0.4) !important;
+  color: var(--kid-fg-muted) !important;
+  opacity: 1;
+}
+
+.kid-cubes-wrapper input::file-selector-button {
+  color: var(--kid-fg) !important;
 }
 
 /* Cuber switcher sheet animation */

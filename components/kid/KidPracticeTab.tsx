@@ -585,12 +585,12 @@ export function KidPracticeTab({
                 onClick={() => {
                   const currentCs = activeGoal?.target_cs ?? 1000;
                   if (currentCs > TARGET_MIN_CS) {
-                    saveTarget(Math.max(TARGET_MIN_CS, Math.round(currentCs - 50)));
+                    saveTarget(Math.max(TARGET_MIN_CS, Math.round(currentCs - 100)));
                   }
                 }}
                 className="flex items-center justify-center w-8 h-8 shrink-0 rounded-md bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors [touch-action:manipulation]"
-                aria-label="Decrease target by 0.5s"
-                title="−0.5s"
+                aria-label="Decrease target by 1s"
+                title="−1s"
               >
                 −
               </button>
@@ -609,12 +609,12 @@ export function KidPracticeTab({
                 onClick={() => {
                   const currentCs = activeGoal?.target_cs ?? 1000;
                   if (currentCs < TARGET_MAX_CS) {
-                    saveTarget(Math.min(TARGET_MAX_CS, Math.round(currentCs + 50)));
+                    saveTarget(Math.min(TARGET_MAX_CS, Math.round(currentCs + 100)));
                   }
                 }}
                 className="flex items-center justify-center w-8 h-8 shrink-0 rounded-md bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors [touch-action:manipulation]"
-                aria-label="Increase target by 0.5s"
-                title="+0.5s"
+                aria-label="Increase target by 1s"
+                title="+1s"
               >
                 +
               </button>

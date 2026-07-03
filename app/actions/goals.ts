@@ -4,6 +4,7 @@ import { getServiceClient } from "@/lib/supabase/service";
 import { getOwnerId } from "@/lib/owner";
 import { effectiveTime } from "@/lib/cubing";
 import type { Penalty } from "@/lib/cubing";
+import { sharedHardwareEvents } from "@/lib/eventGroups";
 
 // ── Practice-tab goal helpers ─────────────────────────────────────────────────
 
@@ -26,11 +27,12 @@ export async function getPracticeSetupData(
 
   const [{ data: cubes }, { data: goal }, { data: solves }] = await Promise.all([
     db
-      // Cubes are a shared collection across all cubers (owner-scoped).
+      // Cubes are a shared collection across all cubers (owner-scoped) and are
+      // shared across events using the same puzzle (e.g. 3x3 / 3x3 OH / 3x3 BLD).
       .from("cubes")
       .select("id, name, event_id")
       .eq("owner_id", ownerId)
-      .eq("event_id", eventId)
+      .in("event_id", sharedHardwareEvents(eventId))
       .order("is_main", { ascending: false })
       .order("name"),
     db
