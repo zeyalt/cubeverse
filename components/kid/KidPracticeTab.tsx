@@ -6,6 +6,7 @@ import { formatCs, effectiveTime, aoN, DNF } from "@/lib/cubing";
 import { EVENT_SHORT } from "@/lib/event-theme";
 import { useScramble } from "@/lib/useScramble";
 import { setEventCookie } from "@/lib/eventCookie";
+import { cubeLabel } from "@/lib/cubeLabel";
 import { ScramblePreview } from "./ScramblePreview";
 import { EventIcon } from "./EventIcon";
 import { recordSolve, updateSolve, deleteSolve as deleteSolveAction, type SessionStats } from "@/app/actions/solve";
@@ -21,6 +22,7 @@ interface Event {
 interface Cube {
   id: string;
   name: string;
+  brand: string | null;
   event_id: string | null;
 }
 
@@ -536,9 +538,10 @@ export function KidPracticeTab({
               className="sticker w-full h-12 flex items-center justify-between gap-1 rounded-lg border-2 border-white/20 bg-[#1C1916] px-2.5 font-bold text-[11px] text-white transition-all hover:bg-white/10"
             >
               <span className="truncate text-left flex-1 min-w-0">
-                {selectedCubeId
-                  ? cubes.find((c) => c.id === selectedCubeId)?.name || "Cube"
-                  : "Any Cube"}
+                {(() => {
+                  const c = selectedCubeId ? cubes.find((c) => c.id === selectedCubeId) : null;
+                  return c ? cubeLabel(c) : "Any Cube";
+                })()}
               </span>
               <ChevronDown className={`size-4 flex-shrink-0 transition-transform ${cubeDropdownOpen ? "rotate-180" : ""}`} />
             </button>
@@ -571,7 +574,7 @@ export function KidPracticeTab({
                         : "text-white hover:bg-white/10"
                     }`}
                   >
-                    {cube.name}
+                    {cubeLabel(cube)}
                   </button>
                 ))}
               </div>

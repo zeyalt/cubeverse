@@ -9,6 +9,7 @@ import { effectiveTime, aoN, DNF } from "@/lib/cubing";
 import type { Penalty } from "@/lib/cubing";
 import { getCurrentPbs } from "@/lib/analytics";
 import { getAnalyticsData } from "@/app/actions/analytics";
+import { sharedHardwareEvents } from "@/lib/eventGroups";
 
 const ACTIVE_EVENTS = ["333", "222", "pyram", "skewb", "clock", "444", "333oh"];
 
@@ -88,9 +89,9 @@ export default async function Home({
           .maybeSingle(),
         db
           .from("cubes")
-          .select("id, name, event_id")
+          .select("id, name, brand, event_id")
           .eq("owner_id", ownerId)
-          .eq("event_id", validEventId)
+          .in("event_id", sharedHardwareEvents(validEventId))
           .order("is_main", { ascending: false })
           .order("name"),
       ]);
@@ -122,7 +123,7 @@ export default async function Home({
         events: events ?? [],
         defaultEventId: validEventId,
         cuberId: currentCuberId,
-        cubes: (practiceCubes ?? []).map((c) => ({ id: c.id as string, name: c.name as string, event_id: c.event_id as string | null })),
+        cubes: (practiceCubes ?? []).map((c) => ({ id: c.id as string, name: c.name as string, brand: c.brand as string | null, event_id: c.event_id as string | null })),
         activeGoal: practiceGoal ? { id: practiceGoal.id as string, target_cs: practiceGoal.target_cs as number } : null,
         ao5,
         ao12,
@@ -172,17 +173,16 @@ export default async function Home({
         wcaId: cuber?.wca_id ?? null,
       };
     } else if (activeTab === "analytics") {
-      const [pbs, initialData] = await Promise.all([
+      const [pbs, initialData, { data: cubes }] = await Promise.all([
         getCurrentPbs(db, currentCuberId, ACTIVE_EVENTS),
         getAnalyticsData(currentCuberId, validEventId),
+        db
+          .from("cubes")
+          .select("id, name, brand")
+          .eq("owner_id", ownerId)
+          .order("is_main", { ascending: false })
+          .order("created_at"),
       ]);
-
-      const { data: cubes } = await db
-        .from("cubes")
-        .select("id, name")
-        .eq("owner_id", ownerId)
-        .order("is_main", { ascending: false })
-        .order("created_at");
 
       analyticsData = {
         events: events ?? [],

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { EVENT_SHORT } from "@/lib/event-theme";
 import { ChevronDown } from "lucide-react";
 import { EventIcon } from "./EventIcon";
+import { cubeLabel } from "@/lib/cubeLabel";
 
 interface Event {
   id: string;
@@ -14,6 +15,7 @@ interface Event {
 interface Cube {
   id: string;
   name: string;
+  brand: string | null;
 }
 
 export type DateRange = "14d" | "30d" | "60d" | "month" | "all";
@@ -162,7 +164,7 @@ export function AnalyticsFilters({
                     onChange={() => {}}
                     className="pointer-events-none"
                   />
-                  {cube.name}
+                  {cubeLabel(cube)}
                 </button>
               ))}
             </div>

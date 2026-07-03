@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState, useTransition } from "react";
+import { Loader2 } from "lucide-react";
 import { KidHeader } from "./KidHeader";
 import { KidBottomNav } from "./KidBottomNav";
 import { KidPracticeTab } from "./KidPracticeTab";
@@ -25,7 +26,7 @@ interface PracticeTabData {
   events: Event[];
   defaultEventId: string;
   cuberId: string;
-  cubes: { id: string; name: string; event_id: string | null }[];
+  cubes: { id: string; name: string; brand: string | null; event_id: string | null }[];
   activeGoal: { id: string; target_cs: number } | null;
   ao5: number | null;
   ao12: number | null;
@@ -54,6 +55,7 @@ interface CompetitionTabData {
 interface Cube {
   id: string;
   name: string;
+  brand: string | null;
 }
 
 interface AnalyticsTabData {
@@ -133,6 +135,14 @@ interface KidModeShellProps {
   cubesData?: CubesTabData | null;
 }
 
+function TabLoading() {
+  return (
+    <div className="flex flex-1 items-center justify-center text-white/40">
+      <Loader2 className="size-7 animate-spin" />
+    </div>
+  );
+}
+
 function TabContent({
   tab,
   ...data
@@ -144,31 +154,25 @@ function TabContent({
   badgesData?: BadgesTabData | null;
   cubesData?: CubesTabData | null;
 }) {
+  // The active tab's data prop is null until the server render for that tab
+  // arrives — show a spinner instead of a blank screen so switching feels live.
   switch (tab) {
     case "practice":
-      return data.practiceData ? (
-        <KidPracticeTab {...data.practiceData} />
-      ) : null;
+      return data.practiceData ? <KidPracticeTab {...data.practiceData} /> : <TabLoading />;
     case "competitions":
-      return data.competitionData ? (
-        <KidCompetitionTab data={data.competitionData} />
-      ) : null;
+      return data.competitionData ? <KidCompetitionTab data={data.competitionData} /> : <TabLoading />;
     case "analytics":
-      return data.analyticsData ? (
-        <KidAnalyticsTab {...data.analyticsData} />
-      ) : null;
+      return data.analyticsData ? <KidAnalyticsTab {...data.analyticsData} /> : <TabLoading />;
     case "badges":
-      return data.badgesData ? (
-        <KidBadgesTab data={data.badgesData} />
-      ) : null;
+      return data.badgesData ? <KidBadgesTab data={data.badgesData} /> : <TabLoading />;
     case "cubes":
-      return data.cubesData ? (
-        <KidCubesTab data={data.cubesData} />
-      ) : null;
+      return data.cubesData ? <KidCubesTab data={data.cubesData} /> : <TabLoading />;
     default:
       return null;
   }
 }
+
+const ALL_TABS: Tab[] = ["practice", "competitions", "analytics", "badges", "cubes"];
 
 function KidModeShellContent({
   cuberName,
@@ -185,10 +189,19 @@ function KidModeShellContent({
   const [currentTab, setCurrentTab] = useState<Tab>(activeTab);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [, startTransition] = useTransition();
+
+  // Warm each tab's route in the background so switches hit the RSC cache.
+  useEffect(() => {
+    ALL_TABS.forEach((t) => router.prefetch(`/?tab=${t}`));
+  }, [router]);
 
   function switchTab(tab: Tab) {
-    setCurrentTab(tab);
-    router.replace(`/?tab=${tab}`, { scroll: false });
+    if (tab === currentTab) return;
+    setCurrentTab(tab); // highlight + loading spinner immediately
+    startTransition(() => {
+      router.replace(`/?tab=${tab}`, { scroll: false });
+    });
   }
 
   return (

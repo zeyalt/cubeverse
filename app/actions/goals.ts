@@ -11,6 +11,7 @@ import { sharedHardwareEvents } from "@/lib/eventGroups";
 export interface PracticeSetupCube {
   id: string;
   name: string;
+  brand: string | null;
   event_id: string | null;
 }
 
@@ -30,7 +31,7 @@ export async function getPracticeSetupData(
       // Cubes are a shared collection across all cubers (owner-scoped) and are
       // shared across events using the same puzzle (e.g. 3x3 / 3x3 OH / 3x3 BLD).
       .from("cubes")
-      .select("id, name, event_id")
+      .select("id, name, brand, event_id")
       .eq("owner_id", ownerId)
       .in("event_id", sharedHardwareEvents(eventId))
       .order("is_main", { ascending: false })

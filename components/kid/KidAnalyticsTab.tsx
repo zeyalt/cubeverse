@@ -26,6 +26,7 @@ interface Event {
 interface Cube {
   id: string;
   name: string;
+  brand: string | null;
 }
 
 interface KidAnalyticsTabProps {
