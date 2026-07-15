@@ -135,8 +135,8 @@ export function PbStaircase({ data }: Props) {
           <YAxis
             tickFormatter={fmtY}
             domain={[Math.floor(minTime * 0.9), "auto"]}
-            tick={{ fontSize: 11 }}
-            width={55}
+            tick={{ fontSize: 10 }}
+            width={40}
           />
           <Tooltip content={<ChartTooltip />} />
           <Legend wrapperStyle={{ fontSize: 12 }} />

@@ -102,6 +102,26 @@ export function SolvesOverTime({ data, targetCs }: Props) {
   const segBtn =
     "flex min-h-8 cursor-pointer items-center px-2.5 py-1 transition-colors font-bold [touch-action:manipulation]";
 
+  // Freeze the Y axis while the plot scrolls: render the axis in its own fixed
+  // chart and the plot in a scrollable one, both pinned to the SAME y-domain and
+  // geometry so they line up exactly.
+  const CHART_H = 380;
+  const X_AXIS_H = 26;
+  const Y_AXIS_W = 40;
+  const yVals: number[] = [];
+  for (const p of valid) {
+    if (p.timeCs > 0) yVals.push(p.timeCs);
+    if (p.ao5 != null) yVals.push(p.ao5);
+    if (p.ao12 != null) yVals.push(p.ao12);
+    if (p.ao50 != null) yVals.push(p.ao50);
+  }
+  if (targetCs != null && targetCs > 0) yVals.push(targetCs);
+  const yLo = yVals.length ? Math.min(...yVals) : 0;
+  const yHi = yVals.length ? Math.max(...yVals) : 1;
+  const yPad = Math.max(1, (yHi - yLo) * 0.06);
+  const yDomain: [number, number] = [Math.floor(yLo - yPad), Math.ceil(yHi + yPad)];
+  const plotMinWidth = valid.length > 30 ? valid.length * 14 : undefined;
+
   return (
     <div className="space-y-3">
       <div className="flex gap-1.5 text-[11px]">
@@ -142,68 +162,88 @@ export function SolvesOverTime({ data, targetCs }: Props) {
         >Comps</button>
       </div>
 
-      <ResponsiveContainer width="100%" height={380}>
-        <ComposedChart data={valid} margin={{ top: 8, right: 8, left: 0, bottom: 18 }}>
-          <XAxis
-            dataKey={xKey}
-            tick={{ fontSize: 10, fill: cc.tick }}
-            axisLine={{ stroke: cc.axis }}
-            tickMargin={6}
-            tickFormatter={xAxis === "ts" ? (v) => fmtTs(v) : undefined}
-            label={xAxis === "index" ? { value: "Solve #", position: "insideBottom", offset: -12, fontSize: 11, fill: cc.tick } : undefined}
-            type={xAxis === "ts" ? "number" : "category"}
-            domain={xAxis === "ts" ? ["dataMin", "dataMax"] : undefined}
-            scale={xAxis === "ts" ? "time" : undefined}
-          />
-          <YAxis
-            tickFormatter={(v: number) => formatCs(v)}
-            tick={{ fontSize: 11, fill: cc.tick }}
-            axisLine={{ stroke: cc.axis }}
-            width={55}
-          />
-          <Tooltip content={<ChartTooltip colors={cc} />} />
+      <div className="flex">
+        {/* Frozen Y axis */}
+        <div className="shrink-0" style={{ width: Y_AXIS_W }}>
+          <ResponsiveContainer width="100%" height={CHART_H}>
+            <ComposedChart data={valid} margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
+              <YAxis
+                tickFormatter={(v: number) => formatCs(v)}
+                tick={{ fontSize: 10, fill: cc.tick }}
+                axisLine={{ stroke: cc.axis }}
+                width={Y_AXIS_W}
+                domain={yDomain}
+                allowDataOverflow
+              />
+              <XAxis dataKey={xKey} height={X_AXIS_H} tick={false} axisLine={{ stroke: cc.axis }} />
+              <Scatter dataKey="timeCs" fill="transparent" isAnimationActive={false} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
 
-          {targetCs != null && targetCs > 0 && (
-            <ReferenceLine
-              y={targetCs}
-              stroke="#FFD500"
-              strokeDasharray="5 4"
-              strokeWidth={1.5}
-              label={{
-                value: `Target ${formatCs(targetCs)}`,
-                position: "insideTopRight",
-                fill: "#FFD500",
-                fontSize: 10,
-                fontWeight: 700,
-              }}
-            />
-          )}
+        {/* Scrollable plot */}
+        <div className="flex-1 overflow-x-auto">
+          <div className="w-full" style={plotMinWidth ? { minWidth: `${plotMinWidth}px` } : undefined}>
+            <ResponsiveContainer width="100%" height={CHART_H}>
+              <ComposedChart data={valid} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <XAxis
+                  dataKey={xKey}
+                  height={X_AXIS_H}
+                  tick={{ fontSize: 10, fill: cc.tick }}
+                  axisLine={{ stroke: cc.axis }}
+                  tickMargin={6}
+                  tickFormatter={xAxis === "ts" ? (v) => fmtTs(v) : undefined}
+                  type={xAxis === "ts" ? "number" : "category"}
+                  domain={xAxis === "ts" ? ["dataMin", "dataMax"] : undefined}
+                  scale={xAxis === "ts" ? "time" : undefined}
+                />
+                <YAxis hide domain={yDomain} allowDataOverflow />
+                <Tooltip content={<ChartTooltip colors={cc} />} />
 
-          {showComps && compMarkers.map((marker) => {
-            const xVal = xAxis === "index"
-              ? valid.reduce((best, p) => Math.abs(p.ts - marker.ts) < Math.abs(best.ts - marker.ts) ? p : best, valid[0])?.index
-              : marker.ts;
-            return xVal != null ? (
-              <ReferenceLine key={marker.ts} x={xVal} stroke="rgba(255,215,0,0.4)"
-                strokeDasharray="4 3" label={<CompMarkerLabel stroke={cc.markerStroke} />} />
-            ) : null;
-          })}
+                {targetCs != null && targetCs > 0 && (
+                  <ReferenceLine
+                    y={targetCs}
+                    stroke="#FFD500"
+                    strokeDasharray="5 4"
+                    strokeWidth={1.5}
+                    label={{
+                      value: `Target ${formatCs(targetCs)}`,
+                      position: "insideTopRight",
+                      fill: "#FFD500",
+                      fontSize: 10,
+                      fontWeight: 700,
+                    }}
+                  />
+                )}
 
-          <Scatter
-            dataKey="timeCs"
-            name="Single"
-            fill={cc.scatter}
-            shape={(props: { cx?: number; cy?: number }) =>
-              props.cx != null && props.cy != null ? (
-                <circle cx={props.cx} cy={props.cy} r={3} fill={cc.scatter} />
-              ) : <g />
-            }
-          />
-          {showAo5  && <Line dataKey="ao5"  name="Ao5"  type="natural" stroke="#FFD500" strokeWidth={3} dot={false} connectNulls isAnimationActive={false} />}
-          {showAo12 && <Line dataKey="ao12" name="Ao12" type="natural" stroke="#0046AD" strokeWidth={3} dot={false} connectNulls isAnimationActive={false} />}
-          {showAo50 && <Line dataKey="ao50" name="Ao50" type="natural" stroke="#009B48" strokeWidth={3} dot={false} connectNulls isAnimationActive={false} />}
-        </ComposedChart>
-      </ResponsiveContainer>
+                {showComps && compMarkers.map((marker) => {
+                  const xVal = xAxis === "index"
+                    ? valid.reduce((best, p) => Math.abs(p.ts - marker.ts) < Math.abs(best.ts - marker.ts) ? p : best, valid[0])?.index
+                    : marker.ts;
+                  return xVal != null ? (
+                    <ReferenceLine key={marker.ts} x={xVal} stroke="rgba(255,215,0,0.4)"
+                      strokeDasharray="4 3" label={<CompMarkerLabel stroke={cc.markerStroke} />} />
+                  ) : null;
+                })}
+
+                <Scatter
+                  dataKey="timeCs"
+                  name="Single"
+                  fill={cc.scatter}
+                  shape={(props: { cx?: number; cy?: number }) =>
+                    props.cx != null && props.cy != null ? (
+                      <circle cx={props.cx} cy={props.cy} r={3} fill={cc.scatter} />
+                    ) : <g />
+                  }
+                />
+                {showAo5  && <Line dataKey="ao5"  name="Ao5"  type="natural" stroke="#FFD500" strokeWidth={3} dot={false} connectNulls isAnimationActive={false} />}
+                {showAo12 && <Line dataKey="ao12" name="Ao12" type="natural" stroke="#0046AD" strokeWidth={3} dot={false} connectNulls isAnimationActive={false} />}
+                {showAo50 && <Line dataKey="ao50" name="Ao50" type="natural" stroke="#009B48" strokeWidth={3} dot={false} connectNulls isAnimationActive={false} />}
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

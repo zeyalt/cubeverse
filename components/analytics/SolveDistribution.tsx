@@ -76,9 +76,10 @@ export function SolveDistribution({ bins }: Props) {
         />
         <YAxis
           allowDecimals={false}
-          tick={{ fontSize: 11, fill: cc.tick }}
+          tick={{ fontSize: 10, fill: cc.tick }}
           axisLine={{ stroke: cc.axis }}
           tickLine={{ stroke: cc.axis }}
+          width={28}
         />
         <Tooltip content={<DistTooltip colors={cc} />} cursor={{ fill: cc.grid }} />
         <Bar dataKey="count" name="Solves" fill={cc.bar} radius={[3, 3, 0, 0]} />

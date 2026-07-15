@@ -206,7 +206,7 @@ export function KidAnalyticsTab({
           {/* Solves Over Time */}
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">Solves Over Time</p>
-            <div className="surface p-4">
+            <div className="surface px-2 py-3">
               <SolvesOverTime data={filteredSolvesOverTime} targetCs={analyticsData.targetCs} />
             </div>
           </div>
@@ -214,7 +214,7 @@ export function KidAnalyticsTab({
           {/* Solve Distribution */}
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">Solve Distribution</p>
-            <div className="surface p-4">
+            <div className="surface px-2 py-3">
               <SolveDistribution bins={filteredDistribution} />
             </div>
           </div>
@@ -466,7 +466,7 @@ export function KidAnalyticsTab({
           {/* PB Staircase */}
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">PB Progression</p>
-            <div className="surface p-4">
+            <div className="surface px-2 py-3">
               <PbStaircase data={analyticsData.pbStaircase} />
             </div>
           </div>
