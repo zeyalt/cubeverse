@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Suspense, useEffect, useState, useTransition } from "react";
+import { Suspense, useEffect, useRef, useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { KidHeader } from "./KidHeader";
 import { KidBottomNav } from "./KidBottomNav";
@@ -143,36 +143,32 @@ function TabLoading() {
   );
 }
 
-function TabContent({
-  tab,
-  ...data
-}: {
-  tab: Tab;
-  practiceData?: PracticeTabData | null;
-  competitionData?: CompetitionTabData | null;
-  analyticsData?: AnalyticsTabData | null;
-  badgesData?: BadgesTabData | null;
-  cubesData?: CubesTabData | null;
-}) {
-  // The active tab's data prop is null until the server render for that tab
-  // arrives — show a spinner instead of a blank screen so switching feels live.
+interface TabDataCache {
+  practice?: PracticeTabData;
+  competitions?: CompetitionTabData;
+  analytics?: AnalyticsTabData;
+  badges?: BadgesTabData;
+  cubes?: CubesTabData;
+}
+
+function TabContent({ tab, cache }: { tab: Tab; cache: TabDataCache }) {
+  // Render from the client cache so revisiting a tab is instant. A tab only
+  // shows the spinner the first time it's opened (before its data has loaded).
   switch (tab) {
     case "practice":
-      return data.practiceData ? <KidPracticeTab {...data.practiceData} /> : <TabLoading />;
+      return cache.practice ? <KidPracticeTab {...cache.practice} /> : <TabLoading />;
     case "competitions":
-      return data.competitionData ? <KidCompetitionTab data={data.competitionData} /> : <TabLoading />;
+      return cache.competitions ? <KidCompetitionTab data={cache.competitions} /> : <TabLoading />;
     case "analytics":
-      return data.analyticsData ? <KidAnalyticsTab {...data.analyticsData} /> : <TabLoading />;
+      return cache.analytics ? <KidAnalyticsTab {...cache.analytics} /> : <TabLoading />;
     case "badges":
-      return data.badgesData ? <KidBadgesTab data={data.badgesData} /> : <TabLoading />;
+      return cache.badges ? <KidBadgesTab data={cache.badges} /> : <TabLoading />;
     case "cubes":
-      return data.cubesData ? <KidCubesTab data={data.cubesData} /> : <TabLoading />;
+      return cache.cubes ? <KidCubesTab data={cache.cubes} /> : <TabLoading />;
     default:
       return null;
   }
 }
-
-const ALL_TABS: Tab[] = ["practice", "competitions", "analytics", "badges", "cubes"];
 
 function KidModeShellContent({
   cuberName,
@@ -191,14 +187,35 @@ function KidModeShellContent({
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [, startTransition] = useTransition();
 
-  // Warm each tab's route in the background so switches hit the RSC cache.
+  // Client-side cache of each tab's server data. Server props only carry the
+  // active tab, so we accumulate them here — letting us re-show a previously
+  // visited tab instantly while a fresh copy loads in the background.
+  const [cache, setCache] = useState<TabDataCache>(() => ({
+    practice: practiceData ?? undefined,
+    competitions: competitionData ?? undefined,
+    analytics: analyticsData ?? undefined,
+    badges: badgesData ?? undefined,
+    cubes: cubesData ?? undefined,
+  }));
+  const cuberRef = useRef(currentCuberId);
+
   useEffect(() => {
-    ALL_TABS.forEach((t) => router.prefetch(`/?tab=${t}`));
-  }, [router]);
+    // Different cuber ⇒ every cached tab is stale, so start clean.
+    const cuberChanged = cuberRef.current !== currentCuberId;
+    cuberRef.current = currentCuberId;
+    setCache((prev) => ({
+      ...(cuberChanged ? {} : prev),
+      ...(practiceData ? { practice: practiceData } : {}),
+      ...(competitionData ? { competitions: competitionData } : {}),
+      ...(analyticsData ? { analytics: analyticsData } : {}),
+      ...(badgesData ? { badges: badgesData } : {}),
+      ...(cubesData ? { cubes: cubesData } : {}),
+    }));
+  }, [currentCuberId, practiceData, competitionData, analyticsData, badgesData, cubesData]);
 
   function switchTab(tab: Tab) {
     if (tab === currentTab) return;
-    setCurrentTab(tab); // highlight + loading spinner immediately
+    setCurrentTab(tab); // cached tabs render instantly; others show a spinner
     startTransition(() => {
       router.replace(`/?tab=${tab}`, { scroll: false });
     });
@@ -220,14 +237,7 @@ function KidModeShellContent({
           practice screen can lay itself out as a real flex column. */}
       <div className={`flex flex-1 flex-col min-h-0 ${switcherOpen ? "invisible" : ""}`}>
         <main className="flex flex-1 flex-col min-h-0 overflow-y-auto kid-tab-enter" style={{ paddingBottom: "calc(4.5rem + env(safe-area-inset-bottom))" }}>
-          <TabContent
-            tab={currentTab}
-            practiceData={practiceData}
-            competitionData={competitionData}
-            analyticsData={analyticsData}
-            badgesData={badgesData}
-            cubesData={cubesData}
-          />
+          <TabContent tab={currentTab} cache={cache} />
         </main>
 
         <KidBottomNav activeTab={currentTab} onSwitch={switchTab} />
