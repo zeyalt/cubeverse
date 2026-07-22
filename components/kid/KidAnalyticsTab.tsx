@@ -16,7 +16,7 @@ import { SolveDistribution } from "@/components/analytics/SolveDistribution";
 import { PbStaircase } from "@/components/analytics/PbStaircase";
 import { CompetitionImprovements } from "@/components/analytics/CompetitionImprovements";
 import { EventIcon } from "./EventIcon";
-import type { CurrentPb } from "@/lib/analytics";
+import { distributionFromPoints, heatmapFromPoints, type CurrentPb } from "@/lib/analytics";
 
 interface Event {
   id: string;
@@ -142,15 +142,21 @@ export function KidAnalyticsTab({
 
   const dateRangeFilter = getDateRange(dateRange);
 
-  const filteredSolvesOverTime = {
-    ...analyticsData.solvesOverTime,
-    points: analyticsData.solvesOverTime.points.filter((p) => {
-      const dateStr = toLocalYMD(new Date(p.ts));
-      return dateStr >= dateRangeFilter.startStr && dateStr <= dateRangeFilter.endStr;
-    }),
-  };
+  // Single filtered point list drives every practice chart, so the date + cube
+  // filters update Solves Over Time, Distribution and the heatmap together.
+  // Filter only on a partial selection; none-selected and all-selected both mean
+  // "show everything" (so all-selected doesn't hide solves with no cube recorded).
+  const cubeFilterActive = selectedCubeIds.size > 0 && selectedCubeIds.size < eventCubes.length;
+  const filteredPoints = analyticsData.solvesOverTime.points.filter((p) => {
+    const dateStr = toLocalYMD(new Date(p.ts));
+    if (dateStr < dateRangeFilter.startStr || dateStr > dateRangeFilter.endStr) return false;
+    if (cubeFilterActive && !(p.cubeId && selectedCubeIds.has(p.cubeId))) return false;
+    return true;
+  });
 
-  const filteredDistribution = analyticsData.distribution; // TODO: filter if needed
+  const filteredSolvesOverTime = { ...analyticsData.solvesOverTime, points: filteredPoints };
+  const filteredDistribution = distributionFromPoints(filteredPoints);
+  const filteredHeatmap = heatmapFromPoints(filteredPoints);
 
   return (
     <div className="px-3 pt-2 pb-4 space-y-4" style={{ touchAction: "manipulation" }}>
@@ -232,7 +238,7 @@ export function KidAnalyticsTab({
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">Practice Frequency</p>
             <div className="surface px-4 py-6">
               <PracticeHeatmap
-                counts={analyticsData.heatmap}
+                counts={filteredHeatmap}
                 startDate={dateRange === "all" ? undefined : dateRangeFilter.startStr}
                 endDate={dateRange === "all" ? undefined : dateRangeFilter.endStr}
               />

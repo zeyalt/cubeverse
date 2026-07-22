@@ -168,7 +168,7 @@ async function ingestSingle(
     .select("id", { count: "exact", head: true })
     .eq("session_id", sessionId);
 
-  const { data } = await db
+  const { data, error } = await db
     .from("solves")
     .insert({
       owner_id: ownerId,
@@ -187,6 +187,9 @@ async function ingestSingle(
     })
     .select("id")
     .single();
+
+  // Surface DB rejections (FK/constraint) instead of silently dropping the solve.
+  if (error) throw new Error(`Solve insert failed: ${error.message}`);
 
   return data ? [data.id] : [];
 }

@@ -36,6 +36,7 @@ export default async function Home({
 
     const jar = await cookies();
     const savedEvent = jar.get("cubeverse_event")?.value ?? "333";
+    const savedCube = jar.get("cubeverse_cube")?.value ?? null;
     const currentCuberId = (settings.current_cuber_id ?? settings.default_cuber_id) as string;
     const params = await searchParams;
     const activeTab = (params?.tab ?? "practice") as "practice" | "competitions" | "analytics" | "badges" | "cubes";
@@ -124,6 +125,7 @@ export default async function Home({
         defaultEventId: validEventId,
         cuberId: currentCuberId,
         cubes: (practiceCubes ?? []).map((c) => ({ id: c.id as string, name: c.name as string, brand: c.brand as string | null, event_id: c.event_id as string | null })),
+        selectedCubeId: savedCube && (practiceCubes ?? []).some((c) => c.id === savedCube) ? savedCube : null,
         activeGoal: practiceGoal ? { id: practiceGoal.id as string, target_cs: practiceGoal.target_cs as number } : null,
         ao5,
         ao12,

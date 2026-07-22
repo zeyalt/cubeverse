@@ -5,7 +5,7 @@ import { ChevronDown, Trash2, ArrowRight } from "lucide-react";
 import { formatCs, effectiveTime, aoN, DNF } from "@/lib/cubing";
 import { EVENT_SHORT } from "@/lib/event-theme";
 import { useScramble } from "@/lib/useScramble";
-import { setEventCookie } from "@/lib/eventCookie";
+import { setEventCookie, setCubeCookie } from "@/lib/eventCookie";
 import { cubeLabel } from "@/lib/cubeLabel";
 import { ScramblePreview } from "./ScramblePreview";
 import { EventIcon } from "./EventIcon";
@@ -31,6 +31,7 @@ interface KidPracticeTabProps {
   defaultEventId: string;
   cuberId: string;
   cubes: Cube[];
+  selectedCubeId: string | null;
   activeGoal: { id: string; target_cs: number } | null;
   ao5: number | null;
   ao12: number | null;
@@ -73,6 +74,7 @@ export function KidPracticeTab({
   defaultEventId,
   cuberId,
   cubes: initialCubes,
+  selectedCubeId: initialSelectedCubeId,
   activeGoal: initialGoal,
   recentTimes,
 }: KidPracticeTabProps) {
@@ -116,7 +118,7 @@ export function KidPracticeTab({
 
   // Cube + Goal state
   const [cubes, setCubes] = useState<Cube[]>(initialCubes);
-  const [selectedCubeId, setSelectedCubeId] = useState<string | null>(null);
+  const [selectedCubeId, setSelectedCubeId] = useState<string | null>(initialSelectedCubeId);
   const [activeGoal, setActiveGoal] = useState(initialGoal);
   // While the target field is being typed, hold the raw string so the controlled
   // value doesn't reformat/snap on every keystroke. Committed on blur/Enter.
@@ -133,10 +135,13 @@ export function KidPracticeTab({
   // Post-solve controls stay locked for a beat after stopping, so the stopping
   // tap can't accidentally hit delete/+2/DNF/next.
   const [controlsReady, setControlsReady] = useState(false);
+  // Surfaces the reason a solve failed to save (instead of silently dropping it).
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   function handleSelectEvent(id: string) {
     setSelectedId(id);
     setSelectedCubeId(null);
+    setCubeCookie(null); // cubes differ per puzzle — clear the persisted cube
     setEventCookie(id); // share selection with analytics / cubes / timer
     startTransition(async () => {
       const setup = await getPracticeSetupData(cuberId, id);
@@ -375,6 +380,7 @@ export function KidPracticeTab({
     const cs = timerRef.current.finalCs;
     const currentScramble = scramble || "";
     lastSolveIdRef.current = null;
+    setSaveError(null);
 
     // Roll the live metrics forward immediately with this solve's effective time.
     setLiveTimes((prev) => [...prev, effectiveTime(cs, chosenPenalty)]);
@@ -397,10 +403,18 @@ export function KidPracticeTab({
 
     recordSolve(solveInput)
       .then((result) => {
+        if (result.error) {
+          // Server reached but rejected the save — surface why (don't hide it).
+          console.error("[recordSolve] error:", result.error, solveInput);
+          setSaveError(result.error);
+          return;
+        }
+        setSaveError(null);
         lastSolveIdRef.current = result.solveId;
       })
       .catch((err) => {
         console.error("Failed to save solve, queuing offline:", err);
+        setSaveError((err as Error)?.message ?? "Could not reach the server — solve queued offline.");
         enqueueSolve(solveInput).catch(console.error);
       });
   }
@@ -489,6 +503,16 @@ export function KidPracticeTab({
   return (
     <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden text-white">
 
+      {/* Save-error banner — surfaces why a solve wasn't recorded. */}
+      {saveError && (
+        <div className="fixed left-1/2 top-2 z-[60] w-[92%] max-w-sm -translate-x-1/2 rounded-lg border border-red-500/50 bg-red-950/95 px-3 py-2 text-xs font-medium text-red-100 shadow-lg pointer-events-auto">
+          <div className="flex items-start justify-between gap-2">
+            <span className="min-w-0 break-words">Solve not saved — {saveError}</span>
+            <button onClick={() => setSaveError(null)} className="shrink-0 text-red-200/70 hover:text-red-100" aria-label="Dismiss">✕</button>
+          </div>
+        </div>
+      )}
+
       {/* ── Compact setup bar — event + cube dropdowns + session-setup chip ──── */}
       <div className="practice-setup relative z-50 flex shrink-0 flex-col gap-3 px-2 pt-2 pb-2 pointer-events-none">
         {/* Controls row */}
@@ -549,6 +573,7 @@ export function KidPracticeTab({
                 <button
                   onClick={() => {
                     setSelectedCubeId(null);
+                    setCubeCookie(null);
                     setCubeDropdownOpen(false);
                   }}
                   className={`w-full text-left px-3 py-2 font-bold text-sm transition-colors ${
@@ -564,6 +589,7 @@ export function KidPracticeTab({
                     key={cube.id}
                     onClick={() => {
                       setSelectedCubeId(cube.id);
+                      setCubeCookie(cube.id);
                       setCubeDropdownOpen(false);
                     }}
                     className={`w-full text-left px-3 py-2 font-bold text-sm transition-colors ${

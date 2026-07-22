@@ -29,6 +29,7 @@ export interface SessionStats {
   ao12: number | null;   // null = fewer than 12 solves
   isPb: boolean;         // true if this solve set a new practice single PB
   newBadges: string[];   // badge keys newly unlocked this solve
+  error?: string | null; // set when the save failed (surfaced to the client)
 }
 
 async function computeStats(
@@ -62,6 +63,27 @@ async function computeStats(
 }
 
 export async function recordSolve(input: SolveInput): Promise<SessionStats> {
+  try {
+    return await recordSolveInner(input);
+  } catch (e) {
+    // Return the real reason instead of throwing (which Next redacts in prod),
+    // so the client can show why a solve wasn't saved.
+    console.error("[recordSolve] failed:", e);
+    return {
+      sessionId: "",
+      solveId: null,
+      count: 0,
+      bestCs: null,
+      ao5: null,
+      ao12: null,
+      isPb: false,
+      newBadges: [],
+      error: (e as Error).message,
+    };
+  }
+}
+
+async function recordSolveInner(input: SolveInput): Promise<SessionStats> {
   const db = getServiceClient();
   const ownerId = getOwnerId();
 

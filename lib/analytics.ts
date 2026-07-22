@@ -25,6 +25,7 @@ export interface SolvePoint {
   ao5: number | null;
   ao12: number | null;
   ao50: number | null;
+  cubeId: string | null;
 }
 
 export interface SolvesOverTimeData {
@@ -141,7 +142,7 @@ export async function getSolvesOverTime(
   const [{ data: solveRows }, { data: compRows }] = await Promise.all([
     db
       .from("solves")
-      .select("time_cs, penalty, solved_at")
+      .select("time_cs, penalty, solved_at, cube_id")
       .eq("cuber_id", cuberId)
       .eq("event_id", eventId)
       .eq("context", "practice")
@@ -171,6 +172,7 @@ export async function getSolvesOverTime(
     ao5:  ao5s[i],
     ao12: ao12s[i],
     ao50: ao50s[i],
+    cubeId: (r.cube_id as string | null) ?? null,
   }));
 
   const compMarkers = (compRows ?? [])
@@ -184,6 +186,36 @@ export async function getSolvesOverTime(
 }
 
 // ─── Distribution histogram ────────────────────────────────────────────────────
+
+/** Bin an already-filtered list of solve points into a 0.5s histogram. Pure —
+ *  used client-side so the cube/date filters can update the distribution live. */
+export function distributionFromPoints(points: SolvePoint[]): DistBin[] {
+  const times = points.map((p) => p.timeCs).filter((t) => t > 0); // exclude DNF
+  if (!times.length) return [];
+
+  const binWidth = 50; // 0.5 s
+  const min = Math.floor(Math.min(...times) / binWidth) * binWidth;
+  const max = Math.ceil(Math.max(...times) / binWidth) * binWidth;
+
+  const bins: Record<number, number> = {};
+  for (let b = min; b < max; b += binWidth) bins[b] = 0;
+  for (const t of times) {
+    const b = Math.floor(t / binWidth) * binWidth;
+    bins[b] = (bins[b] ?? 0) + 1;
+  }
+  return Object.entries(bins).map(([b, count]) => ({ label: formatCs(Number(b)), count }));
+}
+
+/** Count solve points per local day (YYYY-MM-DD) for the practice heatmap. */
+export function heatmapFromPoints(points: SolvePoint[]): HeatmapCounts {
+  const counts: HeatmapCounts = {};
+  for (const p of points) {
+    const d = new Date(p.ts);
+    const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    counts[day] = (counts[day] ?? 0) + 1;
+  }
+  return counts;
+}
 
 export async function getSolveDistribution(
   db: SupabaseClient,

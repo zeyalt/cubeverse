@@ -84,6 +84,8 @@ export function SolvesOverTime({ data, targetCs }: Props) {
   const [xAxis, setXAxis] = useState<"index" | "ts">("index");
   const { theme } = useTheme();
   const cc = chartColors(theme);
+  // Gold reads poorly on the light paper canvas — use dark orange there.
+  const targetColor = theme === "light" ? "#C2410C" : "#FFD500";
 
   const { points, compMarkers } = data;
   const valid = points.filter((p) => p.timeCs > 0);
@@ -203,13 +205,13 @@ export function SolvesOverTime({ data, targetCs }: Props) {
                 {targetCs != null && targetCs > 0 && (
                   <ReferenceLine
                     y={targetCs}
-                    stroke="#FFD500"
+                    stroke={targetColor}
                     strokeDasharray="5 4"
                     strokeWidth={1.5}
                     label={{
                       value: `Target ${formatCs(targetCs)}`,
                       position: "insideTopRight",
-                      fill: "#FFD500",
+                      fill: targetColor,
                       fontSize: 10,
                       fontWeight: 700,
                     }}
