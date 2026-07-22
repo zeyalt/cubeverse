@@ -178,7 +178,7 @@ export default async function Home({
         getAnalyticsData(currentCuberId, validEventId),
         db
           .from("cubes")
-          .select("id, name, brand")
+          .select("id, name, brand, event_id")
           .eq("owner_id", ownerId)
           .order("is_main", { ascending: false })
           .order("created_at"),

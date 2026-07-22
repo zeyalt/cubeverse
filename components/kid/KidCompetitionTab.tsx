@@ -49,7 +49,7 @@ export function KidCompetitionTab({ data: { competitions, cuberId, wcaId } }: Ki
   const [showForm, setShowForm] = useState(false);
   const [formState, formAction] = useActionState(createCompetition, { error: null });
   return (
-    <div className="space-y-5 px-5 pt-3 pb-6">
+    <div className="space-y-4 px-3 pt-2 pb-4">
       {/* Header */}
       <div>
         <h2 className="font-display text-2xl font-extrabold tracking-tight text-white">Competitions</h2>

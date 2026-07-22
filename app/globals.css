@@ -214,6 +214,9 @@ body {
   }
   html {
     @apply font-sans;
+    /* Slightly smaller base so rem-based text + spacing shrink app-wide,
+       showing more content. (16px default → 15px.) */
+    font-size: 15px;
   }
 }
 

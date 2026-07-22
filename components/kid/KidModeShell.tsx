@@ -56,6 +56,7 @@ interface Cube {
   id: string;
   name: string;
   brand: string | null;
+  event_id: string | null;
 }
 
 interface AnalyticsTabData {

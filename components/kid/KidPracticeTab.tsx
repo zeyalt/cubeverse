@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { PartyPopper, ChevronDown, Trash2, ArrowRight } from "lucide-react";
+import { ChevronDown, Trash2, ArrowRight } from "lucide-react";
 import { formatCs, effectiveTime, aoN, DNF } from "@/lib/cubing";
 import { EVENT_SHORT } from "@/lib/event-theme";
 import { useScramble } from "@/lib/useScramble";
@@ -9,7 +9,7 @@ import { setEventCookie } from "@/lib/eventCookie";
 import { cubeLabel } from "@/lib/cubeLabel";
 import { ScramblePreview } from "./ScramblePreview";
 import { EventIcon } from "./EventIcon";
-import { recordSolve, updateSolve, deleteSolve as deleteSolveAction, type SessionStats } from "@/app/actions/solve";
+import { recordSolve, updateSolve, deleteSolve as deleteSolveAction } from "@/app/actions/solve";
 import { enqueueSolve } from "@/lib/offline/queue";
 import { getPracticeSetupData, setPracticeGoal } from "@/app/actions/goals";
 
@@ -111,7 +111,6 @@ export function KidPracticeTab({
   const [displayCs, setDisplayCs] = useState(0);
   const [penalty, setPenalty] = useState<Penalty>("none");
   const [inspSec, setInspSec] = useState(15);
-  const [stats, setStats] = useState<SessionStats | null>(null);
   const [showHoldMsg, setShowHoldMsg] = useState(false);
   const holdMsgTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -131,6 +130,9 @@ export function KidPracticeTab({
   const lastSolveIdRef = useRef<string | null>(null);
   // Guards against persisting the same stop twice (effect re-entrancy).
   const recordedThisStopRef = useRef(false);
+  // Post-solve controls stay locked for a beat after stopping, so the stopping
+  // tap can't accidentally hit delete/+2/DNF/next.
+  const [controlsReady, setControlsReady] = useState(false);
 
   function handleSelectEvent(id: string) {
     setSelectedId(id);
@@ -390,23 +392,12 @@ export function KidPracticeTab({
       enqueueSolve(solveInput).catch((err) =>
         console.error("Failed to queue solve:", err)
       );
-      setStats((prev) => ({
-        sessionId: prev?.sessionId ?? "offline",
-        solveId: null,
-        count: (prev?.count ?? 0) + 1,
-        bestCs: prev?.bestCs ?? null,
-        ao5: prev?.ao5 ?? null,
-        ao12: prev?.ao12 ?? null,
-        isPb: false,
-        newBadges: [],
-      }));
       return;
     }
 
     recordSolve(solveInput)
       .then((result) => {
         lastSolveIdRef.current = result.solveId;
-        setStats(result);
       })
       .catch((err) => {
         console.error("Failed to save solve, queuing offline:", err);
@@ -472,6 +463,7 @@ export function KidPracticeTab({
     setTargetDraft(null);
   }
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (timerPhase === "stopped") {
       // Record the solve the moment it stops, then prepare the next scramble.
@@ -480,13 +472,19 @@ export function KidPracticeTab({
         persistSolve(penalty);
         nextScramble();
       }
-    } else {
-      recordedThisStopRef.current = false;
+      // Lock the post-solve controls briefly so the stopping tap can't trigger
+      // one of them by accident; they arm after a short delay.
+      setControlsReady(false);
+      const t = setTimeout(() => setControlsReady(true), 450);
+      return () => clearTimeout(t);
     }
+    recordedThisStopRef.current = false;
+    setControlsReady(false);
     // Fire only on timer-phase transitions; the other values are captured fresh
     // from the render that flipped the phase to "stopped".
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timerPhase]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   return (
     <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden text-white">
@@ -680,7 +678,16 @@ export function KidPracticeTab({
           <div
             className="w-full cursor-pointer select-none text-center"
           >
-            <p className="timer-display font-mono-time font-semibold leading-none tracking-tighter select-none" style={{ userSelect: "none", WebkitUserSelect: "none" }}>
+            <p
+              className="timer-display font-mono-time font-semibold leading-none tracking-tighter select-none transition-colors"
+              style={{
+                userSelect: "none",
+                WebkitUserSelect: "none",
+                // Red while still holding (keep holding), green once held long
+                // enough that releasing will start the timer.
+                color: timerPhase === "ready" ? "#22C55E" : timerPhase === "holding" ? "#EF4444" : undefined,
+              }}
+            >
               {timerPhase === "inspecting" || timerPhase === "holding" || timerPhase === "ready"
                 ? inspSec > 0 ? String(inspSec) : "+2"
                 : timerPhase === "stopped"
@@ -707,7 +714,13 @@ export function KidPracticeTab({
 
           {/* Penalty bar + session stats */}
           {timerPhase === "stopped" && (
-            <div className="mt-6 space-y-3 mx-auto w-full max-w-sm pointer-events-auto">
+            <div
+              className="mt-6 space-y-3 mx-auto w-full max-w-sm transition-opacity duration-200"
+              style={{
+                pointerEvents: controlsReady ? "auto" : "none",
+                opacity: controlsReady ? 1 : 0.4,
+              }}
+            >
               <div className="flex gap-2 items-center justify-center">
                 <button
                   onClick={() => discardSolve()}
@@ -746,36 +759,6 @@ export function KidPracticeTab({
                   <ArrowRight className="size-4" />
                 </button>
               </div>
-
-              {/* Session stats panel */}
-              {stats && (
-                <div className="mt-4 rounded-xl bg-white/8 px-4 py-3 kid-animate-in">
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div>
-                      <p className="font-mono-time text-base font-bold text-white">
-                        {stats.ao5 ? formatCs(stats.ao5) : "—"}
-                      </p>
-                      <p className="text-[10px] uppercase tracking-wider text-white/40">ao5</p>
-                    </div>
-                    <div>
-                      <p className="font-mono-time text-base font-bold text-white">
-                        {stats.ao12 ? formatCs(stats.ao12) : "—"}
-                      </p>
-                      <p className="text-[10px] uppercase tracking-wider text-white/40">ao12</p>
-                    </div>
-                    <div>
-                      <p className="font-display text-base font-bold text-white">{stats.count}</p>
-                      <p className="text-[10px] uppercase tracking-wider text-white/40">count</p>
-                    </div>
-                  </div>
-                  {stats.isPb && (
-                    <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs font-bold text-[#FFD500] animate-bounce">
-                      <PartyPopper className="size-3.5" />
-                      NEW PB!
-                    </p>
-                  )}
-                </div>
-              )}
             </div>
           )}
         </div>

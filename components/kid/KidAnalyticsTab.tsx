@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { setEventCookie } from "@/lib/eventCookie";
+import { sharedHardwareEvents } from "@/lib/eventGroups";
 import { formatCs } from "@/lib/cubing";
 import { EVENT_SHORT } from "@/lib/event-theme";
 import { getAnalyticsData, type AnalyticsPayload } from "@/app/actions/analytics";
@@ -27,6 +28,7 @@ interface Cube {
   id: string;
   name: string;
   brand: string | null;
+  event_id: string | null;
 }
 
 interface KidAnalyticsTabProps {
@@ -96,8 +98,14 @@ export function KidAnalyticsTab({
 
   const handleEventChange = (eventId: string) => {
     setSelectedEventId(eventId);
+    setSelectedCubeIds(new Set()); // reset cube filter — cubes differ per puzzle
     setEventCookie(eventId); // share selection with practice / cubes / timer
   };
+
+  // Only show cubes for the selected puzzle (same hardware group, e.g.
+  // 3x3 / 3x3 OH / 3x3 BLD) plus general (un-tagged) cubes.
+  const eventGroup = sharedHardwareEvents(selectedEventId);
+  const eventCubes = cubes.filter((c) => c.event_id == null || eventGroup.includes(c.event_id));
 
   const toLocalYMD = (d: Date): string => {
     const y = d.getFullYear();
@@ -145,7 +153,7 @@ export function KidAnalyticsTab({
   const filteredDistribution = analyticsData.distribution; // TODO: filter if needed
 
   return (
-    <div className="px-5 pt-3 pb-4 space-y-5" style={{ touchAction: "manipulation" }}>
+    <div className="px-3 pt-2 pb-4 space-y-4" style={{ touchAction: "manipulation" }}>
       {/* Page title */}
       <h2 className="font-display text-2xl font-extrabold tracking-tight text-white">Analytics</h2>
 
@@ -175,13 +183,13 @@ export function KidAnalyticsTab({
 
       {/* Practice Sub-tab */}
       {subTab === "practice" && (
-        <div className="space-y-6">
+        <div className="space-y-5">
           {/* Filters */}
           <AnalyticsFilters
             events={events}
             selectedEventId={selectedEventId}
             onEventChange={handleEventChange}
-            cubes={cubes}
+            cubes={eventCubes}
             selectedCubeIds={selectedCubeIds}
             onCubesChange={setSelectedCubeIds}
             dateRange={dateRange}
@@ -367,7 +375,7 @@ export function KidAnalyticsTab({
 
       {/* Competition Sub-tab */}
       {subTab === "competition" && (
-        <div className="space-y-6">
+        <div className="space-y-5">
           {/* ── All-events overview ─────────────────────────────────────── */}
           <div className="space-y-2">
             <div>

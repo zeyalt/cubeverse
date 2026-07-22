@@ -146,6 +146,21 @@ export function AnalyticsFilters({
 
           {cubesOpen && (
             <div role="listbox" aria-multiselectable className="absolute top-full left-0 mt-1 z-50 min-w-full w-44 rounded-lg border border-white/10 bg-[#1C1916] shadow-lg max-h-48 overflow-y-auto">
+              <button
+                role="option"
+                aria-selected={selectedCubeIds.size === cubes.length && cubes.length > 0}
+                onClick={() => {
+                  const allSelected = selectedCubeIds.size === cubes.length;
+                  onCubesChange(allSelected ? new Set() : new Set(cubes.map((c) => c.id)));
+                }}
+                className={`w-full text-left px-3 py-2.5 font-bold text-sm transition-colors [touch-action:manipulation] ${
+                  selectedCubeIds.size === cubes.length && cubes.length > 0
+                    ? "bg-[#0046AD]/20 text-[#0046AD]"
+                    : "text-white hover:bg-white/10"
+                }`}
+              >
+                Select All
+              </button>
               {cubes.map((cube) => (
                 <button
                   key={cube.id}

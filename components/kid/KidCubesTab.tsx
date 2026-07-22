@@ -30,7 +30,7 @@ interface KidCubesTabProps {
 
 export function KidCubesTab({ data: { cubes, events, defaultEventId } }: KidCubesTabProps) {
   return (
-    <div className="kid-cubes-wrapper px-5 pt-3 pb-6">
+    <div className="kid-cubes-wrapper px-3 pt-2 pb-4">
       <div className="mb-5">
         <h2 className="font-display text-2xl font-extrabold tracking-tight text-white">Cubes</h2>
         <p className="mt-0.5 text-sm text-white/50">Your collection</p>

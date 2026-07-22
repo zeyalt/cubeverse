@@ -89,7 +89,7 @@ export function KidBadgesTab({
   }
 
   return (
-    <div className="space-y-6 px-5 pt-3 pb-6">
+    <div className="space-y-4 px-3 pt-2 pb-4">
       {/* Header */}
       <div>
         <h2 className="font-display text-2xl font-extrabold tracking-tight text-white">Badges</h2>
