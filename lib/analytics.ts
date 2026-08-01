@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { effectiveTime, aoN, DNF, formatCs } from "./cubing";
 import type { Penalty } from "./cubing";
+import { practiceSummary, type PracticeSummary } from "./practiceStats";
+import { fetchAllRows } from "./supabase/fetchAll";
 
 // ─── Types sent to chart components ──────────────────────────────────────────
 
@@ -134,20 +136,28 @@ export async function getPbStaircase(
 
 // ─── Solves over time (practice) ──────────────────────────────────────────────
 
+/** Points plotted on the Solves Over Time chart. A deliberate cap: beyond this
+ *  the chart is unreadable and the payload large. */
+const CHART_MAX_SOLVES = 2000;
+
 export async function getSolvesOverTime(
   db: SupabaseClient,
   cuberId: string,
   eventId: string
 ): Promise<SolvesOverTimeData> {
-  const [{ data: solveRows }, { data: compRows }] = await Promise.all([
+  const [{ data: solveRowsDesc }, { data: compRows }] = await Promise.all([
+    // Newest-first so the cap keeps the most recent solves; the chart is
+    // reversed back to chronological order below. Ordering ascending under a
+    // limit would pin the chart to the oldest solves and stop it updating
+    // once a cuber passed CHART_MAX_SOLVES.
     db
       .from("solves")
       .select("time_cs, penalty, solved_at, cube_id")
       .eq("cuber_id", cuberId)
       .eq("event_id", eventId)
       .eq("context", "practice")
-      .order("solved_at")
-      .limit(2000),
+      .order("solved_at", { ascending: false })
+      .limit(CHART_MAX_SOLVES),
     db
       .from("competitions")
       .select("name, start_date")
@@ -156,7 +166,9 @@ export async function getSolvesOverTime(
       .order("start_date"),
   ]);
 
-  const effs = (solveRows ?? []).map((r) =>
+  const solveRows = (solveRowsDesc ?? []).slice().reverse();
+
+  const effs = solveRows.map((r) =>
     effectiveTime(r.time_cs as number, r.penalty as Penalty)
   );
 
@@ -164,7 +176,7 @@ export async function getSolvesOverTime(
   const ao12s = rollingAoN(effs, 12);
   const ao50s = rollingAoN(effs, 50);
 
-  const points: SolvePoint[] = (solveRows ?? []).map((r, i) => ({
+  const points: SolvePoint[] = solveRows.map((r, i) => ({
     index: i + 1,
     ts: new Date(r.solved_at as string).getTime(),
     date: fmtDate(r.solved_at as string),
@@ -217,64 +229,10 @@ export function heatmapFromPoints(points: SolvePoint[]): HeatmapCounts {
   return counts;
 }
 
-export async function getSolveDistribution(
-  db: SupabaseClient,
-  cuberId: string,
-  eventId: string
-): Promise<DistBin[]> {
-  const { data } = await db
-    .from("solves")
-    .select("time_cs, penalty")
-    .eq("cuber_id", cuberId)
-    .eq("event_id", eventId)
-    .eq("context", "practice")
-    .limit(5000);
-
-  const times = (data ?? [])
-    .map((r) => effectiveTime(r.time_cs as number, r.penalty as Penalty))
-    .filter((t) => t > 0); // exclude DNF
-
-  if (!times.length) return [];
-
-  const binWidth = 50; // 0.5 s
-  const min = Math.floor(Math.min(...times) / binWidth) * binWidth;
-  const max = Math.ceil(Math.max(...times) / binWidth) * binWidth;
-
-  const bins: Record<number, number> = {};
-  for (let b = min; b < max; b += binWidth) bins[b] = 0;
-  for (const t of times) {
-    const b = Math.floor(t / binWidth) * binWidth;
-    bins[b] = (bins[b] ?? 0) + 1;
-  }
-
-  return Object.entries(bins).map(([b, count]) => ({
-    label: formatCs(Number(b)),
-    count,
-  }));
-}
-
-// ─── Practice heatmap ─────────────────────────────────────────────────────────
-
-export async function getHeatmapCounts(
-  db: SupabaseClient,
-  cuberId: string,
-  days = 364
-): Promise<HeatmapCounts> {
-  const since = new Date(Date.now() - days * 86_400_000).toISOString();
-  const { data } = await db
-    .from("solves")
-    .select("solved_at")
-    .eq("cuber_id", cuberId)
-    .eq("context", "practice")
-    .gte("solved_at", since);
-
-  const counts: HeatmapCounts = {};
-  for (const row of data ?? []) {
-    const day = (row.solved_at as string).slice(0, 10);
-    counts[day] = (counts[day] ?? 0) + 1;
-  }
-  return counts;
-}
+// The distribution and the heatmap are both derived client-side from the
+// solvesOverTime points, so the cube and date-range filters update every
+// practice chart together. Server-side equivalents used to exist here and were
+// fetched on every analytics load, but the client discarded them unread.
 
 // ─── Current PBs (overview table) ────────────────────────────────────────────
 
@@ -299,7 +257,7 @@ export async function getCurrentPbs(
   cuberId: string,
   eventIds: string[]
 ): Promise<CurrentPb[]> {
-  const [{ data: pbData }, { data: solveData }, { data: resultData }] = await Promise.all([
+  const [{ data: pbData }, solveData, { data: resultData }] = await Promise.all([
     db
       .from("pb_history")
       .select("event_id, record_type, context, time_cs")
@@ -307,13 +265,19 @@ export async function getCurrentPbs(
       .in("event_id", eventIds)
       .in("context", ["official", "practice"])
       .gt("time_cs", 0),
-    db
-      .from("solves")
-      .select("event_id, time_cs, penalty")
-      .eq("cuber_id", cuberId)
-      .in("event_id", eventIds)
-      .eq("context", "practice")
-      .order("solved_at"),
+    // Paged: this spans every event at once, so it is the first query to cross
+    // PostgREST's row cap. Truncation here silently froze the practice averages
+    // and counts on the analytics PB table.
+    fetchAllRows<{ event_id: string; time_cs: number; penalty: string }>((from, to) =>
+      db
+        .from("solves")
+        .select("event_id, time_cs, penalty")
+        .eq("cuber_id", cuberId)
+        .in("event_id", eventIds)
+        .eq("context", "practice")
+        .order("solved_at")
+        .range(from, to)
+    ),
     db
       .from("results")
       .select("event_id, best_cs, average_cs, competitions(type)")
@@ -356,7 +320,7 @@ export async function getCurrentPbs(
 
   // Group solves by event and calculate rolling averages
   const solvesByEvent: Record<string, Array<{ time_cs: number; penalty: string }>> = {};
-  for (const solve of solveData ?? []) {
+  for (const solve of solveData) {
     const eventId = solve.event_id as string;
     if (!solvesByEvent[eventId]) {
       solvesByEvent[eventId] = [];
@@ -367,27 +331,13 @@ export async function getCurrentPbs(
   // Calculate rolling averages + best single for each event, all derived from
   // live solves so they always reflect deletions (pb_history can go stale and
   // is only used for official records below).
-  const practiceStats: Record<string, { single: number | null; ao5: number | null; ao12: number | null; ao50: number | null; ao100: number | null; count: number }> = {};
+  // Shared with the Practice tab via practiceSummary, so the two screens can't
+  // drift apart. It also only averages the tail window rather than building the
+  // whole rolling series and discarding all but the last entry.
+  const practiceStats: Record<string, PracticeSummary> = {};
   for (const [eventId, solves] of Object.entries(solvesByEvent)) {
     const effs = solves.map((s) => effectiveTime(s.time_cs, s.penalty as Penalty));
-    const ao5s = rollingAoN(effs, 5);
-    const ao12s = rollingAoN(effs, 12);
-    const ao50s = rollingAoN(effs, 50);
-    const ao100s = rollingAoN(effs, 100);
-
-    // Best single = fastest non-DNF effective time across all solves.
-    const nonDnf = effs.filter((t) => t > 0);
-    const single = nonDnf.length > 0 ? Math.min(...nonDnf) : null;
-
-    const lastIdx = effs.length - 1;
-    practiceStats[eventId] = {
-      single,
-      ao5: lastIdx >= 4 ? ao5s[lastIdx] : null,
-      ao12: lastIdx >= 11 ? ao12s[lastIdx] : null,
-      ao50: lastIdx >= 49 ? ao50s[lastIdx] : null,
-      ao100: lastIdx >= 99 ? ao100s[lastIdx] : null,
-      count: effs.length,
-    };
+    practiceStats[eventId] = practiceSummary(effs);
   }
 
   return eventIds.map((id) => ({
@@ -398,7 +348,7 @@ export async function getCurrentPbs(
     wcaAvg:           compBest[`${id}:wca:average`] ?? null,
     unofficialSingle: compBest[`${id}:unofficial:single`] ?? null,
     unofficialAvg:    compBest[`${id}:unofficial:average`] ?? null,
-    practiceSingle: practiceStats[id]?.single ?? null,
+    practiceSingle: practiceStats[id]?.best ?? null,
     practiceAo5:    practiceStats[id]?.ao5 ?? null,
     practiceAo12:   practiceStats[id]?.ao12 ?? null,
     practiceAo50:   practiceStats[id]?.ao50 ?? null,
