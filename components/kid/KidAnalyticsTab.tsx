@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { setEventCookie } from "@/lib/eventCookie";
-import { sharedHardwareEvents } from "@/lib/eventGroups";
 import { formatCs } from "@/lib/cubing";
 import { EVENT_SHORT } from "@/lib/event-theme";
-import { getAnalyticsData, type AnalyticsPayload } from "@/app/actions/analytics";
+import type { AnalyticsPayload } from "@/app/actions/analytics";
 import { getHistoricalSolves, deleteSolve, updateSolve } from "@/app/actions/solve";
+import { getTabData } from "@/app/actions/tabs";
 import { AnalyticsFilters, type DateRange } from "./AnalyticsFilters";
 import { useKidData } from "./KidDataContext";
 import { CurrentStatsCards } from "./CurrentStatsCards";
@@ -62,8 +62,7 @@ export function KidAnalyticsTab({
   defaultEventId,
   cuberId,
   initialAnalyticsData,
-  pbs,
-  cubes,
+  pbs: initialPbs,
   initialSubTab,
 }: KidAnalyticsTabProps) {
   // Comes from the server's read of ?sub= rather than useSearchParams: this tab
@@ -73,7 +72,11 @@ export function KidAnalyticsTab({
   const { invalidate } = useKidData();
   const [selectedEventId, setSelectedEventId] = useState(defaultEventId);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsPayload>(initialAnalyticsData);
-  const [selectedCubeIds, setSelectedCubeIds] = useState<Set<string>>(new Set());
+  // Current Stats (single/ao5/ao12/.../count) — was a static prop that never
+  // refreshed after a delete/edit in Practice History, so removing a solve
+  // (e.g. a stray 5.23s single) left the old best sitting there until a full
+  // page reload. Now refetched alongside the charts in refreshAnalytics.
+  const [pbs, setPbs] = useState<CurrentPb[]>(initialPbs);
   const [dateRange, setDateRange] = useState<DateRange>("all");
   const [timesOpen, setTimesOpen] = useState(false);
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
@@ -89,7 +92,10 @@ export function KidAnalyticsTab({
   }, [cuberId]);
 
   const refreshAnalytics = useCallback(async (eventId: string) => {
-    setAnalyticsData(await getAnalyticsData(cuberId, eventId));
+    const result = await getTabData("analytics", cuberId, eventId);
+    if (result.tab !== "analytics") return; // discriminated union guard
+    setAnalyticsData(result.data.initialAnalyticsData);
+    setPbs(result.data.pbs);
   }, [cuberId]);
 
   /** After editing or deleting a solve both the list and the charts are stale. */
@@ -123,14 +129,8 @@ export function KidAnalyticsTab({
 
   const handleEventChange = (eventId: string) => {
     setSelectedEventId(eventId);
-    setSelectedCubeIds(new Set()); // reset cube filter — cubes differ per puzzle
     setEventCookie(eventId); // share selection with practice / cubes / timer
   };
-
-  // Only show cubes for the selected puzzle (same hardware group, e.g.
-  // 3x3 / 3x3 OH / 3x3 BLD) plus general (un-tagged) cubes.
-  const eventGroup = sharedHardwareEvents(selectedEventId);
-  const eventCubes = cubes.filter((c) => c.event_id == null || eventGroup.includes(c.event_id));
 
   const toLocalYMD = (d: Date): string => {
     const y = d.getFullYear();
@@ -167,16 +167,12 @@ export function KidAnalyticsTab({
 
   const dateRangeFilter = getDateRange(dateRange);
 
-  // Single filtered point list drives every practice chart, so the date + cube
-  // filters update Solves Over Time, Distribution and the heatmap together.
-  // Filter only on a partial selection; none-selected and all-selected both mean
-  // "show everything" (so all-selected doesn't hide solves with no cube recorded).
-  const cubeFilterActive = selectedCubeIds.size > 0 && selectedCubeIds.size < eventCubes.length;
+  // Single filtered point list drives every practice chart, so the date filter
+  // updates Solves Over Time, Distribution and the heatmap together. Cube
+  // filtering was removed — practice insights always cover all cubes.
   const filteredPoints = analyticsData.solvesOverTime.points.filter((p) => {
     const dateStr = toLocalYMD(new Date(p.ts));
-    if (dateStr < dateRangeFilter.startStr || dateStr > dateRangeFilter.endStr) return false;
-    if (cubeFilterActive && !(p.cubeId && selectedCubeIds.has(p.cubeId))) return false;
-    return true;
+    return dateStr >= dateRangeFilter.startStr && dateStr <= dateRangeFilter.endStr;
   });
 
   const filteredSolvesOverTime = { ...analyticsData.solvesOverTime, points: filteredPoints };
@@ -220,9 +216,6 @@ export function KidAnalyticsTab({
             events={events}
             selectedEventId={selectedEventId}
             onEventChange={handleEventChange}
-            cubes={eventCubes}
-            selectedCubeIds={selectedCubeIds}
-            onCubesChange={setSelectedCubeIds}
             dateRange={dateRange}
             onDateRangeChange={setDateRange}
           />
@@ -238,6 +231,8 @@ export function KidAnalyticsTab({
                 ao50={selectedPb.practiceAo50}
                 ao100={selectedPb.practiceAo100}
                 count={selectedPb.practiceCount}
+                wcaSingle={selectedPb.wcaSingle}
+                wcaAo5={selectedPb.wcaAvg}
               />
             </div>
           )}
@@ -246,7 +241,11 @@ export function KidAnalyticsTab({
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">Solves Over Time</p>
             <div className="surface px-2 py-3">
-              <SolvesOverTime data={filteredSolvesOverTime} targetCs={analyticsData.targetCs} />
+              <SolvesOverTime
+                data={filteredSolvesOverTime}
+                targetCs={analyticsData.targetCs}
+                prCs={selectedPb?.wcaAvg}
+              />
             </div>
           </div>
 
@@ -254,7 +253,11 @@ export function KidAnalyticsTab({
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">Solve Distribution</p>
             <div className="surface px-2 py-3">
-              <SolveDistribution bins={filteredDistribution} />
+              <SolveDistribution
+                bins={filteredDistribution}
+                targetCs={analyticsData.targetCs}
+                prCs={selectedPb?.wcaAvg}
+              />
             </div>
           </div>
 

@@ -38,6 +38,9 @@ export interface SolvesOverTimeData {
 export interface DistBin {
   label: string;
   count: number;
+  // Lower bound (cs) of this bin's range — lets a category-axis chart locate
+  // which bin a reference value (target time, PR) falls into.
+  binStart: number;
 }
 
 export type HeatmapCounts = Record<string, number>; // YYYY-MM-DD → count
@@ -206,7 +209,7 @@ export function distributionFromPoints(points: SolvePoint[]): DistBin[] {
   if (!times.length) return [];
 
   const binWidth = 50; // 0.5 s
-  const min = Math.floor(Math.min(...times) / binWidth) * binWidth;
+  const min = 0; // axis always starts at 0s, matching Solves Over Time's y-axis
   const max = Math.ceil(Math.max(...times) / binWidth) * binWidth;
 
   const bins: Record<number, number> = {};
@@ -215,7 +218,7 @@ export function distributionFromPoints(points: SolvePoint[]): DistBin[] {
     const b = Math.floor(t / binWidth) * binWidth;
     bins[b] = (bins[b] ?? 0) + 1;
   }
-  return Object.entries(bins).map(([b, count]) => ({ label: formatCs(Number(b)), count }));
+  return Object.entries(bins).map(([b, count]) => ({ label: formatCs(Number(b)), count, binStart: Number(b) }));
 }
 
 /** Count solve points per local day (YYYY-MM-DD) for the practice heatmap. */

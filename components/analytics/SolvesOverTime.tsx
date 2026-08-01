@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import {
   ComposedChart, Scatter, Line, XAxis, YAxis, Tooltip,
   ResponsiveContainer, ReferenceLine,
@@ -10,19 +10,7 @@ import { formatCs } from "@/lib/cubing";
 import { useTheme } from "@/lib/useTheme";
 import { chartColors, type ChartColors } from "@/lib/chartTheme";
 
-interface Props { data: SolvesOverTimeData; targetCs?: number | null }
-
-// Custom SVG marker for competition reference lines — a small filled dot at the
-// top of the line, replacing the previous emoji label for a cleaner look.
-function CompMarkerLabel({ viewBox, stroke }: { viewBox?: { x?: number; y?: number }; stroke?: string }) {
-  const x = viewBox?.x ?? 0;
-  const y = viewBox?.y ?? 0;
-  return <circle cx={x} cy={y + 4} r={3.5} fill="#FFD500" stroke={stroke ?? "#0A0A0A"} strokeWidth={1} />;
-}
-
-function fmtTs(ts: number): string {
-  return new Date(ts).toLocaleDateString([], { month: "short", day: "numeric", year: "2-digit" });
-}
+interface Props { data: SolvesOverTimeData; targetCs?: number | null; prCs?: number | null }
 
 interface TooltipPayloadEntry {
   name?: string;
@@ -76,18 +64,69 @@ function ChartTooltip({
   );
 }
 
-export function SolvesOverTime({ data, targetCs }: Props) {
+export function SolvesOverTime({ data, targetCs, prCs }: Props) {
+  // Computed up front (no hooks involved) so the zoom-out floor below can size
+  // itself to the actual history length — a fixed 25% floor left a long
+  // history (Zayyan's 800+ solves) still wider than the screen at max zoom-out.
+  const validForZoom = data.points.filter((p) => p.timeCs > 0);
+
   const [showAo5, setShowAo5]   = useState(true);
   const [showAo12, setShowAo12] = useState(false);
   const [showAo50, setShowAo50] = useState(false);
-  const [showComps, setShowComps] = useState(true);
-  const [xAxis, setXAxis] = useState<"index" | "ts">("index");
+
+  // Zoom scales the per-point pixel width, driven by the slider below: drag it
+  // toward "Compact" to condense the whole history into one screen (no
+  // scrolling), or toward "Spread" to space points apart and scroll through
+  // them. 1 = the original 14px/point spacing.
+  const [zoom, setZoom] = useState(1);
+  // Floor low enough that the whole history fits one screen width (~280px,
+  // comfortably under the narrowest phone viewport) at the "Compact" end.
+  const ZOOM_MIN = Math.min(0.25, 280 / ((validForZoom.length || 1) * 14));
+  const ZOOM_MAX = 4;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number | null>(null);
+
+  const applyZoom = useCallback((next: number) => {
+    const clamped = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next));
+    const el = scrollRef.current;
+    // Keep the currently-centred point stationary on screen while the width
+    // changes, so dragging the slider doesn't yank the view back to the left
+    // edge every time.
+    if (el) {
+      const centerX = el.scrollLeft + el.clientWidth / 2;
+      const ratio = centerX / (el.scrollWidth || 1);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => {
+        setZoom(clamped);
+        requestAnimationFrame(() => {
+          if (!scrollRef.current) return;
+          const newCenterX = ratio * scrollRef.current.scrollWidth;
+          scrollRef.current.scrollLeft = newCenterX - scrollRef.current.clientWidth / 2;
+        });
+      });
+    } else {
+      setZoom(clamped);
+    }
+  }, [ZOOM_MIN, ZOOM_MAX]);
+
+  // Logarithmic mapping so the 0–100 slider gives smooth, even-feeling control
+  // across the whole ZOOM_MIN..ZOOM_MAX range, even though that range can span
+  // more than an order of magnitude for a long history.
+  const logMin = Math.log(ZOOM_MIN);
+  const logMax = Math.log(ZOOM_MAX);
+  const sliderPos = logMax === logMin ? 0 : ((Math.log(zoom) - logMin) / (logMax - logMin)) * 100;
+  const onSliderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const pos = Number(e.target.value);
+    applyZoom(Math.exp(logMin + (pos / 100) * (logMax - logMin)));
+  }, [applyZoom, logMin, logMax]);
+
   const { theme } = useTheme();
   const cc = chartColors(theme);
   // Gold reads poorly on the light paper canvas — use dark orange there.
   const targetColor = theme === "light" ? "#C2410C" : "#FFD500";
+  const prColor = "#22C55E";
 
-  const { points, compMarkers } = data;
+  const { points } = data;
   const valid = points.filter((p) => p.timeCs > 0);
 
   if (!valid.length) {
@@ -97,8 +136,6 @@ export function SolvesOverTime({ data, targetCs }: Props) {
       </div>
     );
   }
-
-  const xKey = xAxis === "index" ? "index" : "ts";
 
   // Shared style for buttons inside the segmented (gapless) toggle groups.
   const segBtn =
@@ -118,31 +155,16 @@ export function SolvesOverTime({ data, targetCs }: Props) {
     if (p.ao50 != null) yVals.push(p.ao50);
   }
   if (targetCs != null && targetCs > 0) yVals.push(targetCs);
+  if (prCs != null && prCs > 0) yVals.push(prCs);
   const yLo = yVals.length ? Math.min(...yVals) : 0;
   const yHi = yVals.length ? Math.max(...yVals) : 1;
   const yPad = Math.max(1, (yHi - yLo) * 0.06);
-  const yDomain: [number, number] = [Math.floor(yLo - yPad), Math.ceil(yHi + yPad)];
-  const plotMinWidth = valid.length > 30 ? valid.length * 14 : undefined;
+  const yDomain: [number, number] = [0, Math.ceil(yHi + yPad)];
+  const plotMinWidth = valid.length > 30 ? valid.length * 14 * zoom : undefined;
 
   return (
     <div className="space-y-3">
       <div className="flex gap-1.5 text-[11px]">
-        {/* X-axis toggle */}
-        <div className="flex rounded-lg border border-token overflow-hidden text-xs bg-surface">
-          <button
-            onClick={() => setXAxis("index")}
-            className={`${segBtn} ${xAxis === "index" ? "bg-[#FFD500] text-black" : "text-token-muted"}`}
-          >
-            Solve #
-          </button>
-          <button
-            onClick={() => setXAxis("ts")}
-            className={`${segBtn} ${xAxis === "ts" ? "bg-[#FFD500] text-black" : "text-token-muted"}`}
-          >
-            Date
-          </button>
-        </div>
-
         {/* Average toggles — gapless segmented group; each uses its line colour */}
         <div className="flex rounded-lg border border-token overflow-hidden text-xs bg-surface">
           {([
@@ -156,12 +178,22 @@ export function SolvesOverTime({ data, targetCs }: Props) {
           ))}
         </div>
 
-        {/* Competition markers */}
-        <button onClick={() => setShowComps((v) => !v)}
-          className={`flex min-h-8 cursor-pointer items-center px-2.5 py-1 rounded-lg border font-bold transition-colors [touch-action:manipulation] ${
-            showComps ? "bg-[#FFD500] text-black border-[#FFD500]" : "bg-surface text-token-muted border-token"
-          }`}
-        >Comps</button>
+        {/* Zoom slider — drag toward Compact to fit the whole history on
+            screen at once, or toward Spread to space points apart and scroll. */}
+        <div className="flex flex-1 items-center gap-1.5 min-w-[110px] px-1">
+          <span className="shrink-0 text-token-muted font-bold">Compact</span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={0.5}
+            value={sliderPos}
+            onChange={onSliderChange}
+            className="flex-1 accent-[#FFD500] [touch-action:manipulation]"
+            aria-label="Zoom solves over time chart"
+          />
+          <span className="shrink-0 text-token-muted font-bold">Spread</span>
+        </div>
       </div>
 
       <div className="flex">
@@ -177,27 +209,27 @@ export function SolvesOverTime({ data, targetCs }: Props) {
                 domain={yDomain}
                 allowDataOverflow
               />
-              <XAxis dataKey={xKey} height={X_AXIS_H} tick={false} axisLine={{ stroke: cc.axis }} />
+              <XAxis dataKey="index" height={X_AXIS_H} tick={false} axisLine={{ stroke: cc.axis }} />
               <Scatter dataKey="timeCs" fill="transparent" isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Scrollable plot */}
-        <div className="flex-1 overflow-x-auto">
+        {/* Scrollable plot — width is driven by the zoom slider above. */}
+        <div
+          ref={scrollRef}
+          className="flex-1 overflow-x-auto"
+          style={{ touchAction: "pan-x pan-y" }}
+        >
           <div className="w-full" style={plotMinWidth ? { minWidth: `${plotMinWidth}px` } : undefined}>
             <ResponsiveContainer width="100%" height={CHART_H}>
               <ComposedChart data={valid} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <XAxis
-                  dataKey={xKey}
+                  dataKey="index"
                   height={X_AXIS_H}
                   tick={{ fontSize: 10, fill: cc.tick }}
                   axisLine={{ stroke: cc.axis }}
                   tickMargin={6}
-                  tickFormatter={xAxis === "ts" ? (v) => fmtTs(v) : undefined}
-                  type={xAxis === "ts" ? "number" : "category"}
-                  domain={xAxis === "ts" ? ["dataMin", "dataMax"] : undefined}
-                  scale={xAxis === "ts" ? "time" : undefined}
                 />
                 <YAxis hide domain={yDomain} allowDataOverflow />
                 <Tooltip content={<ChartTooltip colors={cc} />} />
@@ -210,23 +242,28 @@ export function SolvesOverTime({ data, targetCs }: Props) {
                     strokeWidth={1.5}
                     label={{
                       value: `Target ${formatCs(targetCs)}`,
-                      position: "insideTopRight",
+                      position: "insideTopLeft",
                       fill: targetColor,
                       fontSize: 10,
                       fontWeight: 700,
                     }}
                   />
                 )}
-
-                {showComps && compMarkers.map((marker) => {
-                  const xVal = xAxis === "index"
-                    ? valid.reduce((best, p) => Math.abs(p.ts - marker.ts) < Math.abs(best.ts - marker.ts) ? p : best, valid[0])?.index
-                    : marker.ts;
-                  return xVal != null ? (
-                    <ReferenceLine key={marker.ts} x={xVal} stroke="rgba(255,215,0,0.4)"
-                      strokeDasharray="4 3" label={<CompMarkerLabel stroke={cc.markerStroke} />} />
-                  ) : null;
-                })}
+                {prCs != null && prCs > 0 && (
+                  <ReferenceLine
+                    y={prCs}
+                    stroke={prColor}
+                    strokeDasharray="5 4"
+                    strokeWidth={1.5}
+                    label={{
+                      value: `Ao5 PR ${formatCs(prCs)}`,
+                      position: "insideBottomLeft",
+                      fill: prColor,
+                      fontSize: 10,
+                      fontWeight: 700,
+                    }}
+                  />
+                )}
 
                 <Scatter
                   dataKey="timeCs"
@@ -234,13 +271,13 @@ export function SolvesOverTime({ data, targetCs }: Props) {
                   fill={cc.scatter}
                   shape={(props: { cx?: number; cy?: number }) =>
                     props.cx != null && props.cy != null ? (
-                      <circle cx={props.cx} cy={props.cy} r={3} fill={cc.scatter} />
+                      <circle cx={props.cx} cy={props.cy} r={1.75} fill={cc.scatter} />
                     ) : <g />
                   }
                 />
-                {showAo5  && <Line dataKey="ao5"  name="Ao5"  type="natural" stroke="#FFD500" strokeWidth={3} dot={false} connectNulls isAnimationActive={false} />}
-                {showAo12 && <Line dataKey="ao12" name="Ao12" type="natural" stroke="#0046AD" strokeWidth={3} dot={false} connectNulls isAnimationActive={false} />}
-                {showAo50 && <Line dataKey="ao50" name="Ao50" type="natural" stroke="#009B48" strokeWidth={3} dot={false} connectNulls isAnimationActive={false} />}
+                {showAo5  && <Line dataKey="ao5"  name="Ao5"  type="natural" stroke={cc.avgAo5}  strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />}
+                {showAo12 && <Line dataKey="ao12" name="Ao12" type="natural" stroke={cc.avgAo12} strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />}
+                {showAo50 && <Line dataKey="ao50" name="Ao50" type="natural" stroke={cc.avgAo50} strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />}
               </ComposedChart>
             </ResponsiveContainer>
           </div>

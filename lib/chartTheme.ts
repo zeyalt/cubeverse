@@ -14,6 +14,9 @@ export interface ChartColors {
   tooltipBg: string;
   tooltipBorder: string;
   tooltipText: string;
+  avgAo5: string;       // Solves Over Time rolling-average lines
+  avgAo12: string;
+  avgAo50: string;
 }
 
 const LIGHT: ChartColors = {
@@ -26,6 +29,9 @@ const LIGHT: ChartColors = {
   tooltipBg: "rgba(255,252,247,0.97)",
   tooltipBorder: "1px solid rgba(26,18,8,0.15)",
   tooltipText: "#1A1208",
+  avgAo5: "#B45309",   // amber-700 — the raw gold is too pale against paper
+  avgAo12: "#0046AD",
+  avgAo50: "#009B48",
 };
 
 const DARK: ChartColors = {
@@ -38,6 +44,9 @@ const DARK: ChartColors = {
   tooltipBg: "rgba(0,0,0,0.85)",
   tooltipBorder: "1px solid rgba(255,255,255,0.12)",
   tooltipText: "#ffffff",
+  avgAo5: "#FFD500",   // already bright against near-black — kept as-is
+  avgAo12: "#5B9DFF",  // the old #0046AD read almost black on dark canvas
+  avgAo50: "#2ED573",
 };
 
 export function chartColors(theme: "light" | "dark"): ChartColors {

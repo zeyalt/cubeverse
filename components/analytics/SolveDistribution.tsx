@@ -1,13 +1,32 @@
 "use client";
 
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
 import type { DistBin } from "@/lib/analytics";
+import { formatCs } from "@/lib/cubing";
 import { useTheme } from "@/lib/useTheme";
 import { chartColors, type ChartColors } from "@/lib/chartTheme";
 
-interface Props { bins: DistBin[] }
+interface Props {
+  bins: DistBin[];
+  targetCs?: number | null;
+  prCs?: number | null;
+}
+
+const BIN_WIDTH = 50; // must match distributionFromPoints
+
+/** Category axes place a ReferenceLine by matching a bin's label exactly, so
+ *  a raw cs value has to be resolved to whichever bin it falls in first. */
+function binLabelFor(bins: DistBin[], cs: number): string | null {
+  if (!bins.length) return null;
+  const hit = bins.find((b) => cs >= b.binStart && cs < b.binStart + BIN_WIDTH);
+  if (hit) return hit.label;
+  // Outside the plotted range (e.g. target is faster than every solve so far)
+  // — snap to the nearest edge bin rather than not drawing the line at all.
+  const edge = cs < bins[0].binStart ? bins[0] : bins[bins.length - 1];
+  return edge.label;
+}
 
 interface TooltipPayloadEntry {
   value?: number;
@@ -50,9 +69,12 @@ function DistTooltip({
   );
 }
 
-export function SolveDistribution({ bins }: Props) {
+export function SolveDistribution({ bins, targetCs, prCs }: Props) {
   const { theme } = useTheme();
   const cc = chartColors(theme);
+  // Gold reads poorly on the light paper canvas — matches SolvesOverTime.
+  const targetColor = theme === "light" ? "#C2410C" : "#FFD500";
+  const prColor = "#22C55E";
 
   if (!bins.length) {
     return (
@@ -61,6 +83,9 @@ export function SolveDistribution({ bins }: Props) {
       </div>
     );
   }
+
+  const targetLabel = targetCs != null && targetCs > 0 ? binLabelFor(bins, targetCs) : null;
+  const prLabel = prCs != null && prCs > 0 ? binLabelFor(bins, prCs) : null;
 
   return (
     <ResponsiveContainer width="100%" height={220}>
@@ -82,6 +107,38 @@ export function SolveDistribution({ bins }: Props) {
           width={28}
         />
         <Tooltip content={<DistTooltip colors={cc} />} cursor={{ fill: cc.grid }} />
+
+        {targetLabel != null && (
+          <ReferenceLine
+            x={targetLabel}
+            stroke={targetColor}
+            strokeDasharray="5 4"
+            strokeWidth={1.5}
+            label={{
+              value: `Target ${formatCs(targetCs!)}`,
+              position: "insideTopRight",
+              fill: targetColor,
+              fontSize: 10,
+              fontWeight: 700,
+            }}
+          />
+        )}
+        {prLabel != null && (
+          <ReferenceLine
+            x={prLabel}
+            stroke={prColor}
+            strokeDasharray="5 4"
+            strokeWidth={1.5}
+            label={{
+              value: `Ao5 PR ${formatCs(prCs!)}`,
+              position: "insideTopLeft",
+              fill: prColor,
+              fontSize: 10,
+              fontWeight: 700,
+            }}
+          />
+        )}
+
         <Bar dataKey="count" name="Solves" fill={cc.bar} radius={[3, 3, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
