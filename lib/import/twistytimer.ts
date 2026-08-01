@@ -5,9 +5,12 @@ import type { ParsedSolve } from "./ingest";
  *
  * Format (semicolon-delimited, values optionally quoted):
  *   "39.17";"D B' L' B L2 ..."; "2025-04-29T21:52:30.642+10:00"
- *   col 0: time in seconds (e.g. "39.17"), or "DNF", or "+2:39.17"
+ *   col 0: time in seconds (e.g. "39.17"), "--", "DNF", or "+2:39.17"
  *   col 1: scramble
  *   col 2: ISO timestamp
+ *   col 3 (optional): explicit penalty marker — "DNF" or "+2". When present
+ *     it's authoritative (col 0 still carries a raw attempt time, or "--" if
+ *     none was recorded); it takes precedence over any prefix/marker in col 0.
  *
  * The eventId must be supplied by the caller (from user selection).
  */
@@ -19,10 +22,6 @@ export function parseTwistyTimerExport(
 
   // Normalise line endings (\r\n, \r, \n all → \n)
   const normalised = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-
-  // Log first few lines to help diagnose format issues
-  const preview = normalised.split("\n").slice(0, 3);
-  console.log("[twistytimer] first 3 lines:", preview);
 
   for (const line of normalised.split("\n")) {
     const trimmed = line.trim();
@@ -43,23 +42,27 @@ export function parseTwistyTimerExport(
       continue;
     }
 
-    // Semicolon-delimited format: "39.17";"scramble";"2025-04-29T..."
+    // Semicolon-delimited format: "39.17";"scramble";"2025-04-29T...";"DNF"
     const cols = trimmed.split(";").map((c) => c.trim().replace(/^"|"$/g, ""));
     if (cols.length < 1) continue;
 
     const timeRaw = cols[0];
     const scramble = cols[1] ?? null;
     const solvedAt = cols[2] ? new Date(cols[2]).toISOString() : undefined;
+    const explicitPenalty = cols[3]?.toUpperCase();
 
     let time_cs: number;
     let penalty: "none" | "plus2" | "dnf" = "none";
 
-    if (timeRaw.toUpperCase() === "DNF") {
-      // Record as 1cs with dnf penalty (time_cs must be > 0 for schema)
-      time_cs = 1;
+    if (explicitPenalty === "DNF" || timeRaw.toUpperCase() === "DNF") {
+      // "--" (no time recorded) or any unparsed value still counts as a DNF —
+      // record as 1cs with dnf penalty (time_cs must be > 0 for the schema).
+      const parsed = parseTimeToCs(timeRaw);
+      time_cs = parsed > 0 ? parsed : 1;
       penalty = "dnf";
-    } else if (timeRaw.startsWith("+2:") || timeRaw.startsWith("+2 ")) {
-      // +2 penalty: strip prefix, parse time
+    } else if (explicitPenalty === "+2" || timeRaw.startsWith("+2:") || timeRaw.startsWith("+2 ")) {
+      // +2 penalty: strip any "+2:"/"+2 " prefix (col 3 already marks it
+      // explicitly, so col 0 here is just the raw attempt time) and parse.
       const base = timeRaw.replace(/^\+2[: ]/, "");
       time_cs = parseTimeToCs(base);
       penalty = "plus2";
