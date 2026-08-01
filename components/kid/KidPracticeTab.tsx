@@ -6,8 +6,7 @@ import { effectiveTime } from "@/lib/cubing";
 import { currentAoN } from "@/lib/practiceStats";
 import { EVENT_SHORT } from "@/lib/event-theme";
 import { useScramble } from "@/lib/useScramble";
-import { setEventCookie, setCubeCookie } from "@/lib/eventCookie";
-import { cubeLabel } from "@/lib/cubeLabel";
+import { setEventCookie } from "@/lib/eventCookie";
 import { ScramblePreview } from "./ScramblePreview";
 import {
   TimerDisplay,
@@ -83,8 +82,6 @@ export function KidPracticeTab({
   events,
   defaultEventId,
   cuberId,
-  cubes: initialCubes,
-  selectedCubeId: initialSelectedCubeId,
   activeGoal: initialGoal,
   recentTimes,
   best: initialBest,
@@ -144,15 +141,12 @@ export function KidPracticeTab({
   const [showHoldMsg, setShowHoldMsg] = useState(false);
   const holdMsgTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Cube + Goal state
-  const [cubes, setCubes] = useState<Cube[]>(initialCubes);
-  const [selectedCubeId, setSelectedCubeId] = useState<string | null>(initialSelectedCubeId);
+  // Goal state
   const [activeGoal, setActiveGoal] = useState(initialGoal);
   // While the target field is being typed, hold the raw string so the controlled
   // value doesn't reformat/snap on every keystroke. Committed on blur/Enter.
   const [targetDraft, setTargetDraft] = useState<string | null>(null);
   const [eventDropdownOpen, setEventDropdownOpen] = useState(false);
-  const [cubeDropdownOpen, setCubeDropdownOpen] = useState(false);
 
   const timerRef = useRef<TimerRefs>(makeTimerRefs());
   // Id of the solve recorded on the most recent stop, so the post-stop
@@ -183,14 +177,11 @@ export function KidPracticeTab({
 
   function handleSelectEvent(id: string) {
     setSelectedId(id);
-    setSelectedCubeId(null);
-    setCubeCookie(null); // cubes differ per puzzle — clear the persisted cube
     setEventCookie(id); // share selection with analytics / cubes / timer
     const gen = ++eventSwitchGen.current;
     startTransition(async () => {
       const setup = await getPracticeSetupData(cuberId, id);
       if (gen !== eventSwitchGen.current) return; // superseded by a later switch
-      setCubes(setup.cubes);
       setActiveGoal(setup.activeGoal);
       applySetupTimes(setup);
     });
@@ -466,7 +457,6 @@ export function KidPracticeTab({
       timeCs: cs,
       penalty: chosenPenalty,
       scramble: currentScramble,
-      ...(selectedCubeId && { cubeId: selectedCubeId }),
     };
 
     if (!navigator.onLine) {
@@ -627,7 +617,7 @@ export function KidPracticeTab({
         {/* Controls row */}
         <div className="flex gap-2 pointer-events-auto">
           {/* Event dropdown */}
-          <div className="relative flex-[0.95] min-w-0">
+          <div className="relative flex-1 min-w-0">
             <button
               onClick={() => setEventDropdownOpen(!eventDropdownOpen)}
               className="sticker w-full h-12 flex items-center justify-between gap-1 rounded-lg border-2 border-white/20 bg-[#1C1916] px-2.5 font-bold text-[11px] text-white transition-all hover:bg-white/10"
@@ -662,60 +652,8 @@ export function KidPracticeTab({
             )}
           </div>
 
-          {/* Cube dropdown */}
-          <div className="relative flex-[0.95] min-w-0">
-            <button
-              onClick={() => setCubeDropdownOpen(!cubeDropdownOpen)}
-              className="sticker w-full h-12 flex items-center justify-between gap-1 rounded-lg border-2 border-white/20 bg-[#1C1916] px-2.5 font-bold text-[11px] text-white transition-all hover:bg-white/10"
-            >
-              <span className="truncate text-left flex-1 min-w-0">
-                {(() => {
-                  const c = selectedCubeId ? cubes.find((c) => c.id === selectedCubeId) : null;
-                  return c ? cubeLabel(c) : "Any Cube";
-                })()}
-              </span>
-              <ChevronDown className={`size-4 flex-shrink-0 transition-transform ${cubeDropdownOpen ? "rotate-180" : ""}`} />
-            </button>
-
-            {cubeDropdownOpen && (
-              <div className="absolute top-full right-0 mt-1 z-50 rounded-lg border border-white/10 bg-[#1C1916] shadow-lg max-h-48 overflow-y-auto min-w-[180px]">
-                <button
-                  onClick={() => {
-                    setSelectedCubeId(null);
-                    setCubeCookie(null);
-                    setCubeDropdownOpen(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 font-bold text-sm transition-colors ${
-                    selectedCubeId === null
-                      ? "bg-[#FFD500]/20 text-[#FFD500]"
-                      : "text-white hover:bg-white/10"
-                  }`}
-                >
-                  Any Cube
-                </button>
-                {cubes.map((cube) => (
-                  <button
-                    key={cube.id}
-                    onClick={() => {
-                      setSelectedCubeId(cube.id);
-                      setCubeCookie(cube.id);
-                      setCubeDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 font-bold text-sm transition-colors ${
-                      selectedCubeId === cube.id
-                        ? "bg-[#FFD500]/20 text-[#FFD500]"
-                        : "text-white hover:bg-white/10"
-                    }`}
-                  >
-                    {cubeLabel(cube)}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
           {/* Target time input — unique per puzzle type */}
-          <div className="relative flex-[1.15] min-w-0">
+          <div className="relative flex-1 min-w-0">
             <div className="sticker h-12 border-2 border-white/20 bg-[#1C1916] rounded-lg px-1.5 flex items-center gap-1">
               <button
                 onClick={() => {

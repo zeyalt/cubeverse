@@ -4,18 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { EVENT_SHORT } from "@/lib/event-theme";
 import { ChevronDown } from "lucide-react";
 import { EventIcon } from "./EventIcon";
-import { cubeLabel } from "@/lib/cubeLabel";
 
 interface Event {
   id: string;
   name: string;
   format: string;
-}
-
-interface Cube {
-  id: string;
-  name: string;
-  brand: string | null;
 }
 
 export type DateRange = "14d" | "30d" | "60d" | "month" | "all";
@@ -24,9 +17,6 @@ interface AnalyticsFiltersProps {
   events: Event[];
   selectedEventId: string;
   onEventChange: (eventId: string) => void;
-  cubes: Cube[];
-  selectedCubeIds: Set<string>;
-  onCubesChange: (cubeIds: Set<string>) => void;
   dateRange: DateRange;
   onDateRangeChange: (range: DateRange) => void;
 }
@@ -43,27 +33,22 @@ export function AnalyticsFilters({
   events,
   selectedEventId,
   onEventChange,
-  cubes,
-  selectedCubeIds,
-  onCubesChange,
   dateRange,
   onDateRangeChange,
 }: AnalyticsFiltersProps) {
   const [eventOpen, setEventOpen] = useState(false);
-  const [cubesOpen, setCubesOpen] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   const closeAll = () => {
     setEventOpen(false);
-    setCubesOpen(false);
     setDateOpen(false);
   };
 
   // Close any open dropdown when tapping/clicking outside the filter group,
   // so a stray menu never sits over the charts on mobile.
   useEffect(() => {
-    if (!eventOpen && !cubesOpen && !dateOpen) return;
+    if (!eventOpen && !dateOpen) return;
     const handle = (e: PointerEvent) => {
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
         closeAll();
@@ -71,21 +56,10 @@ export function AnalyticsFilters({
     };
     document.addEventListener("pointerdown", handle);
     return () => document.removeEventListener("pointerdown", handle);
-  }, [eventOpen, cubesOpen, dateOpen]);
-
-  const toggleCube = (cubeId: string) => {
-    const newSet = new Set(selectedCubeIds);
-    if (newSet.has(cubeId)) {
-      newSet.delete(cubeId);
-    } else {
-      newSet.add(cubeId);
-    }
-    onCubesChange(newSet);
-  };
+  }, [eventOpen, dateOpen]);
 
   const selectedEvent = events.find((e) => e.id === selectedEventId);
   const selectedEventLabel = selectedEvent ? (EVENT_SHORT[selectedEventId] || selectedEventId) : "Event";
-  const cubesLabel = selectedCubeIds.size === 0 ? "All Cubes" : `${selectedCubeIds.size} selected`;
 
   return (
     <div ref={rootRef} className="flex gap-2">
@@ -129,63 +103,6 @@ export function AnalyticsFilters({
             </div>
           )}
         </div>
-
-        {/* Cubes dropdown */}
-      {cubes.length > 0 && (
-        <div className="relative flex-1">
-          <button
-            onClick={() => { const next = !cubesOpen; closeAll(); setCubesOpen(next); }}
-            aria-haspopup="listbox"
-            aria-expanded={cubesOpen}
-            aria-label="Filter by cube"
-            className="sticker w-full flex min-h-11 cursor-pointer items-center justify-between rounded-lg border-2 border-white/10 bg-white/8 px-3 py-2 font-bold text-sm text-white transition-all hover:bg-white/12 [touch-action:manipulation]"
-          >
-            <span className="truncate text-left flex-1">{cubesLabel}</span>
-            <ChevronDown className={`size-4 flex-shrink-0 transition-transform ${cubesOpen ? "rotate-180" : ""}`} />
-          </button>
-
-          {cubesOpen && (
-            <div role="listbox" aria-multiselectable className="absolute top-full left-0 mt-1 z-50 min-w-full w-44 rounded-lg border border-white/10 bg-[#1C1916] shadow-lg max-h-48 overflow-y-auto">
-              <button
-                role="option"
-                aria-selected={selectedCubeIds.size === cubes.length && cubes.length > 0}
-                onClick={() => {
-                  const allSelected = selectedCubeIds.size === cubes.length;
-                  onCubesChange(allSelected ? new Set() : new Set(cubes.map((c) => c.id)));
-                }}
-                className={`w-full text-left px-3 py-2.5 font-bold text-sm transition-colors [touch-action:manipulation] ${
-                  selectedCubeIds.size === cubes.length && cubes.length > 0
-                    ? "bg-[#0046AD]/20 text-[#0046AD]"
-                    : "text-white hover:bg-white/10"
-                }`}
-              >
-                Select All
-              </button>
-              {cubes.map((cube) => (
-                <button
-                  key={cube.id}
-                  role="option"
-                  aria-selected={selectedCubeIds.has(cube.id)}
-                  onClick={() => toggleCube(cube.id)}
-                  className={`w-full text-left px-3 py-2.5 font-bold text-sm transition-colors flex items-center gap-2 [touch-action:manipulation] ${
-                    selectedCubeIds.has(cube.id)
-                      ? "bg-[#0046AD]/20 text-[#0046AD]"
-                      : "text-white hover:bg-white/10"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedCubeIds.has(cube.id)}
-                    onChange={() => {}}
-                    className="pointer-events-none"
-                  />
-                  {cubeLabel(cube)}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Date range dropdown */}
         <div className="relative flex-1">
