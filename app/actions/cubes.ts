@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { getServiceClient } from "@/lib/supabase/service";
 import { getOwnerId } from "@/lib/owner";
 import { uploadMediaFile } from "@/lib/media";
@@ -67,7 +66,6 @@ export async function createCube(
 
   if (error) return { error: error.message };
 
-  revalidatePath("/");
   return { error: null };
 }
 
@@ -85,7 +83,6 @@ export async function setMainCube(cubeId: string, eventId: string | null): Promi
   }
 
   await db.from("cubes").update({ is_main: true }).eq("id", cubeId).eq("owner_id", ownerId);
-  revalidatePath("/");
 }
 
 export async function updateCube(
@@ -127,12 +124,10 @@ export async function updateCube(
 
   if (error) return { error: error.message };
 
-  revalidatePath("/");
   return { error: null };
 }
 
 export async function deleteCube(cubeId: string): Promise<void> {
   const db = getServiceClient();
   await db.from("cubes").delete().eq("id", cubeId);
-  revalidatePath("/");
 }

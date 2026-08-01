@@ -2,9 +2,7 @@
 
 import { getServiceClient } from "@/lib/supabase/service";
 import { getOwnerId } from "@/lib/owner";
-import { effectiveTime } from "@/lib/cubing";
-import type { Penalty } from "@/lib/cubing";
-import { sharedHardwareEvents } from "@/lib/eventGroups";
+import { loadPracticeTab } from "@/lib/kid/tabData";
 
 // ── Practice-tab goal helpers ─────────────────────────────────────────────────
 
@@ -22,44 +20,25 @@ export async function getPracticeSetupData(
   cubes: PracticeSetupCube[];
   activeGoal: { id: string; target_cs: number } | null;
   recentTimes: number[];
+  best: number | null;
+  count: number;
 }> {
   const db = getServiceClient();
   const ownerId = getOwnerId();
 
-  const [{ data: cubes }, { data: goal }, { data: solves }] = await Promise.all([
-    db
-      // Cubes are a shared collection across all cubers (owner-scoped) and are
-      // shared across events using the same puzzle (e.g. 3x3 / 3x3 OH / 3x3 BLD).
-      .from("cubes")
-      .select("id, name, brand, event_id")
-      .eq("owner_id", ownerId)
-      .in("event_id", sharedHardwareEvents(eventId))
-      .order("is_main", { ascending: false })
-      .order("name"),
-    db
-      .from("goals")
-      .select("id, target_cs")
-      .eq("cuber_id", cuberId)
-      .eq("event_id", eventId)
-      .eq("record_type", "single")
-      .eq("status", "active")
-      .maybeSingle(),
-    db
-      .from("solves")
-      .select("time_cs, penalty")
-      .eq("cuber_id", cuberId)
-      .eq("event_id", eventId)
-      .eq("context", "practice")
-      .order("solved_at"),
-  ]);
+  // Delegates to the shared practice loader so the event-switch path and the
+  // initial server render can't drift apart. The event list is passed empty
+  // because the caller already has it and discards this field.
+  const { cubes, activeGoal, recentTimes, best, count } = await loadPracticeTab(
+    db,
+    ownerId,
+    cuberId,
+    eventId,
+    [],
+    null
+  );
 
-  return {
-    cubes: (cubes ?? []) as PracticeSetupCube[],
-    activeGoal: goal ? { id: goal.id as string, target_cs: goal.target_cs as number } : null,
-    recentTimes: (solves ?? []).map((s) =>
-      effectiveTime(s.time_cs as number, s.penalty as Penalty)
-    ),
-  };
+  return { cubes, activeGoal, recentTimes, best, count };
 }
 
 export async function setPracticeGoal(
@@ -70,14 +49,28 @@ export async function setPracticeGoal(
   const db = getServiceClient();
   const ownerId = getOwnerId();
 
-  // Archive any existing active single goal for this event
-  await db
+  // Update the existing active goal in place rather than archive-then-insert.
+  // The old two-step dance was not atomic: concurrent calls (e.g. rapid +/-
+  // taps) could interleave their archive and insert steps and transiently
+  // leave more than one row marked active, which is what let the displayed
+  // target jump to a stale value. A single row per (cuber, event, single) is
+  // updated here instead, so there's only ever one active goal to read back.
+  const { data: existing } = await db
     .from("goals")
-    .update({ status: "archived" })
+    .select("id")
     .eq("cuber_id", cuberId)
     .eq("event_id", eventId)
     .eq("record_type", "single")
-    .eq("status", "active");
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (existing) {
+    const { error } = await db
+      .from("goals")
+      .update({ target_cs: targetCs })
+      .eq("id", existing.id);
+    return { error: error?.message ?? null };
+  }
 
   const { error } = await db.from("goals").insert({
     owner_id: ownerId,
@@ -88,8 +81,7 @@ export async function setPracticeGoal(
     status: "active",
   });
 
-  if (error) return { error: error.message };
-  return { error: null };
+  return { error: error?.message ?? null };
 }
 
 export async function clearPracticeGoal(

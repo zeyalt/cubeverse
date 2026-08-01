@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { X, Moon, Sun, Upload, Loader2, Check, ChevronDown, Trash2 } from "lucide-react";
 import { importTwistyTimerData, clearImportedSolves } from "@/app/actions/import";
 import { useTheme } from "@/lib/useTheme";
+import { useKidData } from "./KidDataContext";
 
 const EVENTS = [
   { id: "333", label: "3×3×3" },
@@ -23,6 +24,7 @@ interface SettingsSheetProps {
 
 export function SettingsSheet({ onClose, cuberId }: SettingsSheetProps) {
   const { theme, setTheme } = useTheme();
+  const { invalidate } = useKidData();
 
   // Import state
   const [importEventId, setImportEventId] = useState("333");
@@ -51,6 +53,8 @@ export function SettingsSheet({ onClose, cuberId }: SettingsSheetProps) {
         setImportError(result.error);
       } else {
         setImportResult({ solvesImported: result.solvesImported ?? 0, solvesParsed: result.solvesParsed ?? 0 });
+        // A bulk import changes essentially everything derived from solves.
+        invalidate("practice", "analytics", "badges");
       }
     } catch (err) {
       setImportError((err as Error).message);
@@ -224,6 +228,7 @@ export function SettingsSheet({ onClose, cuberId }: SettingsSheetProps) {
                           setClearError(result.error);
                         } else {
                           setClearResult({ deletedCount: result.deletedCount });
+                          invalidate("practice", "analytics", "badges");
                         }
                       }}
                       disabled={clearing}

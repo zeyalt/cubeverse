@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { createCube, deleteCube, setMainCube, updateCube } from "@/app/actions/cubes";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { nativeSelectClass } from "@/lib/ui";
 import { EmptyState } from "@/components/ui/empty-state";
 import { EventIcon } from "@/components/kid/EventIcon";
 import { setEventCookie } from "@/lib/eventCookie";
+import { useKidData } from "@/components/kid/KidDataContext";
 
 interface CubeRow {
   id: string;
@@ -76,6 +77,25 @@ export function CubesView({
 }) {
   const [state, action] = useActionState(createCube, { error: null });
   const [showForm, setShowForm] = useState(false);
+
+  // Changing the collection also changes the Practice tab's cube picker and the
+  // Analytics cube filter, so all three caches have to be marked stale. This
+  // replaces revalidatePath("/"), which no longer reaches anything now that
+  // switching tabs doesn't re-render the page.
+  const { invalidate } = useKidData();
+  const invalidateCubes = useCallback(
+    () => invalidate("cubes", "practice", "analytics"),
+    [invalidate]
+  );
+
+  // The add-cube form goes through useActionState, so there's no callback to
+  // hang the invalidation off. useActionState keeps the initial state object
+  // identity until an action actually completes, which is what distinguishes
+  // "a cube was just added" from "first render".
+  const initialCreateState = useRef(state);
+  useEffect(() => {
+    if (state !== initialCreateState.current && !state.error) invalidateCubes();
+  }, [state, invalidateCubes]);
   // Default to the puzzle selected elsewhere in the app (shared via cookie),
   // but only if it actually has cubes — otherwise show everything.
   const [eventFilter, setEventFilter] = useState<string>(() =>
@@ -287,6 +307,7 @@ export function CubesView({
                         );
                         if (!result.error) {
                           cancelEditing();
+                          invalidateCubes();
                         } else {
                           setEditError(result.error);
                         }
@@ -375,7 +396,10 @@ export function CubesView({
                         type="button"
                         disabled={isPending}
                         onClick={() =>
-                          startTransition(() => setMainCube(c.id, c.eventId))
+                          startTransition(async () => {
+                            await setMainCube(c.id, c.eventId);
+                            invalidateCubes();
+                          })
                         }
                         className="p-2 text-[#FFD500] hover:bg-[#FFD500]/10 rounded-lg transition-colors disabled:opacity-50"
                         title="Set as main"
@@ -386,7 +410,12 @@ export function CubesView({
                     <button
                       type="button"
                       disabled={isPending}
-                      onClick={() => startTransition(() => deleteCube(c.id))}
+                      onClick={() =>
+                        startTransition(async () => {
+                          await deleteCube(c.id);
+                          invalidateCubes();
+                        })
+                      }
                       className="p-2 text-white/40 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors disabled:opacity-50"
                       title="Delete"
                     >

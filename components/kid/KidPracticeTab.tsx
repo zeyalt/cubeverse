@@ -2,16 +2,25 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { ChevronDown, Trash2, ArrowRight } from "lucide-react";
-import { formatCs, effectiveTime, aoN, DNF } from "@/lib/cubing";
+import { effectiveTime } from "@/lib/cubing";
+import { currentAoN } from "@/lib/practiceStats";
 import { EVENT_SHORT } from "@/lib/event-theme";
 import { useScramble } from "@/lib/useScramble";
 import { setEventCookie, setCubeCookie } from "@/lib/eventCookie";
 import { cubeLabel } from "@/lib/cubeLabel";
 import { ScramblePreview } from "./ScramblePreview";
+import {
+  TimerDisplay,
+  type TimerDisplayHandle,
+  type TimerPhase as TimerDisplayPhase,
+  type Penalty as TimerDisplayPenalty,
+} from "./TimerDisplay";
 import { EventIcon } from "./EventIcon";
 import { recordSolve, updateSolve, deleteSolve as deleteSolveAction } from "@/app/actions/solve";
 import { enqueueSolve } from "@/lib/offline/queue";
+import { bumpPendingCount } from "@/lib/offline/syncStore";
 import { getPracticeSetupData, setPracticeGoal } from "@/app/actions/goals";
+import { useKidData } from "./KidDataContext";
 
 interface Event {
   id: string;
@@ -42,8 +51,9 @@ interface KidPracticeTabProps {
   recentTimes: number[];
 }
 
-type TimerPhase = "idle" | "holding" | "ready" | "inspecting" | "running" | "stopped";
-type Penalty = "none" | "plus2" | "dnf";
+// Shared with TimerDisplay so the phase/penalty vocabulary can't drift apart.
+type TimerPhase = TimerDisplayPhase;
+type Penalty = TimerDisplayPenalty;
 
 interface TimerRefs {
   phase: TimerPhase;
@@ -77,40 +87,58 @@ export function KidPracticeTab({
   selectedCubeId: initialSelectedCubeId,
   activeGoal: initialGoal,
   recentTimes,
+  best: initialBest,
+  count: initialCount,
 }: KidPracticeTabProps) {
   const [selectedId, setSelectedId] = useState(defaultEventId);
   const [, startTransition] = useTransition();
+  const { invalidate } = useKidData();
   const { scramble, next: nextScramble } = useScramble(selectedId);
 
-  // Live list of effective times (DNF = -1) for the selected event. Seeded from
-  // the server and appended to after each in-session solve so the 6 bottom
-  // metrics roll forward immediately without a page reload.
+  // Recent effective times (DNF = -1) for the selected event — the server's
+  // tail, appended to after each in-session solve so the rolling averages move
+  // immediately without a page reload. This is deliberately NOT the full
+  // history; see PRACTICE_TAIL.
   const [liveTimes, setLiveTimes] = useState<number[]>(recentTimes);
 
+  // All-time best and attempt count, which the tail alone can't tell us. Held
+  // as a baseline and combined with the session's solves below.
+  const [baseBest, setBaseBest] = useState<number | null>(initialBest);
+  const [baseCount, setBaseCount] = useState<number>(initialCount);
+  // How long liveTimes was when the baseline was taken, so the session's net
+  // additions can be counted. Part of the baseline, so it moves with it.
+  const [baseLen, setBaseLen] = useState(recentTimes.length);
+
   // Resync if the server sends a fresh list (e.g. after navigation/refresh).
-  // Intentionally mirrors the incoming prop into local state.
+  // Intentionally mirrors the incoming props into local state.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLiveTimes(recentTimes);
-  }, [recentTimes]);
+    setBaseBest(initialBest);
+    setBaseCount(initialCount);
+    setBaseLen(recentTimes.length);
+  }, [recentTimes, initialBest, initialCount]);
 
-  // Current rolling average of the last N times (WCA rules, matches the server).
-  const currentAoN = useCallback((n: number): number | null => {
-    if (liveTimes.length < n) return null;
-    const result = aoN(liveTimes.slice(-n));
-    return result === DNF ? null : result;
-  }, [liveTimes]);
+  const ao5 = currentAoN(liveTimes, 5);
+  const ao12 = currentAoN(liveTimes, 12);
+  const ao50 = currentAoN(liveTimes, 50);
+  const ao100 = currentAoN(liveTimes, 100);
 
-  const nonDnf = liveTimes.filter((t) => t > 0);
-  const ao5 = currentAoN(5);
-  const ao12 = currentAoN(12);
-  const ao50 = currentAoN(50);
-  const ao100 = currentAoN(100);
-  const best = nonDnf.length > 0 ? Math.min(...nonDnf) : null;
-  const count = liveTimes.length;
+  // The tail is a subset of all-time, so the min over it can only improve on
+  // the server's baseline when this session has set a new PB.
+  const sessionNonDnf = liveTimes.filter((t) => t > 0);
+  const best =
+    sessionNonDnf.length > 0
+      ? Math.min(baseBest ?? Number.POSITIVE_INFINITY, ...sessionNonDnf)
+      : baseBest;
+  const count = baseCount + (liveTimes.length - baseLen);
 
   const [timerPhase, setTimerPhase] = useState<TimerPhase>("idle");
+  // The *stopped* solve's time. The running time is not React state — it goes
+  // straight to the DOM via timerDisplayRef, so a solve no longer re-renders
+  // this whole screen once per animation frame.
   const [displayCs, setDisplayCs] = useState(0);
+  const timerDisplayRef = useRef<TimerDisplayHandle>(null);
   const [penalty, setPenalty] = useState<Penalty>("none");
   const [inspSec, setInspSec] = useState(15);
   const [showHoldMsg, setShowHoldMsg] = useState(false);
@@ -138,16 +166,61 @@ export function KidPracticeTab({
   // Surfaces the reason a solve failed to save (instead of silently dropping it).
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // Debounce + generation guard for target-time saves. Rapid +/- taps used to
+  // fire one persist-then-refetch chain per tap; because those chains resolved
+  // out of order, a stale response could land after a newer one and snap the
+  // displayed target back to an older value (and keep "drifting" for a few
+  // seconds after the user stopped tapping). Now only the trailing edge of a
+  // burst is persisted, and a stale in-flight response is discarded.
+  const targetSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const targetSaveGen = useRef(0);
+
+  // Same out-of-order hazard as the target-time save above: switching events
+  // twice in quick succession fires two concurrent fetches, and without this
+  // guard a slower response for the *first* event could land after the
+  // second and overwrite its cubes/goal/metrics with the wrong event's data.
+  const eventSwitchGen = useRef(0);
+
   function handleSelectEvent(id: string) {
     setSelectedId(id);
     setSelectedCubeId(null);
     setCubeCookie(null); // cubes differ per puzzle — clear the persisted cube
     setEventCookie(id); // share selection with analytics / cubes / timer
+    const gen = ++eventSwitchGen.current;
     startTransition(async () => {
       const setup = await getPracticeSetupData(cuberId, id);
+      if (gen !== eventSwitchGen.current) return; // superseded by a later switch
       setCubes(setup.cubes);
       setActiveGoal(setup.activeGoal);
-      setLiveTimes(setup.recentTimes);
+      applySetupTimes(setup);
+    });
+  }
+
+  /**
+   * Reseed the metric baseline from the server.
+   *
+   * `best` and `count` describe the whole history while `liveTimes` is only its
+   * tail, so the client can adjust them for solves it *adds* but not for ones it
+   * removes or slows down — deleting the all-time best would otherwise leave the
+   * old PB on screen. Those cases re-read the truth instead of guessing.
+   */
+  function applySetupTimes(setup: {
+    recentTimes: number[];
+    best: number | null;
+    count: number;
+  }) {
+    setLiveTimes(setup.recentTimes);
+    setBaseBest(setup.best);
+    setBaseCount(setup.count);
+    setBaseLen(setup.recentTimes.length);
+  }
+
+  function reloadStats() {
+    const gen = eventSwitchGen.current;
+    startTransition(async () => {
+      const setup = await getPracticeSetupData(cuberId, selectedId);
+      if (gen !== eventSwitchGen.current) return;
+      applySetupTimes(setup);
     });
   }
 
@@ -188,7 +261,9 @@ export function KidPracticeTab({
     if ("vibrate" in navigator) navigator.vibrate(50);
 
     function tick() {
-      setDisplayCs(Math.floor((performance.now() - timerRef.current.startMs) / 10));
+      timerDisplayRef.current?.set(
+        Math.floor((performance.now() - timerRef.current.startMs) / 10)
+      );
       timerRef.current.raf = requestAnimationFrame(tick);
     }
     timerRef.current.raf = requestAnimationFrame(tick);
@@ -395,27 +470,40 @@ export function KidPracticeTab({
     };
 
     if (!navigator.onLine) {
-      enqueueSolve(solveInput).catch((err) =>
-        console.error("Failed to queue solve:", err)
-      );
+      enqueueSolve(solveInput)
+        .then(bumpPendingCount)
+        .catch((err) => console.error("Failed to queue solve:", err));
       return;
     }
 
     recordSolve(solveInput)
       .then((result) => {
         if (result.error) {
-          // Server reached but rejected the save — surface why (don't hide it).
+          // Server reached but rejected the save. Not queued for retry: the
+          // rejection can happen *after* the row was already inserted (e.g. a
+          // badge/PB-check step throws), so blindly retrying risks writing a
+          // duplicate solve. Since this one won't be retried, roll back the
+          // optimistic metric bump — leaving it in would keep showing an
+          // average that includes a solve that was never actually saved,
+          // which is the confusing half of "it helped my average" reports.
           console.error("[recordSolve] error:", result.error, solveInput);
           setSaveError(result.error);
+          setLiveTimes((prev) => prev.slice(0, -1));
           return;
         }
         setSaveError(null);
         lastSolveIdRef.current = result.solveId;
+        // The charts and badge progress now include this solve. Practice is
+        // excluded: it already rolled its own metrics forward optimistically.
+        invalidate("analytics", "badges");
       })
       .catch((err) => {
+        // Thrown before a response came back — the row was never inserted,
+        // so queuing for retry is safe (no duplicate risk) and the optimistic
+        // metric bump can stay, since the sync loop will make it real.
         console.error("Failed to save solve, queuing offline:", err);
         setSaveError((err as Error)?.message ?? "Could not reach the server — solve queued offline.");
-        enqueueSolve(solveInput).catch(console.error);
+        enqueueSolve(solveInput).then(bumpPendingCount).catch(console.error);
       });
   }
 
@@ -424,6 +512,7 @@ export function KidPracticeTab({
   function applyPenalty(chosenPenalty: Penalty) {
     setPenalty(chosenPenalty);
     const cs = timerRef.current.finalCs;
+    const wasBest = liveTimes.length > 0 && liveTimes[liveTimes.length - 1] === best;
     setLiveTimes((prev) => {
       if (prev.length === 0) return prev;
       const copy = [...prev];
@@ -432,6 +521,9 @@ export function KidPracticeTab({
     });
     const id = lastSolveIdRef.current;
     if (id) updateSolve(id, cs, chosenPenalty).catch(console.error);
+    invalidate("analytics", "badges");
+    // Penalising the current PB makes the cached baseline wrong.
+    if (wasBest) reloadStats();
   }
 
   // Discard the just-recorded solve (deletes the saved row + rolls metrics back).
@@ -439,7 +531,11 @@ export function KidPracticeTab({
     const id = lastSolveIdRef.current;
     if (id) deleteSolveAction(id).catch(console.error);
     lastSolveIdRef.current = null;
+    const wasBest = liveTimes.length > 0 && liveTimes[liveTimes.length - 1] === best;
     setLiveTimes((prev) => prev.slice(0, -1));
+    invalidate("analytics", "badges");
+    // Discarding the current PB makes the cached baseline wrong.
+    if (wasBest) reloadStats();
     goPhase("idle");
     setDisplayCs(0);
     setPenalty("none");
@@ -461,9 +557,22 @@ export function KidPracticeTab({
   const TARGET_MAX_CS = 180000;
 
   function saveTarget(cs: number) {
-    setActiveGoal({ id: activeGoal?.id ?? "", target_cs: cs });
-    void setPracticeGoal(cuberId, selectedId, cs);
-    void getPracticeSetupData(cuberId, selectedId).then((setup) => setActiveGoal(setup.activeGoal));
+    // Optimistic UI: reflect the new target immediately so +/- feels instant.
+    setActiveGoal((prev) => ({ id: prev?.id ?? "", target_cs: cs }));
+
+    // Debounce the actual write to the trailing edge of a tap burst — sending
+    // one request per tap was the source of the out-of-order race. Bump the
+    // generation so any earlier in-flight save can be told it's stale.
+    const gen = ++targetSaveGen.current;
+    if (targetSaveTimer.current) clearTimeout(targetSaveTimer.current);
+    targetSaveTimer.current = setTimeout(() => {
+      void setPracticeGoal(cuberId, selectedId, cs).then((result) => {
+        if (gen !== targetSaveGen.current) return; // superseded by a later save
+        if (result.error) console.error("[setPracticeGoal] failed:", result.error);
+        // The target line on the Solves Over Time chart comes from this goal.
+        else invalidate("analytics");
+      });
+    }, 400);
   }
 
   // Commit the typed target draft (clamped to bounds) when the field loses focus.
@@ -704,24 +813,13 @@ export function KidPracticeTab({
           <div
             className="w-full cursor-pointer select-none text-center"
           >
-            <p
-              className="timer-display font-mono-time font-semibold leading-none tracking-tighter select-none transition-colors"
-              style={{
-                userSelect: "none",
-                WebkitUserSelect: "none",
-                // Red while still holding (keep holding), green once held long
-                // enough that releasing will start the timer.
-                color: timerPhase === "ready" ? "#22C55E" : timerPhase === "holding" ? "#EF4444" : undefined,
-              }}
-            >
-              {timerPhase === "inspecting" || timerPhase === "holding" || timerPhase === "ready"
-                ? inspSec > 0 ? String(inspSec) : "+2"
-                : timerPhase === "stopped"
-                ? penalty === "dnf" ? "DNF" : penalty === "plus2" ? formatCs(displayCs + 200) + "+" : formatCs(displayCs)
-                : timerPhase === "running"
-                ? formatCs(displayCs)
-                : "0.00"}
-            </p>
+            <TimerDisplay
+              ref={timerDisplayRef}
+              phase={timerPhase}
+              inspSec={inspSec}
+              penalty={penalty}
+              finalCs={displayCs}
+            />
             <p className="practice-hint mt-3 text-sm text-white/45 select-none" style={{ userSelect: "none", WebkitUserSelect: "none" }}>
               {(() => {
                 // The live timer reads its ref during render on purpose to pick

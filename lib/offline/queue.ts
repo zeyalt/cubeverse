@@ -6,14 +6,22 @@ export interface PendingSolve {
   penalty: "none" | "plus2" | "dnf";
   scramble: string | null;
   solvedAt: string;
+  cubeId?: string;
 }
 
 const DB_NAME = "cubeverse-offline";
 const STORE = "pending-solves";
 const DB_VERSION = 1;
 
+// The connection is opened once and reused. Every call used to open and close
+// its own, which on a polling loop meant a steady drip of connection setup for
+// what is usually an empty queue.
+let dbPromise: Promise<IDBDatabase> | null = null;
+
 function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
+  if (dbPromise) return dbPromise;
+
+  dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
@@ -21,9 +29,32 @@ function openDb(): Promise<IDBDatabase> {
         db.createObjectStore(STORE, { keyPath: "id" });
       }
     };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const db = req.result;
+      // A held-open connection blocks another tab from upgrading the schema.
+      // Step aside when that happens; the next call reopens.
+      db.onversionchange = () => {
+        db.close();
+        dbPromise = null;
+      };
+      db.onclose = () => {
+        dbPromise = null;
+      };
+      resolve(db);
+    };
+    req.onerror = () => {
+      dbPromise = null;
+      reject(req.error);
+    };
   });
+
+  // Don't cache a rejected promise — a transient failure would otherwise stick
+  // for the lifetime of the page.
+  dbPromise.catch(() => {
+    dbPromise = null;
+  });
+
+  return dbPromise;
 }
 
 function tx<T>(
@@ -50,13 +81,11 @@ export async function enqueueSolve(
     solvedAt: solve.solvedAt ?? new Date().toISOString(),
   };
   await tx(db, "readwrite", (s) => s.add(row));
-  db.close();
 }
 
 export async function getPendingSolves(): Promise<PendingSolve[]> {
   const db = await openDb();
   const all = await tx<PendingSolve[]>(db, "readonly", (s) => s.getAll());
-  db.close();
   return all.sort(
     (a, b) => new Date(a.solvedAt).getTime() - new Date(b.solvedAt).getTime()
   );
@@ -65,12 +94,10 @@ export async function getPendingSolves(): Promise<PendingSolve[]> {
 export async function getPendingCount(): Promise<number> {
   const db = await openDb();
   const count = await tx<number>(db, "readonly", (s) => s.count());
-  db.close();
   return count;
 }
 
 export async function removePendingSolve(id: string): Promise<void> {
   const db = await openDb();
   await tx(db, "readwrite", (s) => s.delete(id));
-  db.close();
 }

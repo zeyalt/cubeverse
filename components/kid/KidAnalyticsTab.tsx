@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { setEventCookie } from "@/lib/eventCookie";
 import { sharedHardwareEvents } from "@/lib/eventGroups";
 import { formatCs } from "@/lib/cubing";
@@ -9,6 +8,7 @@ import { EVENT_SHORT } from "@/lib/event-theme";
 import { getAnalyticsData, type AnalyticsPayload } from "@/app/actions/analytics";
 import { getHistoricalSolves, deleteSolve, updateSolve } from "@/app/actions/solve";
 import { AnalyticsFilters, type DateRange } from "./AnalyticsFilters";
+import { useKidData } from "./KidDataContext";
 import { CurrentStatsCards } from "./CurrentStatsCards";
 import { PracticeHeatmap } from "@/components/analytics/PracticeHeatmap";
 import { SolvesOverTime } from "@/components/analytics/SolvesOverTime";
@@ -38,6 +38,7 @@ interface KidAnalyticsTabProps {
   initialAnalyticsData: AnalyticsPayload;
   pbs: CurrentPb[];
   cubes: Cube[];
+  initialSubTab: "practice" | "competition";
 }
 
 const EVENT_NAMES: Record<string, string> = {
@@ -63,11 +64,13 @@ export function KidAnalyticsTab({
   initialAnalyticsData,
   pbs,
   cubes,
+  initialSubTab,
 }: KidAnalyticsTabProps) {
-  const searchParams = useSearchParams();
-  const [subTab, setSubTab] = useState<"practice" | "competition">(
-    searchParams.get("sub") === "competition" ? "competition" : "practice"
-  );
+  // Comes from the server's read of ?sub= rather than useSearchParams: this tab
+  // can now mount without a navigation, so reading the live URL here would pick
+  // up a stale sub-tab left over from an earlier deep link.
+  const [subTab, setSubTab] = useState<"practice" | "competition">(initialSubTab);
+  const { invalidate } = useKidData();
   const [selectedEventId, setSelectedEventId] = useState(defaultEventId);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsPayload>(initialAnalyticsData);
   const [selectedCubeIds, setSelectedCubeIds] = useState<Set<string>>(new Set());
@@ -78,21 +81,43 @@ export function KidAnalyticsTab({
   const [editingPenalty, setEditingPenalty] = useState<"none" | "plus2" | "dnf">("none");
   const [sessionTimes, setSessionTimes] = useState<Array<{ id: string; cs: number; penalty: "none" | "plus2" | "dnf"; timestamp: number; scramble: string | null }>>([]);
 
-  const refreshAll = useCallback(async (eventId: string) => {
-    const [solves, data] = await Promise.all([
-      getHistoricalSolves(cuberId, eventId),
-      getAnalyticsData(cuberId, eventId),
-    ]);
+  // The solve list is not part of the server-rendered props, so it always has
+  // to be fetched. The chart data is — see loadedRef below.
+  const refreshSolves = useCallback(async (eventId: string) => {
+    const solves = await getHistoricalSolves(cuberId, eventId);
     setSessionTimes(solves.map((s) => ({ id: s.id, cs: s.cs, penalty: s.penalty, timestamp: s.timestamp, scramble: s.scramble })));
-    setAnalyticsData(data);
   }, [cuberId]);
 
-  // Fetch on mount and event change — this effect synchronises with an external
-  // system (the database), so the setState inside refreshAll is intentional.
+  const refreshAnalytics = useCallback(async (eventId: string) => {
+    setAnalyticsData(await getAnalyticsData(cuberId, eventId));
+  }, [cuberId]);
+
+  /** After editing or deleting a solve both the list and the charts are stale. */
+  const refreshAll = useCallback(async (eventId: string) => {
+    await Promise.all([refreshSolves(eventId), refreshAnalytics(eventId)]);
+    // Practice metrics and badge progress are derived from the same solves.
+    invalidate("practice", "badges");
+  }, [refreshSolves, refreshAnalytics, invalidate]);
+
+  // The server already rendered initialAnalyticsData for (cuberId, defaultEventId),
+  // so re-fetching it on mount was a duplicate round-trip that re-rendered every
+  // chart with identical data. Refetch only once the selection moves off what the
+  // server gave us.
+  const loadedRef = useRef(`${cuberId}:${defaultEventId}`);
+
+  // These effects synchronise with an external system (the database), so the
+  // setState inside the refresh callbacks is intentional.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    refreshAll(selectedEventId);
-  }, [selectedEventId, refreshAll]);
+    refreshSolves(selectedEventId);
+  }, [selectedEventId, refreshSolves]);
+
+  useEffect(() => {
+    const key = `${cuberId}:${selectedEventId}`;
+    if (loadedRef.current === key) return;
+    loadedRef.current = key;
+    refreshAnalytics(selectedEventId);
+  }, [cuberId, selectedEventId, refreshAnalytics]);
 
   const selectedPb = pbs.find((p) => p.eventId === selectedEventId);
 

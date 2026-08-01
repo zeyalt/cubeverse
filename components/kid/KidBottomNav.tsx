@@ -1,8 +1,7 @@
 "use client";
 
 import { Timer, Trophy, BarChart2, Star, Box } from "lucide-react";
-
-type Tab = "practice" | "competitions" | "analytics" | "badges" | "cubes";
+import { prefetchTab, type Tab } from "./lazyTabs";
 
 interface KidBottomNavProps {
   activeTab: Tab;
@@ -32,6 +31,9 @@ export function KidBottomNav({ activeTab, onSwitch }: KidBottomNavProps) {
           <button
             key={id}
             onClick={() => onSwitch(id)}
+            // Start fetching the tab's chunk as the finger goes down, so the
+            // download overlaps the rest of the tap.
+            onPointerDown={() => prefetchTab(id)}
             aria-label={label}
             aria-current={active ? "page" : undefined}
             className="flex min-h-14 flex-1 cursor-pointer flex-col items-center justify-center gap-1 py-3 px-2 transition-transform active:scale-90 [touch-action:manipulation]"
