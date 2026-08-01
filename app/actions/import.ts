@@ -2,8 +2,6 @@
 
 import { getServiceClient } from "@/lib/supabase/service";
 import { getOwnerId } from "@/lib/owner";
-import { parseTwistyTimerExport } from "@/lib/import/twistytimer";
-import { ingestPracticeSolves } from "@/lib/import/ingest";
 import {
   fetchPersonResults,
   fetchCompetition,
@@ -388,54 +386,3 @@ export async function importWcaResultsKid(
   return { error: null, compsImported, resultsImported };
 }
 
-export async function clearImportedSolves(
-  cuberId: string,
-  eventId: string | "all"
-): Promise<{ error: string | null; deletedCount: number }> {
-  try {
-    const db = getServiceClient();
-    let query = db
-      .from("solves")
-      .delete({ count: "exact" })
-      .eq("cuber_id", cuberId)
-      .eq("source", "twisty_import")
-      .eq("context", "practice");
-
-    if (eventId !== "all") {
-      query = query.eq("event_id", eventId);
-    }
-
-    const { count, error } = await query;
-    if (error) return { error: error.message, deletedCount: 0 };
-    return { error: null, deletedCount: count ?? 0 };
-  } catch (err) {
-    return { error: (err as Error).message, deletedCount: 0 };
-  }
-}
-
-export interface TwistyTimerImportResult {
-  error: string | null;
-  solvesImported?: number;
-  solvesParsed?: number;
-}
-
-export async function importTwistyTimerData(
-  cuberId: string,
-  eventId: string,
-  fileContent: string
-): Promise<TwistyTimerImportResult> {
-  try {
-    const db = getServiceClient();
-    const ownerId = getOwnerId();
-
-    const solves = parseTwistyTimerExport(fileContent, eventId);
-    if (solves.length === 0) {
-      return { error: `No valid solves found. File length: ${fileContent.length} chars. First line: "${fileContent.split(/\r?\n/)[0].slice(0, 100)}"` };
-    }
-
-    const inserted = await ingestPracticeSolves(db, ownerId, cuberId, solves, "twisty_import");
-    return { error: null, solvesImported: inserted.length, solvesParsed: solves.length };
-  } catch (err) {
-    return { error: (err as Error).message };
-  }
-}

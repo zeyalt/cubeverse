@@ -10,6 +10,7 @@ import { checkAndRecordPb } from "@/lib/pb";
 import { checkAndUnlockBadges, checkActivityBadges } from "@/lib/badges";
 import { checkAndAchieveGoals } from "@/lib/goals";
 import { computeStreak } from "@/lib/streak";
+import { fetchAllRows } from "@/lib/supabase/fetchAll";
 
 export interface SolveInput {
   cuberId: string;
@@ -190,21 +191,34 @@ export async function getHistoricalSolves(
 ): Promise<HistoricalSolve[]> {
   const db = getServiceClient();
 
-  const { data: solves, error } = await db
-    .from("solves")
-    .select("id, time_cs, penalty, solved_at, scramble")
-    .eq("cuber_id", cuberId)
-    .eq("event_id", eventId)
-    .eq("context", "practice")
-    .order("solved_at", { ascending: false })
-    .limit(100);
-
-  if (error) {
+  // Practice History used to cap at 100 rows via .limit(100), so a cuber with
+  // hundreds of imported solves only ever saw their most recent 100. This
+  // pages through the full set the same way getCurrentPbs/loadPracticeTab do,
+  // so "show all" actually means all.
+  let solves: {
+    id: string;
+    time_cs: number;
+    penalty: string | null;
+    solved_at: string;
+    scramble: string | null;
+  }[];
+  try {
+    solves = await fetchAllRows((from, to) =>
+      db
+        .from("solves")
+        .select("id, time_cs, penalty, solved_at, scramble")
+        .eq("cuber_id", cuberId)
+        .eq("event_id", eventId)
+        .eq("context", "practice")
+        .order("solved_at", { ascending: false })
+        .range(from, to)
+    );
+  } catch (error) {
     console.error("Error fetching historical solves:", error);
     return [];
   }
 
-  return (solves ?? []).map((s: {
+  return solves.map((s: {
     id: string;
     time_cs: number;
     penalty: string | null;

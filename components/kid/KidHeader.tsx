@@ -1,6 +1,7 @@
 "use client";
 
-import { Settings, ChevronDown } from "lucide-react";
+import { Moon, Sun, ChevronDown } from "lucide-react";
+import { useTheme } from "@/lib/useTheme";
 
 const AVATAR_HEX: Record<string, string> = {
   gold: "#FFD500",
@@ -24,11 +25,11 @@ interface KidHeaderProps {
   cuberName: string;
   currentCuberId: string;
   cubers: Cuber[];
-  onOpenSettings: () => void;
   onOpenSwitcher: () => void;
 }
 
-export function KidHeader({ cuberName, currentCuberId, cubers, onOpenSettings, onOpenSwitcher }: KidHeaderProps) {
+export function KidHeader({ cuberName, currentCuberId, cubers, onOpenSwitcher }: KidHeaderProps) {
+  const { theme, setTheme } = useTheme();
   const activeCuber = cubers.find((c) => c.id === currentCuberId);
   const avatarColor = AVATAR_HEX[activeCuber?.avatar_color ?? "blue"] ?? "#0046AD";
   const initial = (cuberName?.trim()?.[0] ?? "C").toUpperCase();
@@ -55,11 +56,11 @@ export function KidHeader({ cuberName, currentCuberId, cubers, onOpenSettings, o
       </button>
 
       <button
-        onClick={onOpenSettings}
+        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
         className="flex size-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 transition-colors hover:bg-white/10 hover:text-white [touch-action:manipulation]"
-        aria-label="Settings"
+        aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
       >
-        <Settings className="size-[1.05rem]" />
+        {theme === "dark" ? <Sun className="size-[1.05rem]" /> : <Moon className="size-[1.05rem]" />}
       </button>
     </header>
   );

@@ -12,7 +12,6 @@ import {
   TabLoading,
   type Tab,
 } from "./lazyTabs";
-import { SettingsSheet } from "./SettingsSheet";
 import { CuberSwitcherSheet } from "./CuberSwitcherSheet";
 import { CloudOff } from "lucide-react";
 import { useOfflineSync } from "@/lib/offline/syncStore";
@@ -103,7 +102,6 @@ function KidModeShellContent({
   cubesData,
 }: KidModeShellProps) {
   const [currentTab, setCurrentTab] = useState<Tab>(activeTab);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [, startTransition] = useTransition();
 
@@ -206,7 +204,6 @@ function KidModeShellContent({
         cuberName={cuberName}
         currentCuberId={currentCuberId}
         cubers={cubers}
-        onOpenSettings={() => setSettingsOpen(true)}
         onOpenSwitcher={() => setSwitcherOpen(true)}
       />
 
@@ -232,13 +229,6 @@ function KidModeShellContent({
 
         <KidBottomNav activeTab={currentTab} onSwitch={switchTab} />
       </div>
-
-      {settingsOpen && (
-        <SettingsSheet
-          onClose={() => setSettingsOpen(false)}
-          cuberId={currentCuberId}
-        />
-      )}
 
       {switcherOpen && (
         <CuberSwitcherSheet
