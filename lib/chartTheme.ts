@@ -52,3 +52,10 @@ const DARK: ChartColors = {
 export function chartColors(theme: "light" | "dark"): ChartColors {
   return theme === "light" ? LIGHT : DARK;
 }
+
+/**
+ * Static categorical palette for the Competitor Benchmarking chart, one color
+ * per line. Hardcoded rather than theme-branched, matching PbStaircase's
+ * convention. Index 0 (gold) is reserved for "You".
+ */
+export const COMPETITOR_PALETTE = ["#FFD500", "#5B9DFF", "#2ED573", "#FF6B6B", "#C084FC", "#FF9F40"];

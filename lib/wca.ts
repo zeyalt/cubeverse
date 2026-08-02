@@ -39,6 +39,24 @@ export async function fetchPersonResults(wcaId: string): Promise<WcaApiResult[]>
   return res.json() as Promise<WcaApiResult[]>;
 }
 
+/**
+ * Fetches a WCA person's display name — not their results. Used to label a
+ * WCA ID the app hasn't seen before (e.g. an opponent entered for a benchmark
+ * comparison), as opposed to fetchPersonResults below which returns their
+ * competition results.
+ *
+ * Promoted from an ad hoc client-side fetch in app/onboarding/wca-id/page.tsx
+ * (which reads the same `data.name` field) into a shared, server-safe helper
+ * alongside the other WCA API calls here.
+ */
+export async function fetchPerson(wcaId: string): Promise<{ name: string }> {
+  const res = await fetch(`${WCA_BASE}/persons/${wcaId}`);
+  if (res.status === 404) throw new Error(`WCA ID "${wcaId}" not found.`);
+  if (!res.ok) throw new Error(`WCA API error ${res.status}.`);
+  const d = await res.json();
+  return { name: (d.name as string | undefined) ?? wcaId };
+}
+
 export async function fetchCompetition(
   competitionId: string
 ): Promise<WcaApiCompetition> {

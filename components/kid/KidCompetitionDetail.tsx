@@ -414,9 +414,18 @@ export function KidCompetitionDetail({
 }: KidCompetitionDetailProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const fromAnalytics = searchParams.get("from") === "analytics";
+  // Explicit destination rather than router.back(): switchTab in
+  // KidModeShell.tsx updates the address bar via a raw window.history call
+  // (deliberately bypassing Next's router to avoid a full server re-render on
+  // every tab switch), so Next's own router history doesn't know the URL ever
+  // changed — router.back() from here resolves against Next's stale view and
+  // always lands on whatever tab was active on first load. Pushing an exact
+  // URL sidesteps that mismatch entirely.
+  const from = searchParams.get("from");
   const goBack = () =>
-    fromAnalytics ? router.push("/?tab=analytics&sub=competition") : router.back();
+    from === "analytics"
+      ? router.push("/?tab=analytics&sub=competition")
+      : router.push("/?tab=competitions");
   const isWca = competition.type === "wca";
   const [showAddForm, setShowAddForm] = useState(false);
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());

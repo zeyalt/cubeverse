@@ -35,13 +35,18 @@ function fmt(cs: number | null | undefined): string {
 function StatCard({ metric, accent }: { metric: Metric; accent?: boolean }) {
   return (
     <div
-      className={`surface relative overflow-hidden px-3 py-2.5 ${
+      // Fixed min-height so a longer label (e.g. the WCA column, which used
+      // to wrap to two lines) can never make one column's cards taller than
+      // its neighbours — each column stacks its two cards independently
+      // (not shared CSS grid rows), so a height mismatch there throws off
+      // the whole row's alignment across all four columns.
+      className={`surface relative min-h-[54px] overflow-hidden px-3 py-2.5 ${
         accent ? "border-2 border-[#FFD500]/40 bg-[#FFD500]/[0.06]" : ""
       }`}
     >
       <div className="relative z-10">
         <p
-          className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${
+          className={`text-[10px] font-bold uppercase tracking-wider mb-1 whitespace-nowrap ${
             accent ? "text-[#FFD500]/80" : "text-white/40"
           }`}
         >
@@ -81,8 +86,8 @@ export function CurrentStatsCards({
   // metrics in the other three columns with an accent border/tint so it
   // doesn't read as just another practice stat.
   const wcaColumn: Metric[] = [
-    { label: "WCA Single PR", value: fmt(wcaSingle) },
-    { label: "WCA Ao5 PR", value: fmt(wcaAo5) },
+    { label: "WCA Single", value: fmt(wcaSingle) },
+    { label: "WCA Ao5", value: fmt(wcaAo5) },
   ];
   const practiceColumns: Metric[][] = [
     [

@@ -164,9 +164,14 @@ export function SolvesOverTime({ data, targetCs, prCs }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-1.5 text-[11px]">
+      {/* Two stacked rows rather than one — cramming the toggle group and the
+          slider into a single row overflowed the card on narrow phones (the
+          range input has a browser-enforced minimum width that a flex-1 +
+          min-w-[110px] container wasn't small enough to contain). Each row
+          now gets the card's full width, so neither can push past it. */}
+      <div className="space-y-1.5 text-[11px]">
         {/* Average toggles — gapless segmented group; each uses its line colour */}
-        <div className="flex rounded-lg border border-token overflow-hidden text-xs bg-surface">
+        <div className="flex w-fit rounded-lg border border-token overflow-hidden text-xs bg-surface">
           {([
             { key: "ao5",  label: "Ao5",  val: showAo5,  set: setShowAo5,  active: "bg-[#FFD500] text-black" },
             { key: "ao12", label: "Ao12", val: showAo12, set: setShowAo12, active: "bg-[#0046AD] text-white" },
@@ -180,7 +185,7 @@ export function SolvesOverTime({ data, targetCs, prCs }: Props) {
 
         {/* Zoom slider — drag toward Compact to fit the whole history on
             screen at once, or toward Spread to space points apart and scroll. */}
-        <div className="flex flex-1 items-center gap-1.5 min-w-[110px] px-1">
+        <div className="flex w-full items-center gap-1.5">
           <span className="shrink-0 text-token-muted font-bold">Compact</span>
           <input
             type="range"
@@ -189,7 +194,7 @@ export function SolvesOverTime({ data, targetCs, prCs }: Props) {
             step={0.5}
             value={sliderPos}
             onChange={onSliderChange}
-            className="flex-1 accent-[#FFD500] [touch-action:manipulation]"
+            className="min-w-0 flex-1 accent-[#FFD500] [touch-action:manipulation]"
             aria-label="Zoom solves over time chart"
           />
           <span className="shrink-0 text-token-muted font-bold">Spread</span>

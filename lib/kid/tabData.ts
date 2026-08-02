@@ -243,6 +243,7 @@ export interface AnalyticsTabData {
   initialAnalyticsData: AnalyticsPayload;
   pbs: Awaited<ReturnType<typeof getCurrentPbs>>;
   cubes: Cube[];
+  wcaId: string | null;
 }
 
 export async function loadAnalyticsTab(
@@ -252,7 +253,7 @@ export async function loadAnalyticsTab(
   eventId: string,
   events: EventRow[]
 ): Promise<AnalyticsTabData> {
-  const [pbs, initialData, { data: cubes }] = await Promise.all([
+  const [pbs, initialData, { data: cubes }, { data: cuber }] = await Promise.all([
     getCurrentPbs(db, cuberId, ACTIVE_EVENTS),
     getAnalyticsData(cuberId, eventId),
     db
@@ -261,6 +262,9 @@ export async function loadAnalyticsTab(
       .eq("owner_id", ownerId)
       .order("is_main", { ascending: false })
       .order("created_at"),
+    // Same lookup loadCompetitionsTab already does — needed here too so the
+    // Competitor Benchmarking section knows the cuber's own WCA ID.
+    db.from("cubers").select("wca_id").eq("id", cuberId).single(),
   ]);
 
   return {
@@ -270,6 +274,7 @@ export async function loadAnalyticsTab(
     initialAnalyticsData: initialData,
     pbs,
     cubes: (cubes ?? []) as Cube[],
+    wcaId: (cuber?.wca_id as string | null) ?? null,
   };
 }
 

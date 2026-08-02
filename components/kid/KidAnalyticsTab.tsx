@@ -15,6 +15,7 @@ import { SolvesOverTime } from "@/components/analytics/SolvesOverTime";
 import { SolveDistribution } from "@/components/analytics/SolveDistribution";
 import { PbStaircase } from "@/components/analytics/PbStaircase";
 import { CompetitionImprovements } from "@/components/analytics/CompetitionImprovements";
+import { CompetitorBenchmark } from "@/components/analytics/CompetitorBenchmark";
 import { EventIcon } from "./EventIcon";
 import { distributionFromPoints, heatmapFromPoints, type CurrentPb } from "@/lib/analytics";
 
@@ -38,6 +39,7 @@ interface KidAnalyticsTabProps {
   initialAnalyticsData: AnalyticsPayload;
   pbs: CurrentPb[];
   cubes: Cube[];
+  wcaId: string | null;
   initialSubTab: "practice" | "competition";
 }
 
@@ -63,6 +65,7 @@ export function KidAnalyticsTab({
   cuberId,
   initialAnalyticsData,
   pbs: initialPbs,
+  wcaId,
   initialSubTab,
 }: KidAnalyticsTabProps) {
   // Comes from the server's read of ?sub= rather than useSearchParams: this tab
@@ -517,6 +520,12 @@ export function KidAnalyticsTab({
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">Competition Improvements</p>
             <CompetitionImprovements data={analyticsData.competitionImprovements} />
+          </div>
+
+          {/* Competitor Benchmarking */}
+          <div className="space-y-2">
+            <p className="text-xs font-bold uppercase tracking-wider text-white/40">Competitor Benchmarking</p>
+            <CompetitorBenchmark cuberId={cuberId} myWcaId={wcaId} eventId={selectedEventId} />
           </div>
         </div>
       )}
