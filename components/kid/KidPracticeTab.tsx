@@ -6,7 +6,6 @@ import { effectiveTime } from "@/lib/cubing";
 import { currentAoN } from "@/lib/practiceStats";
 import { EVENT_SHORT } from "@/lib/event-theme";
 import { useScramble } from "@/lib/useScramble";
-import { setEventCookie } from "@/lib/eventCookie";
 import { ScramblePreview } from "./ScramblePreview";
 import {
   TimerDisplay,
@@ -37,6 +36,8 @@ interface Cube {
 interface KidPracticeTabProps {
   events: Event[];
   defaultEventId: string;
+  selectedEventId: string;
+  onEventChange: (id: string) => void;
   cuberId: string;
   cubes: Cube[];
   selectedCubeId: string | null;
@@ -80,14 +81,14 @@ function makeTimerRefs(): TimerRefs {
 
 export function KidPracticeTab({
   events,
-  defaultEventId,
   cuberId,
   activeGoal: initialGoal,
   recentTimes,
   best: initialBest,
   count: initialCount,
+  selectedEventId: selectedId,
+  onEventChange,
 }: KidPracticeTabProps) {
-  const [selectedId, setSelectedId] = useState(defaultEventId);
   const [, startTransition] = useTransition();
   const { invalidate } = useKidData();
   const { scramble, next: nextScramble } = useScramble(selectedId);
@@ -176,8 +177,7 @@ export function KidPracticeTab({
   const eventSwitchGen = useRef(0);
 
   function handleSelectEvent(id: string) {
-    setSelectedId(id);
-    setEventCookie(id); // share selection with analytics / cubes / timer
+    onEventChange(id); // shared with analytics/cubes; also writes the cookie
     const gen = ++eventSwitchGen.current;
     startTransition(async () => {
       const setup = await getPracticeSetupData(cuberId, id);

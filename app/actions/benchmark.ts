@@ -20,7 +20,10 @@ export interface SavedCompetitor {
   id: string;
   wcaId: string;
   name: string;
+  alias: string | null;
 }
+
+const MAX_ALIAS_LENGTH = 24;
 
 export interface BenchmarkPoint {
   ts: number;
@@ -68,7 +71,7 @@ export async function listBenchmarkCompetitors(cuberId: string): Promise<SavedCo
   const db = getServiceClient();
   const { data } = await db
     .from("benchmark_competitors")
-    .select("id, wca_id, name")
+    .select("id, wca_id, name, alias")
     .eq("cuber_id", cuberId)
     .order("created_at");
 
@@ -76,7 +79,38 @@ export async function listBenchmarkCompetitors(cuberId: string): Promise<SavedCo
     id: r.id as string,
     wcaId: r.wca_id as string,
     name: r.name as string,
+    alias: r.alias as string | null,
   }));
+}
+
+export async function updateBenchmarkCompetitorAlias(
+  id: string,
+  aliasRaw: string
+): Promise<{ error: string | null; competitor: SavedCompetitor | null }> {
+  const trimmed = aliasRaw.trim();
+  if (trimmed.length > MAX_ALIAS_LENGTH) {
+    return { error: `Alias must be ${MAX_ALIAS_LENGTH} characters or fewer.`, competitor: null };
+  }
+
+  const db = getServiceClient();
+  const { data, error } = await db
+    .from("benchmark_competitors")
+    .update({ alias: trimmed || null })
+    .eq("id", id)
+    .select("id, wca_id, name, alias")
+    .single();
+
+  if (error || !data) return { error: error?.message ?? "Could not save alias.", competitor: null };
+
+  return {
+    error: null,
+    competitor: {
+      id: data.id as string,
+      wcaId: data.wca_id as string,
+      name: data.name as string,
+      alias: data.alias as string | null,
+    },
+  };
 }
 
 export async function addBenchmarkCompetitor(
@@ -104,14 +138,19 @@ export async function addBenchmarkCompetitor(
       { owner_id: ownerId, cuber_id: cuberId, wca_id: wcaId, name },
       { onConflict: "cuber_id,wca_id" }
     )
-    .select("id, wca_id, name")
+    .select("id, wca_id, name, alias")
     .single();
 
   if (error || !data) return { error: error?.message ?? "Could not save competitor.", competitor: null };
 
   return {
     error: null,
-    competitor: { id: data.id as string, wcaId: data.wca_id as string, name: data.name as string },
+    competitor: {
+      id: data.id as string,
+      wcaId: data.wca_id as string,
+      name: data.name as string,
+      alias: data.alias as string | null,
+    },
   };
 }
 
@@ -131,7 +170,8 @@ export async function removeBenchmarkCompetitor(id: string): Promise<{ error: st
 export async function getBenchmarkSeries(
   myWcaId: string,
   otherWcaIds: string[],
-  eventId: string
+  eventId: string,
+  cuberId: string
 ): Promise<BenchmarkSeriesResult> {
   if (!myWcaId) {
     return { error: "Set your own WCA ID in your profile first.", people: [] };
@@ -171,13 +211,21 @@ export async function getBenchmarkSeries(
       .map((c) => [c.id, c] as const)
   );
 
-  // Names are cosmetic — a lookup failure shouldn't sink the comparison.
+  // Labels come from the saved-competitor rows (alias, falling back to the
+  // WCA name cached at enroll time) rather than re-fetching from the WCA API
+  // — this is also the only source for a custom alias.
   const names = new Map<string, string>();
-  await Promise.all(
-    uniqueOtherIds.map(async (wcaId) => {
-      names.set(wcaId, await fetchPerson(wcaId).then((p) => p.name).catch(() => wcaId));
-    })
-  );
+  if (uniqueOtherIds.length > 0) {
+    const db = getServiceClient();
+    const { data } = await db
+      .from("benchmark_competitors")
+      .select("wca_id, name, alias")
+      .eq("cuber_id", cuberId)
+      .in("wca_id", uniqueOtherIds);
+    for (const r of data ?? []) {
+      names.set(r.wca_id as string, (r.alias as string | null) || (r.name as string));
+    }
+  }
 
   const people: BenchmarkPerson[] = perPersonResults.map(({ wcaId, isMe, results, error }) => {
     const byComp = bestRoundPerCompetition(results);

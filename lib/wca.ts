@@ -32,11 +32,36 @@ export interface WcaApiCompetition {
 
 // ─── Fetch helpers ────────────────────────────────────────────────────────────
 
+/**
+ * The public WCA API occasionally rate-limits or hiccups under bursty use —
+ * e.g. Competitor Benchmarking firing a batch of fetchPersonResults /
+ * fetchCompetition calls on every event toggle. A 404 is a real "not found"
+ * and isn't retried; anything else transient (429, 5xx, network error) gets
+ * a couple of quick retries before giving up, instead of silently returning
+ * nothing for that call.
+ */
+async function fetchWcaJson<T>(url: string, notFoundMessage: string, retries = 2): Promise<T> {
+  let lastErr: Error = new Error("WCA API request failed.");
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url);
+      if (res.status === 404) throw new Error(notFoundMessage);
+      if (res.ok) return (await res.json()) as T;
+      lastErr = new Error(`WCA API error ${res.status}.`);
+    } catch (e) {
+      if (e instanceof Error && e.message === notFoundMessage) throw e; // not transient
+      lastErr = e instanceof Error ? e : lastErr;
+    }
+    if (attempt < retries) await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+  }
+  throw lastErr;
+}
+
 export async function fetchPersonResults(wcaId: string): Promise<WcaApiResult[]> {
-  const res = await fetch(`${WCA_BASE}/persons/${wcaId}/results`);
-  if (res.status === 404) throw new Error(`WCA ID "${wcaId}" not found.`);
-  if (!res.ok) throw new Error(`WCA API error ${res.status}.`);
-  return res.json() as Promise<WcaApiResult[]>;
+  return fetchWcaJson<WcaApiResult[]>(
+    `${WCA_BASE}/persons/${wcaId}/results`,
+    `WCA ID "${wcaId}" not found.`
+  );
 }
 
 /**
@@ -50,20 +75,20 @@ export async function fetchPersonResults(wcaId: string): Promise<WcaApiResult[]>
  * alongside the other WCA API calls here.
  */
 export async function fetchPerson(wcaId: string): Promise<{ name: string }> {
-  const res = await fetch(`${WCA_BASE}/persons/${wcaId}`);
-  if (res.status === 404) throw new Error(`WCA ID "${wcaId}" not found.`);
-  if (!res.ok) throw new Error(`WCA API error ${res.status}.`);
-  const d = await res.json();
-  return { name: (d.name as string | undefined) ?? wcaId };
+  const d = await fetchWcaJson<{ name?: string }>(
+    `${WCA_BASE}/persons/${wcaId}`,
+    `WCA ID "${wcaId}" not found.`
+  );
+  return { name: d.name ?? wcaId };
 }
 
 export async function fetchCompetition(
   competitionId: string
 ): Promise<WcaApiCompetition> {
-  const res = await fetch(`${WCA_BASE}/competitions/${competitionId}`);
-  if (!res.ok)
-    throw new Error(`Competition "${competitionId}" not found (HTTP ${res.status}).`);
-  const d = await res.json();
+  const d = await fetchWcaJson<Record<string, unknown>>(
+    `${WCA_BASE}/competitions/${competitionId}`,
+    `Competition "${competitionId}" not found.`
+  );
   return {
     id: d.id as string,
     name: d.name as string,

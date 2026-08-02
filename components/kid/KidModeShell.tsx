@@ -16,6 +16,7 @@ import { CuberSwitcherSheet } from "./CuberSwitcherSheet";
 import { CloudOff } from "lucide-react";
 import { useOfflineSync } from "@/lib/offline/syncStore";
 import { getTabData } from "@/app/actions/tabs";
+import { setEventCookie } from "@/lib/eventCookie";
 import { KidDataContext } from "./KidDataContext";
 import type {
   PracticeTabData,
@@ -40,7 +41,9 @@ interface KidModeShellProps {
   activeTab: Tab;
   /** Analytics sub-tab from the ?sub= deep link, read once on the server. */
   initialSubTab: "practice" | "competition";
-  /** Event the cookie resolved to — used when fetching a tab on demand. */
+  /** Event the cookie resolved to on the server — seeds the shared client
+   *  state below; every tab reads/writes that shared state from then on, not
+   *  this prop directly. */
   selectedEventId: string;
   practiceData?: PracticeTabData | null;
   competitionData?: CompetitionTabData | null;
@@ -61,21 +64,38 @@ function TabContent({
   tab,
   cache,
   initialSubTab,
+  selectedEventId,
+  onEventChange,
 }: {
   tab: Tab;
   cache: TabDataCache;
   initialSubTab: "practice" | "competition";
+  selectedEventId: string;
+  onEventChange: (id: string) => void;
 }) {
   // Render from the client cache so revisiting a tab is instant. A tab only
   // shows the spinner the first time it's opened (before its data has loaded).
   switch (tab) {
     case "practice":
-      return cache.practice ? <KidPracticeTab {...cache.practice} /> : <TabLoading />;
+      return cache.practice ? (
+        <KidPracticeTab
+          {...cache.practice}
+          selectedEventId={selectedEventId}
+          onEventChange={onEventChange}
+        />
+      ) : (
+        <TabLoading />
+      );
     case "competitions":
       return cache.competitions ? <KidCompetitionTab data={cache.competitions} /> : <TabLoading />;
     case "analytics":
       return cache.analytics ? (
-        <KidAnalyticsTab {...cache.analytics} initialSubTab={initialSubTab} />
+        <KidAnalyticsTab
+          {...cache.analytics}
+          initialSubTab={initialSubTab}
+          selectedEventId={selectedEventId}
+          onEventChange={onEventChange}
+        />
       ) : (
         <TabLoading />
       );
@@ -94,7 +114,7 @@ function KidModeShellContent({
   cubers,
   activeTab,
   initialSubTab,
-  selectedEventId,
+  selectedEventId: initialSelectedEventId,
   practiceData,
   competitionData,
   analyticsData,
@@ -104,6 +124,17 @@ function KidModeShellContent({
   const [currentTab, setCurrentTab] = useState<Tab>(activeTab);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [, startTransition] = useTransition();
+
+  // Single source of truth for the selected event, shared by every tab —
+  // previously each tab (Practice, Analytics) kept its own local state seeded
+  // once from its server-rendered defaultEventId prop, so picking an event in
+  // one tab never showed up in another until a full page reload re-read the
+  // cookie. Lifting it here means every tab reflects a change immediately.
+  const [selectedEventId, setSelectedEventId] = useState(initialSelectedEventId);
+  const handleEventChange = useCallback((id: string) => {
+    setSelectedEventId(id);
+    setEventCookie(id); // still written so a full reload also starts here
+  }, []);
 
   // Client-side cache of each tab's server data. The server only renders the
   // tab that was entered on; the rest are fetched on demand and kept here, so
@@ -224,7 +255,13 @@ function KidModeShellContent({
           practice screen can lay itself out as a real flex column. */}
       <div className={`flex flex-1 flex-col min-h-0 ${switcherOpen ? "invisible" : ""}`}>
         <main className="flex flex-1 flex-col min-h-0 overflow-y-auto kid-tab-enter" style={{ paddingBottom: "calc(4.5rem + env(safe-area-inset-bottom))" }}>
-          <TabContent tab={currentTab} cache={cache} initialSubTab={initialSubTab} />
+          <TabContent
+            tab={currentTab}
+            cache={cache}
+            initialSubTab={initialSubTab}
+            selectedEventId={selectedEventId}
+            onEventChange={handleEventChange}
+          />
         </main>
 
         <KidBottomNav activeTab={currentTab} onSwitch={switchTab} />

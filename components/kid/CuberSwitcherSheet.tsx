@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { switchCuber, deleteCuber } from "@/app/actions/onboarding";
+import { switchCuberInPlace, deleteCuber } from "@/app/actions/onboarding";
 import { X, Plus, Trash2, Loader2 } from "lucide-react";
 
 const AVATAR_HEX: Record<string, string> = {
@@ -56,7 +56,17 @@ export function CuberSwitcherSheet({
       onClose();
       return;
     }
-    startTransition(() => switchCuber(cuberId));
+    startTransition(async () => {
+      const result = await switchCuberInPlace(cuberId);
+      if (!result.error) {
+        onClose();
+        // Forces a re-fetch of the current route's server data regardless of
+        // what Next's router thinks the URL is — see switchCuberInPlace's
+        // comment for why redirect() alone doesn't work from inside the kid
+        // mode shell.
+        router.refresh();
+      }
+    });
   }
 
   async function handleDelete(cuberId: string) {

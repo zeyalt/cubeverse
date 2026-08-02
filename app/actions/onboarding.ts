@@ -102,14 +102,37 @@ export async function completeOnboarding({
   return { error: null, redirectTo: isFirstCuber ? "/" : "/user-select" };
 }
 
-export async function switchCuber(cuberId: string): Promise<void> {
+async function setCurrentCuber(cuberId: string): Promise<string | null> {
   const db = getServiceClient();
   const ownerId = getOwnerId();
-  await db
+  const { error } = await db
     .from("app_settings")
     .update({ current_cuber_id: cuberId })
     .eq("owner_id", ownerId);
+  return error?.message ?? null;
+}
+
+/** Used by the /user-select page — a real form submission, so redirect()'s
+ *  full navigation works as intended. */
+export async function switchCuber(cuberId: string): Promise<void> {
+  await setCurrentCuber(cuberId);
   redirect("/");
+}
+
+/**
+ * Used by CuberSwitcherSheet, which lives inside kid mode's client-side tab
+ * shell (KidModeShell.tsx bypasses next/navigation for tab switches via raw
+ * history.replaceState, by design, to avoid a full server re-render on every
+ * tab switch). Because of that, Next's router can end up believing it's
+ * already at "/" when it isn't really — so switchCuber's redirect("/") is
+ * silently treated as a no-op instead of a real navigation, and the shell
+ * never re-renders with the new cuber. This variant skips the redirect
+ * entirely; the caller forces a refresh with router.refresh() instead, which
+ * works regardless of what the router thinks the current URL is.
+ */
+export async function switchCuberInPlace(cuberId: string): Promise<{ error: string | null }> {
+  const error = await setCurrentCuber(cuberId);
+  return { error };
 }
 
 /**

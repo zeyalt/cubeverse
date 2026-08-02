@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { RecordType } from "./pb";
+import type { CurrentPb } from "./analytics";
 
 export interface BadgeTier {
   key: string;
@@ -258,4 +259,87 @@ export function getAllBadgeDefinitions(): BadgeInfo[] {
   const tiers = BADGE_TIERS.map((b) => getBadgeInfo(b.key));
   const activity = ACTIVITY_BADGES.map((b) => getBadgeInfo(b.key));
   return [...tiers, ...activity];
+}
+
+// ─── Progress helpers (pure — for the Badges tab UI) ─────────────────────────
+
+/**
+ * The time that actually unlocks a tier badge for this event/recordType —
+ * whichever is faster of the practice PB and the official (WCA) PB, matching
+ * how checkAndUnlockBadges gets triggered from both app/actions/solve.ts
+ * (practice PBs) and app/actions/import.ts (official results).
+ */
+export function bestTimeForRecord(pb: CurrentPb, recordType: RecordType): number | null {
+  const practice = recordType === "single" ? pb.practiceSingle : pb.practiceAo5;
+  const official = recordType === "single" ? pb.officialSingle : pb.officialAvg;
+  if (practice === null) return official;
+  if (official === null) return practice;
+  return Math.min(practice, official);
+}
+
+export interface NextTierInfo {
+  tier: BadgeTier;
+  progressPct: number;
+  remainingCs: number;
+}
+
+/**
+ * The next not-yet-beaten tier for an event/recordType, with how close the
+ * current best is to it. Progress is anchored against the previous
+ * (already-beaten) tier's threshold so it climbs from ~0 to 100 across that
+ * rung specifically, rather than from an arbitrary global start; a cuber
+ * with no previous tier yet is anchored to 1.6x the next threshold instead,
+ * so a first-ever solve doesn't just read as "0%".
+ */
+export function getNextTier(
+  eventId: string,
+  recordType: RecordType,
+  bestCs: number | null
+): NextTierInfo | null {
+  const tiers = BADGE_TIERS.filter((b) => b.eventId === eventId && b.recordType === recordType)
+    .slice()
+    .sort((a, b) => b.thresholdCs - a.thresholdCs); // easiest (largest threshold) first
+
+  const nextIdx = tiers.findIndex((t) => bestCs === null || bestCs >= t.thresholdCs);
+  if (nextIdx === -1) return null; // every tier already beaten
+
+  const tier = tiers[nextIdx];
+  const anchor = nextIdx > 0 ? tiers[nextIdx - 1].thresholdCs : tier.thresholdCs * 1.6;
+  const remainingCs = bestCs === null ? tier.thresholdCs : Math.max(0, bestCs - tier.thresholdCs);
+  const progressPct =
+    bestCs === null
+      ? 0
+      : Math.min(100, Math.max(0, ((anchor - bestCs) / (anchor - tier.thresholdCs)) * 100));
+
+  return { tier, progressPct, remainingCs };
+}
+
+/**
+ * Fraction toward count/streak/comp activity badges (0-100), or null for
+ * badges with no meaningful continuous progress (new_pb, one-off
+ * all_events_in_one_comp).
+ */
+export function getActivityProgressPct(
+  key: string,
+  { solveCount, compCount, streak }: { solveCount?: number; compCount?: number; streak?: number }
+): number | null {
+  const pct = (value: number | undefined, target: number) =>
+    value === undefined ? 0 : Math.min(100, (value / target) * 100);
+
+  switch (key) {
+    case "100_solves":
+      return pct(solveCount, 100);
+    case "1000_solves":
+      return pct(solveCount, 1000);
+    case "first_comp":
+      return pct(compCount, 1);
+    case "5_comps":
+      return pct(compCount, 5);
+    case "streak_7":
+      return pct(streak, 7);
+    case "streak_30":
+      return pct(streak, 30);
+    default:
+      return null;
+  }
 }

@@ -288,24 +288,47 @@ export interface BadgesTabData {
   }>;
   unlockedCount: number;
   totalCount: number;
+  pbs: Awaited<ReturnType<typeof getCurrentPbs>>;
+  solveCount: number;
+  compCount: number;
+  streak: number;
 }
 
 export async function loadBadgesTab(
   db: SupabaseClient,
   cuberId: string
 ): Promise<BadgesTabData> {
-  const { data: achievements } = await db
-    .from("achievements")
-    .select("badge_key, unlocked_at, metadata")
-    .eq("cuber_id", cuberId)
-    .order("unlocked_at", { ascending: false });
-
   const { BADGE_TIERS, ACTIVITY_BADGES } = await import("@/lib/badges");
+  const { computeStreak } = await import("@/lib/streak");
+
+  const [
+    { data: achievements },
+    pbs,
+    { count: solveCount },
+    { count: compCount },
+    streak,
+  ] = await Promise.all([
+    db
+      .from("achievements")
+      .select("badge_key, unlocked_at, metadata")
+      .eq("cuber_id", cuberId)
+      .order("unlocked_at", { ascending: false }),
+    getCurrentPbs(db, cuberId, ACTIVE_EVENTS),
+    db.from("solves").select("id", { count: "exact", head: true })
+      .eq("cuber_id", cuberId).eq("context", "practice"),
+    db.from("competitions").select("id", { count: "exact", head: true })
+      .eq("cuber_id", cuberId),
+    computeStreak(db, cuberId),
+  ]);
 
   return {
     achievements: (achievements ?? []) as BadgesTabData["achievements"],
     unlockedCount: achievements?.length ?? 0,
     totalCount: BADGE_TIERS.length + ACTIVITY_BADGES.length,
+    pbs,
+    solveCount: solveCount ?? 0,
+    compCount: compCount ?? 0,
+    streak,
   };
 }
 

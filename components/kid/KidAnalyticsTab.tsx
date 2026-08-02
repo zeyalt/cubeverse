@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { setEventCookie } from "@/lib/eventCookie";
 import { formatCs } from "@/lib/cubing";
 import { EVENT_SHORT } from "@/lib/event-theme";
 import type { AnalyticsPayload } from "@/app/actions/analytics";
@@ -35,6 +34,8 @@ interface Cube {
 interface KidAnalyticsTabProps {
   events: Event[];
   defaultEventId: string;
+  selectedEventId: string;
+  onEventChange: (id: string) => void;
   cuberId: string;
   initialAnalyticsData: AnalyticsPayload;
   pbs: CurrentPb[];
@@ -62,6 +63,8 @@ function fmt(cs: number | null): string {
 export function KidAnalyticsTab({
   events,
   defaultEventId,
+  selectedEventId,
+  onEventChange,
   cuberId,
   initialAnalyticsData,
   pbs: initialPbs,
@@ -73,7 +76,6 @@ export function KidAnalyticsTab({
   // up a stale sub-tab left over from an earlier deep link.
   const [subTab, setSubTab] = useState<"practice" | "competition">(initialSubTab);
   const { invalidate } = useKidData();
-  const [selectedEventId, setSelectedEventId] = useState(defaultEventId);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsPayload>(initialAnalyticsData);
   // Current Stats (single/ao5/ao12/.../count) — was a static prop that never
   // refreshed after a delete/edit in Practice History, so removing a solve
@@ -129,11 +131,6 @@ export function KidAnalyticsTab({
   }, [cuberId, selectedEventId, refreshAnalytics]);
 
   const selectedPb = pbs.find((p) => p.eventId === selectedEventId);
-
-  const handleEventChange = (eventId: string) => {
-    setSelectedEventId(eventId);
-    setEventCookie(eventId); // share selection with practice / cubes / timer
-  };
 
   const toLocalYMD = (d: Date): string => {
     const y = d.getFullYear();
@@ -218,7 +215,7 @@ export function KidAnalyticsTab({
           <AnalyticsFilters
             events={events}
             selectedEventId={selectedEventId}
-            onEventChange={handleEventChange}
+            onEventChange={onEventChange}
             dateRange={dateRange}
             onDateRangeChange={setDateRange}
           />
@@ -493,7 +490,7 @@ export function KidAnalyticsTab({
                 return (
                   <button
                     key={e.id}
-                    onClick={() => handleEventChange(e.id)}
+                    onClick={() => onEventChange(e.id)}
                     className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors [touch-action:manipulation] ${
                       active
                         ? "border-transparent bg-[#FFD500] text-[#1A1208]"
@@ -525,7 +522,12 @@ export function KidAnalyticsTab({
           {/* Competitor Benchmarking */}
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">Competitor Benchmarking</p>
-            <CompetitorBenchmark cuberId={cuberId} myWcaId={wcaId} eventId={selectedEventId} />
+            <CompetitorBenchmark
+              cuberId={cuberId}
+              myWcaId={wcaId}
+              eventId={selectedEventId}
+              eventName={EVENT_NAMES[selectedEventId] || selectedEventId}
+            />
           </div>
         </div>
       )}
