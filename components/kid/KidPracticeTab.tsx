@@ -489,9 +489,14 @@ export function KidPracticeTab({
         }
         setSaveError(null);
         lastSolveIdRef.current = result.solveId;
-        // The charts and badge progress now include this solve. Practice is
-        // excluded: it already rolled its own metrics forward optimistically.
-        invalidate("analytics", "badges");
+        // The charts and badge progress now include this solve. Practice's
+        // own on-screen metrics already rolled forward optimistically, but
+        // that's local component state only — invalidate it too so the
+        // shell's persisted cache (cache.practice in KidModeShell) picks up
+        // the real count/recentTimes in the background. Without this, the
+        // optimistic bump is lost the moment this tab unmounts (switching
+        // away and back), reverting to whatever was last fetched.
+        invalidate("analytics", "badges", "practice");
       })
       .catch((err) => {
         // Thrown before a response came back — the row was never inserted,
@@ -517,7 +522,7 @@ export function KidPracticeTab({
     });
     const id = lastSolveIdRef.current;
     if (id) updateSolve(id, cs, chosenPenalty).catch(console.error);
-    invalidate("analytics", "badges");
+    invalidate("analytics", "badges", "practice");
     // Penalising the current PB makes the cached baseline wrong.
     if (wasBest) reloadStats();
   }
@@ -529,7 +534,7 @@ export function KidPracticeTab({
     lastSolveIdRef.current = null;
     const wasBest = liveTimes.length > 0 && liveTimes[liveTimes.length - 1] === best;
     setLiveTimes((prev) => prev.slice(0, -1));
-    invalidate("analytics", "badges");
+    invalidate("analytics", "badges", "practice");
     // Discarding the current PB makes the cached baseline wrong.
     if (wasBest) reloadStats();
     goPhase("idle");
