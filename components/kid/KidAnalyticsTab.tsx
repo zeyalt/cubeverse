@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { formatCs } from "@/lib/cubing";
 import { EVENT_SHORT } from "@/lib/event-theme";
 import type { AnalyticsPayload } from "@/app/actions/analytics";
-import { getHistoricalSolves, deleteSolve, updateSolve } from "@/app/actions/solve";
+import { getHistoricalSolves, deleteSolve, updateSolve, type HistoricalSolve } from "@/app/actions/solve";
 import { getTabData } from "@/app/actions/tabs";
 import { AnalyticsFilters, type DateRange } from "./AnalyticsFilters";
 import { useKidData } from "./KidDataContext";
@@ -41,6 +41,7 @@ interface KidAnalyticsTabProps {
   pbs: CurrentPb[];
   cubes: Cube[];
   wcaId: string | null;
+  initialSessionTimes: HistoricalSolve[];
   initialSubTab: "practice" | "competition";
 }
 
@@ -69,6 +70,7 @@ export function KidAnalyticsTab({
   initialAnalyticsData,
   pbs: initialPbs,
   wcaId,
+  initialSessionTimes,
   initialSubTab,
 }: KidAnalyticsTabProps) {
   // Comes from the server's read of ?sub= rather than useSearchParams: this tab
@@ -87,13 +89,31 @@ export function KidAnalyticsTab({
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editingCs, setEditingCs] = useState<number>(0);
   const [editingPenalty, setEditingPenalty] = useState<"none" | "plus2" | "dnf">("none");
-  const [sessionTimes, setSessionTimes] = useState<Array<{ id: string; cs: number; penalty: "none" | "plus2" | "dnf"; timestamp: number; scramble: string | null }>>([]);
+  const [sessionTimes, setSessionTimes] = useState<HistoricalSolve[]>(initialSessionTimes);
 
-  // The solve list is not part of the server-rendered props, so it always has
-  // to be fetched. The chart data is — see loadedRef below.
+  // KidAnalyticsTab doesn't remount on every tab switch — it stays mounted
+  // (or gets recreated with whatever KidModeShell's cache currently holds,
+  // which can be a stale pre-solve snapshot if Analytics wasn't the active
+  // tab when a solve landed elsewhere). When that cache entry finishes its
+  // own background refresh (via invalidate → loadTab in KidModeShell), these
+  // props change identity and this component needs to actually notice —
+  // otherwise the fresh solve never appears without a hard reload. Same
+  // "mirror incoming props into local state" pattern as KidPracticeTab's
+  // resync effect.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSessionTimes(initialSessionTimes);
+  }, [initialSessionTimes]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAnalyticsData(initialAnalyticsData);
+    setPbs(initialPbs);
+  }, [initialAnalyticsData, initialPbs]);
+
   const refreshSolves = useCallback(async (eventId: string) => {
     const solves = await getHistoricalSolves(cuberId, eventId);
-    setSessionTimes(solves.map((s) => ({ id: s.id, cs: s.cs, penalty: s.penalty, timestamp: s.timestamp, scramble: s.scramble })));
+    setSessionTimes(solves);
   }, [cuberId]);
 
   const refreshAnalytics = useCallback(async (eventId: string) => {
@@ -110,25 +130,25 @@ export function KidAnalyticsTab({
     invalidate("practice", "badges");
   }, [refreshSolves, refreshAnalytics, invalidate]);
 
-  // The server already rendered initialAnalyticsData for (cuberId, defaultEventId),
-  // so re-fetching it on mount was a duplicate round-trip that re-rendered every
-  // chart with identical data. Refetch only once the selection moves off what the
-  // server gave us.
+  // The server already rendered both initialAnalyticsData and
+  // initialSessionTimes for (cuberId, defaultEventId), and that same payload
+  // is what persists in KidModeShell's tab cache across tab switches — so a
+  // remount (leaving and returning to Analytics) arrives with fresh props,
+  // not empty state. Re-fetching both on every mount was a duplicate round
+  // trip AND the reason Practice History used to flash empty before
+  // repopulating. Only refetch once the selection actually moves off what
+  // the current props already cover.
   const loadedRef = useRef(`${cuberId}:${defaultEventId}`);
 
-  // These effects synchronise with an external system (the database), so the
+  // This effect synchronises with an external system (the database), so the
   // setState inside the refresh callbacks is intentional.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    refreshSolves(selectedEventId);
-  }, [selectedEventId, refreshSolves]);
-
   useEffect(() => {
     const key = `${cuberId}:${selectedEventId}`;
     if (loadedRef.current === key) return;
     loadedRef.current = key;
+    refreshSolves(selectedEventId);
     refreshAnalytics(selectedEventId);
-  }, [cuberId, selectedEventId, refreshAnalytics]);
+  }, [cuberId, selectedEventId, refreshSolves, refreshAnalytics]);
 
   const selectedPb = pbs.find((p) => p.eventId === selectedEventId);
 

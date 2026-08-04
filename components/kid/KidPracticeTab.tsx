@@ -107,15 +107,23 @@ export function KidPracticeTab({
   // additions can be counted. Part of the baseline, so it moves with it.
   const [baseLen, setBaseLen] = useState(recentTimes.length);
 
-  // Resync if the server sends a fresh list (e.g. after navigation/refresh).
-  // Intentionally mirrors the incoming props into local state.
+  // Goal state — declared here (ahead of its usual spot further down) so the
+  // resync effect right below can reference its setter.
+  const [activeGoal, setActiveGoal] = useState(initialGoal);
+
+  // Resync if the server sends a fresh list (e.g. after navigation/refresh,
+  // or a cuber switch — this component doesn't remount on one, it just
+  // receives new cache props, so without this the previous cuber's stats
+  // and goal would silently stick around until the event picker was
+  // touched). Intentionally mirrors the incoming props into local state.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLiveTimes(recentTimes);
     setBaseBest(initialBest);
     setBaseCount(initialCount);
     setBaseLen(recentTimes.length);
-  }, [recentTimes, initialBest, initialCount]);
+    setActiveGoal(initialGoal);
+  }, [recentTimes, initialBest, initialCount, initialGoal]);
 
   const ao5 = currentAoN(liveTimes, 5);
   const ao12 = currentAoN(liveTimes, 12);
@@ -142,8 +150,6 @@ export function KidPracticeTab({
   const [showHoldMsg, setShowHoldMsg] = useState(false);
   const holdMsgTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Goal state
-  const [activeGoal, setActiveGoal] = useState(initialGoal);
   // While the target field is being typed, hold the raw string so the controlled
   // value doesn't reformat/snap on every keystroke. Committed on blur/Enter.
   const [targetDraft, setTargetDraft] = useState<string | null>(null);

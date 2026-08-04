@@ -148,10 +148,25 @@ function KidModeShellContent({
   }));
   const cuberRef = useRef(currentCuberId);
 
+  // Guards against a slow response for an earlier tab landing after a later
+  // one and overwriting it — same hazard as the event-switch guard in
+  // KidPracticeTab. Declared before the cache-reset effect below since that
+  // effect also bumps it on a cuber change.
+  const fetchGen = useRef(0);
+
   useEffect(() => {
     // Different cuber ⇒ every cached tab is stale, so start clean.
     const cuberChanged = cuberRef.current !== currentCuberId;
     cuberRef.current = currentCuberId;
+    if (cuberChanged) {
+      // A loadTab() fetch already in flight was requested for the PREVIOUS
+      // cuber — its own gen check (in loadTab below) only guards against a
+      // slower fetch for the same cuber landing out of order, not against a
+      // cuber switch happening mid-flight. Bumping the generation here means
+      // that in-flight response gets discarded instead of silently writing
+      // the wrong cuber's data into the cache when it resolves.
+      fetchGen.current++;
+    }
     setCache((prev) => ({
       ...(cuberChanged ? {} : prev),
       ...(practiceData ? { practice: practiceData } : {}),
@@ -165,11 +180,6 @@ function KidModeShellContent({
   // Tabs whose cached data a mutation has invalidated. They keep rendering the
   // stale copy (no spinner flash) and refetch on next view.
   const [stale, setStale] = useState<ReadonlySet<Tab>>(() => new Set());
-
-  // Guards against a slow response for an earlier tab landing after a later
-  // one and overwriting it — same hazard as the event-switch guard in
-  // KidPracticeTab.
-  const fetchGen = useRef(0);
 
   const loadTab = useCallback(
     (tab: Tab) => {
@@ -226,7 +236,7 @@ function KidModeShellContent({
   // A solve that fails to save (network hiccup, transient server error, or
   // genuinely offline) is queued to IndexedDB by KidPracticeTab so it isn't
   // lost. Subscribing here drives the retry loop and the badge below.
-  const { pending: pendingSync } = useOfflineSync();
+  const { pending: pendingSync } = useOfflineSync(currentCuberId);
 
   return (
     <KidDataContext.Provider value={{ invalidate }}>

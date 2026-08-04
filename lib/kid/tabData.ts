@@ -4,6 +4,7 @@ import type { Penalty } from "@/lib/cubing";
 import { practiceSummary } from "@/lib/practiceStats";
 import { getCurrentPbs } from "@/lib/analytics";
 import { getAnalyticsData, type AnalyticsPayload } from "@/app/actions/analytics";
+import { getHistoricalSolves, type HistoricalSolve } from "@/app/actions/solve";
 import { sharedHardwareEvents } from "@/lib/eventGroups";
 import { fetchAllRows } from "@/lib/supabase/fetchAll";
 
@@ -244,6 +245,10 @@ export interface AnalyticsTabData {
   pbs: Awaited<ReturnType<typeof getCurrentPbs>>;
   cubes: Cube[];
   wcaId: string | null;
+  // Practice History for defaultEventId. Cached in the shell's tab-data cache
+  // like everything else here, so revisiting Analytics after a solve is
+  // instant instead of always re-fetching from an empty list on mount.
+  initialSessionTimes: HistoricalSolve[];
 }
 
 export async function loadAnalyticsTab(
@@ -253,7 +258,7 @@ export async function loadAnalyticsTab(
   eventId: string,
   events: EventRow[]
 ): Promise<AnalyticsTabData> {
-  const [pbs, initialData, { data: cubes }, { data: cuber }] = await Promise.all([
+  const [pbs, initialData, { data: cubes }, { data: cuber }, sessionTimes] = await Promise.all([
     getCurrentPbs(db, cuberId, ACTIVE_EVENTS),
     getAnalyticsData(cuberId, eventId),
     db
@@ -265,6 +270,7 @@ export async function loadAnalyticsTab(
     // Same lookup loadCompetitionsTab already does — needed here too so the
     // Competitor Benchmarking section knows the cuber's own WCA ID.
     db.from("cubers").select("wca_id").eq("id", cuberId).single(),
+    getHistoricalSolves(cuberId, eventId),
   ]);
 
   return {
@@ -275,6 +281,7 @@ export async function loadAnalyticsTab(
     pbs,
     cubes: (cubes ?? []) as Cube[],
     wcaId: (cuber?.wca_id as string | null) ?? null,
+    initialSessionTimes: sessionTimes,
   };
 }
 

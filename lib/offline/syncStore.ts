@@ -1,7 +1,7 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-import { getPendingCount } from "./queue";
+import { useMemo, useSyncExternalStore } from "react";
+import { getPendingSolves, type PendingSolve } from "./queue";
 import { syncPendingSolves } from "./sync";
 
 /**
@@ -19,11 +19,16 @@ import { syncPendingSolves } from "./sync";
 const POLL_MS = 30_000;
 
 interface SyncState {
-  pending: number;
+  // Full queue across every cuber — enqueueSolve/syncPendingSolves both
+  // operate account-wide (a solve queued for one cuber must still sync even
+  // while another is active). Consumers filter to the active cuber
+  // themselves (see useOfflineSync) so the pending-sync banner never shows
+  // another cuber's queued solves.
+  pendingSolves: PendingSolve[];
   syncing: boolean;
 }
 
-let state: SyncState = { pending: 0, syncing: false };
+let state: SyncState = { pendingSolves: [], syncing: false };
 const listeners = new Set<() => void>();
 
 let inFlight: Promise<void> | null = null;
@@ -33,9 +38,15 @@ function emit() {
   for (const l of listeners) l();
 }
 
+function pendingKey(list: PendingSolve[]): string {
+  return list.map((p) => p.id).join(",");
+}
+
 function setState(next: Partial<SyncState>) {
   const merged = { ...state, ...next };
-  if (merged.pending === state.pending && merged.syncing === state.syncing) return;
+  const samePending =
+    next.pendingSolves === undefined || pendingKey(merged.pendingSolves) === pendingKey(state.pendingSolves);
+  if (samePending && merged.syncing === state.syncing) return;
   // Replaced rather than mutated: useSyncExternalStore compares snapshots by
   // identity, so an in-place update would not re-render.
   state = merged;
@@ -44,7 +55,7 @@ function setState(next: Partial<SyncState>) {
 
 async function refreshCount() {
   try {
-    setState({ pending: await getPendingCount() });
+    setState({ pendingSolves: await getPendingSolves() });
   } catch {
     // An unreadable queue shouldn't take the UI down; the next poll retries.
   }
@@ -107,9 +118,17 @@ function subscribe(listener: () => void) {
 
 const getSnapshot = () => state;
 // The server has no queue; a stable object keeps hydration quiet.
-const serverSnapshot: SyncState = { pending: 0, syncing: false };
+const serverSnapshot: SyncState = { pendingSolves: [], syncing: false };
 const getServerSnapshot = () => serverSnapshot;
 
-export function useOfflineSync(): SyncState {
-  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+/** Pending-sync count/state scoped to one cuber — the queue itself spans
+ *  every cuber, but nothing in the UI should show cuber B's queued solves
+ *  while cuber A is active. */
+export function useOfflineSync(cuberId: string): { pending: number; syncing: boolean } {
+  const { pendingSolves, syncing } = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const pending = useMemo(
+    () => pendingSolves.filter((s) => s.cuberId === cuberId).length,
+    [pendingSolves, cuberId]
+  );
+  return { pending, syncing };
 }
