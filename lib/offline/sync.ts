@@ -1,8 +1,10 @@
 "use client";
 
-import { recordSolve } from "@/app/actions/solve";
+import { recordSolve } from "@/lib/client/actions";
 import {
+  claimPendingSolve,
   getPendingSolves,
+  markPendingSolveFailed,
   removePendingSolve,
   type PendingSolve,
 } from "./queue";
@@ -19,7 +21,7 @@ export async function syncPendingSolves(): Promise<SyncResult> {
     return { synced: 0, failed: 0, errors: [] };
   }
 
-  const pending = await getPendingSolves();
+  const pending = await getPendingSolves({ dueOnly: true });
   if (!pending.length) return { synced: 0, failed: 0, errors: [] };
 
   let synced = 0;
@@ -27,11 +29,14 @@ export async function syncPendingSolves(): Promise<SyncResult> {
   const errors: string[] = [];
 
   for (const solve of pending) {
+    const claimed = await claimPendingSolve(solve.id);
+    if (!claimed) continue;
     try {
-      await flushOne(solve);
-      await removePendingSolve(solve.id);
+      await flushOne(claimed);
+      await removePendingSolve(claimed.id);
       synced++;
     } catch (e) {
+      await markPendingSolveFailed(claimed.id, e);
       failed++;
       errors.push((e as Error).message);
     }
@@ -54,6 +59,7 @@ async function flushOne(solve: PendingSolve): Promise<void> {
     timeCs: solve.timeCs,
     penalty: solve.penalty,
     scramble: solve.scramble,
+    idempotencyId: solve.idempotencyId,
     ...(solve.cubeId && { cubeId: solve.cubeId }),
   });
   if (result.error) throw new Error(result.error);

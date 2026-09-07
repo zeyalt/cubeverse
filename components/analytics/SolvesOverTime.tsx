@@ -141,9 +141,6 @@ export function SolvesOverTime({ data, targetCs, prCs }: Props) {
   const segBtn =
     "flex min-h-8 cursor-pointer items-center px-2.5 py-1 transition-colors font-bold [touch-action:manipulation]";
 
-  // Freeze the Y axis while the plot scrolls: render the axis in its own fixed
-  // chart and the plot in a scrollable one, both pinned to the SAME y-domain and
-  // geometry so they line up exactly.
   const CHART_H = 380;
   const X_AXIS_H = 26;
   const Y_AXIS_W = 40;
@@ -201,11 +198,23 @@ export function SolvesOverTime({ data, targetCs, prCs }: Props) {
         </div>
       </div>
 
-      <div className="flex">
-        {/* Frozen Y axis */}
-        <div className="shrink-0" style={{ width: Y_AXIS_W }}>
+      {/* A single chart avoids mounting a second hidden Scatter/ComposedChart
+          solely to freeze the Y axis. */}
+      <div
+        ref={scrollRef}
+        className="w-full overflow-x-auto"
+        style={{ touchAction: "pan-x pan-y" }}
+      >
+        <div className="w-full" style={plotMinWidth ? { minWidth: `${plotMinWidth}px` } : undefined}>
           <ResponsiveContainer width="100%" height={CHART_H}>
-            <ComposedChart data={valid} margin={{ top: 8, right: 0, left: 0, bottom: 0 }}>
+            <ComposedChart data={valid} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <XAxis
+                dataKey="index"
+                height={X_AXIS_H}
+                tick={{ fontSize: 10, fill: cc.tick }}
+                axisLine={{ stroke: cc.axis }}
+                tickMargin={6}
+              />
               <YAxis
                 tickFormatter={(v: number) => formatCs(v)}
                 tick={{ fontSize: 10, fill: cc.tick }}
@@ -214,78 +223,55 @@ export function SolvesOverTime({ data, targetCs, prCs }: Props) {
                 domain={yDomain}
                 allowDataOverflow
               />
-              <XAxis dataKey="index" height={X_AXIS_H} tick={false} axisLine={{ stroke: cc.axis }} />
-              <Scatter dataKey="timeCs" fill="transparent" isAnimationActive={false} />
+              <Tooltip content={<ChartTooltip colors={cc} />} />
+
+              {targetCs != null && targetCs > 0 && (
+                <ReferenceLine
+                  y={targetCs}
+                  stroke={targetColor}
+                  strokeDasharray="5 4"
+                  strokeWidth={1.5}
+                  label={{
+                    value: `Target ${formatCs(targetCs)}`,
+                    position: "insideTopLeft",
+                    fill: targetColor,
+                    fontSize: 10,
+                    fontWeight: 700,
+                  }}
+                />
+              )}
+              {prCs != null && prCs > 0 && (
+                <ReferenceLine
+                  y={prCs}
+                  stroke={prColor}
+                  strokeDasharray="5 4"
+                  strokeWidth={1.5}
+                  label={{
+                    value: `Ao5 PR ${formatCs(prCs)}`,
+                    position: "insideBottomLeft",
+                    fill: prColor,
+                    fontSize: 10,
+                    fontWeight: 700,
+                  }}
+                />
+              )}
+
+              <Scatter
+                dataKey="timeCs"
+                name="Single"
+                fill={cc.scatter}
+                shape={(props: { cx?: number; cy?: number }) =>
+                  props.cx != null && props.cy != null ? (
+                    <circle cx={props.cx} cy={props.cy} r={1.75} fill={cc.scatter} />
+                  ) : <g />
+                }
+                isAnimationActive={false}
+              />
+              {showAo5  && <Line dataKey="ao5"  name="Ao5"  type="natural" stroke={cc.avgAo5}  strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />}
+              {showAo12 && <Line dataKey="ao12" name="Ao12" type="natural" stroke={cc.avgAo12} strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />}
+              {showAo50 && <Line dataKey="ao50" name="Ao50" type="natural" stroke={cc.avgAo50} strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />}
             </ComposedChart>
           </ResponsiveContainer>
-        </div>
-
-        {/* Scrollable plot — width is driven by the zoom slider above. */}
-        <div
-          ref={scrollRef}
-          className="flex-1 overflow-x-auto"
-          style={{ touchAction: "pan-x pan-y" }}
-        >
-          <div className="w-full" style={plotMinWidth ? { minWidth: `${plotMinWidth}px` } : undefined}>
-            <ResponsiveContainer width="100%" height={CHART_H}>
-              <ComposedChart data={valid} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <XAxis
-                  dataKey="index"
-                  height={X_AXIS_H}
-                  tick={{ fontSize: 10, fill: cc.tick }}
-                  axisLine={{ stroke: cc.axis }}
-                  tickMargin={6}
-                />
-                <YAxis hide domain={yDomain} allowDataOverflow />
-                <Tooltip content={<ChartTooltip colors={cc} />} />
-
-                {targetCs != null && targetCs > 0 && (
-                  <ReferenceLine
-                    y={targetCs}
-                    stroke={targetColor}
-                    strokeDasharray="5 4"
-                    strokeWidth={1.5}
-                    label={{
-                      value: `Target ${formatCs(targetCs)}`,
-                      position: "insideTopLeft",
-                      fill: targetColor,
-                      fontSize: 10,
-                      fontWeight: 700,
-                    }}
-                  />
-                )}
-                {prCs != null && prCs > 0 && (
-                  <ReferenceLine
-                    y={prCs}
-                    stroke={prColor}
-                    strokeDasharray="5 4"
-                    strokeWidth={1.5}
-                    label={{
-                      value: `Ao5 PR ${formatCs(prCs)}`,
-                      position: "insideBottomLeft",
-                      fill: prColor,
-                      fontSize: 10,
-                      fontWeight: 700,
-                    }}
-                  />
-                )}
-
-                <Scatter
-                  dataKey="timeCs"
-                  name="Single"
-                  fill={cc.scatter}
-                  shape={(props: { cx?: number; cy?: number }) =>
-                    props.cx != null && props.cy != null ? (
-                      <circle cx={props.cx} cy={props.cy} r={1.75} fill={cc.scatter} />
-                    ) : <g />
-                  }
-                />
-                {showAo5  && <Line dataKey="ao5"  name="Ao5"  type="natural" stroke={cc.avgAo5}  strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />}
-                {showAo12 && <Line dataKey="ao12" name="Ao12" type="natural" stroke={cc.avgAo12} strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />}
-                {showAo50 && <Line dataKey="ao50" name="Ao50" type="natural" stroke={cc.avgAo50} strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />}
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
         </div>
       </div>
     </div>

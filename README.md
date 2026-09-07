@@ -15,8 +15,8 @@ competitions. Built for a playful, touch-first experience with a calmer
 - **Competitions** — import official results from a WCA profile, or add unofficial
   competitions and results manually. WCA records are read-only; manual ones are
   editable/deletable.
-- **Cubes** — track your collection with photos, brands, main-cube selection, and
-  a puzzle-type filter.
+- **Trainer** — 2×2 CLL case drill with setup/solve algs, rep tracking, and
+  progress that syncs across devices.
 - **Badges** — unlockable achievements for PBs, milestones, and streaks.
 - **Multi-cuber** — switch between cubers sharing one device.
 - **Theming, offline & PWA** — light/dark themes, an offline solve queue, and a
@@ -24,13 +24,12 @@ competitions. Built for a playful, touch-first experience with a calmer
 
 ## Tech stack
 
-- [Next.js 16](https://nextjs.org) (App Router, Server Actions, Turbopack) + React 19
-- [Supabase](https://supabase.com) (Postgres + Storage) via the service-role client
+- [Next.js 16](https://nextjs.org) (App Router, static export, Turbopack) + React 19
+- [Supabase](https://supabase.com) (Auth, Postgres, Storage, Edge Functions) through authenticated RLS
 - [Tailwind CSS v4](https://tailwindcss.com)
 - [Recharts](https://recharts.org) for charts
 - [`scrambow`](https://www.npmjs.com/package/scrambow) for scramble generation and
-  [`scramble-display`](https://www.npmjs.com/package/scramble-display) +
-  [`@cubing/icons`](https://www.npmjs.com/package/@cubing/icons) for cube visuals/icons
+  [`@cubing/icons`](https://www.npmjs.com/package/@cubing/icons) for puzzle icons
 - TypeScript, ESLint, [Vitest](https://vitest.dev)
 
 > **Note:** This repo pins a specific Next.js version whose APIs and conventions may
@@ -62,8 +61,8 @@ competitions. Built for a playful, touch-first experience with a calmer
    | --- | --- |
    | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public anon key |
-   | `SUPABASE_SERVICE_ROLE_KEY` | Service-role key (server only — never exposed to the client) |
-   | `WCA_OAUTH_CLIENT_ID` / `WCA_OAUTH_CLIENT_SECRET` | Optional, only for the OAuth WCA import path |
+   Runtime access uses only the public anon key plus the signed-in household
+   account. Never expose a service-role key in a `NEXT_PUBLIC_*` variable.
 
 3. Apply the database migrations in `supabase/migrations/` to your Supabase project
    (in order). These create the schema, the public `media` storage bucket, and
@@ -94,15 +93,17 @@ data, `clear-all.mjs` to wipe).
 ## Project structure
 
 ```
-app/            Next.js routes (home tabs, onboarding, competitions, timer) + server actions
-components/     UI — kid-mode tabs/sheets, analytics charts, cubes, shared primitives
-lib/            Domain logic: cubing math, analytics, PBs, badges, streaks, Supabase, WCA import
+app/            Static Next.js routes
+components/     UI — kid-mode tabs/sheets, analytics charts, trainer, shared primitives
+lib/            Domain logic: cubing math, analytics, PBs, badges, Supabase, offline sync
 supabase/       SQL migrations and config
 scripts/        Local data/seed utilities
 ```
 
 ## Deployment
 
-Deployable on any platform that supports Next.js (e.g. [Vercel](https://vercel.com)).
-Set the same environment variables in your hosting provider and ensure the Supabase
-migrations have been applied to the target database.
+`npm run build` emits the app to `out/`, so it can be hosted on any static CDN.
+Apply the Supabase migrations, deploy the `wca-proxy` Edge Function with an
+`APP_ORIGIN` secret, and create the household Supabase Auth account before use.
+For an existing no-auth installation, reassign its `owner_id` values to that
+account's Auth UUID before enabling browser access.

@@ -92,7 +92,7 @@ body {
   --font-sans: var(--font-plex);
   --font-mono: var(--font-plex-mono);
   --font-display: var(--font-rubik);
-  --font-heading: var(--font-fraunces);
+  --font-heading: var(--font-rubik);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -225,7 +225,7 @@ body {
     font-family: var(--font-rubik), system-ui, sans-serif;
   }
   .font-heading {
-    font-family: var(--font-fraunces), Georgia, serif;
+    font-family: var(--font-rubik), system-ui, sans-serif;
   }
   .font-mono-time {
     font-family: var(--font-plex-mono), ui-monospace, monospace;
@@ -279,7 +279,7 @@ body {
   }
 
   /* Minimal-pro content surfaces for the data screens (analytics, comps,
-     cubes, badges). Crisp 1px hairline border + subtle depth instead of the
+     trainer, badges). Crisp 1px hairline border + subtle depth instead of the
      hard offset "sticker" shadow, for a calmer, grown-up look. */
   .surface {
     background-color: var(--kid-fill);
@@ -344,6 +344,10 @@ body {
   .timer-display {
     font-size: clamp(2.25rem, min(16vh, 18vw), 6.25rem);
   }
+
+  .practice-scramble-preview {
+    height: clamp(8.5rem, 26vh, 13rem);
+  }
 }
 
 /* Short viewports (landscape phones): tighten the practice screen so the
@@ -352,6 +356,7 @@ body {
   .practice-setup { padding-top: 0.5rem; padding-bottom: 0.25rem; }
   .practice-scramble { padding-top: 0.25rem; }
   .practice-scramble > div { padding-top: 0.375rem; padding-bottom: 0.375rem; }
+  .practice-scramble-preview { height: 5.75rem; }
   .practice-metrics .practice-metric-cell { padding-top: 0.375rem; padding-bottom: 0.375rem; }
   .practice-hint { display: none; }
 }
@@ -387,36 +392,32 @@ body {
   animation: tab-enter 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Kid cubes tab styling overrides */
-.kid-cubes-wrapper .parent-surface {
-  background: rgba(255, 255, 255, 0.06) !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
-  color: white !important;
-  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.2) !important;
+@keyframes cll-pass-hold {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }
 
-.kid-cubes-wrapper .parent-surface-header {
-  background: rgba(255, 255, 255, 0.08) !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
-  color: white !important;
+.cll-pass-toggle::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #009B48;
+  opacity: 0.45;
+  transform: scaleX(0);
+  transform-origin: left;
 }
 
-.kid-cubes-wrapper input,
-.kid-cubes-wrapper textarea,
-.kid-cubes-wrapper select {
-  background: var(--kid-fill) !important;
-  border-color: var(--kid-border-c) !important;
-  color: var(--kid-fg) !important;
+.cll-pass-toggle.holding::before {
+  animation: cll-pass-hold 2s linear forwards;
 }
 
-.kid-cubes-wrapper input::placeholder,
-.kid-cubes-wrapper textarea::placeholder {
-  color: var(--kid-fg-muted) !important;
-  opacity: 1;
+@keyframes cll-card-flash {
+  0%, 100% { box-shadow: 0 1px 2px var(--kid-shadow); }
+  50% { box-shadow: 0 0 0 2px #FFD500; }
 }
 
-.kid-cubes-wrapper input::file-selector-button {
-  color: var(--kid-fg) !important;
+.cll-card-flash {
+  animation: cll-card-flash 1.2s ease;
 }
 
 /* Cuber switcher sheet animation */

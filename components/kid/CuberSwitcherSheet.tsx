@@ -1,9 +1,8 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { switchCuberInPlace, deleteCuber } from "@/app/actions/onboarding";
+import { switchCuberInPlace, deleteCuber } from "@/lib/client/actions";
 import { X, Plus, Trash2, Loader2 } from "lucide-react";
 
 const AVATAR_HEX: Record<string, string> = {
@@ -35,7 +34,6 @@ export function CuberSwitcherSheet({
   currentCuberId,
   onClose,
 }: CuberSwitcherSheetProps) {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   // Which cuber row is awaiting delete confirmation (null = none).
@@ -60,11 +58,7 @@ export function CuberSwitcherSheet({
       const result = await switchCuberInPlace(cuberId);
       if (!result.error) {
         onClose();
-        // Forces a re-fetch of the current route's server data regardless of
-        // what Next's router thinks the URL is — see switchCuberInPlace's
-        // comment for why redirect() alone doesn't work from inside the kid
-        // mode shell.
-        router.refresh();
+        window.location.assign("/");
       }
     });
   }
@@ -79,9 +73,8 @@ export function CuberSwitcherSheet({
       setConfirmingId(null);
       return;
     }
-    // Server data (the cubers list / current cuber) changed — refresh to reflect it.
     setConfirmingId(null);
-    router.refresh();
+    window.location.assign("/");
   }
 
   function onDragStart(clientY: number) {

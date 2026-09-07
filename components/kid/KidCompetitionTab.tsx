@@ -4,8 +4,7 @@ import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { Trophy, Plus, Download, Loader2, X } from "lucide-react";
-import { importWcaResultsKid } from "@/app/actions/import";
-import { createCompetition } from "@/app/actions/competition";
+import { importWcaResultsKid, createCompetition } from "@/lib/client/actions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EventIcon } from "./EventIcon";
@@ -165,7 +164,7 @@ export function KidCompetitionTab({ data: { competitions, cuberId, wcaId } }: Ki
           {competitions.map((comp) => (
             <Link
               key={comp.id}
-              href={`/competitions/${comp.id}`}
+              href={`/competition?id=${comp.id}`}
               className="surface surface-hover block px-4 py-3"
             >
               <div className="flex items-center gap-2">

@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { Loader2 } from "lucide-react";
 
-export type Tab = "practice" | "competitions" | "analytics" | "badges" | "cubes";
+export type Tab = "practice" | "competitions" | "analytics" | "badges" | "trainer";
 
 export function TabLoading() {
   return (
@@ -37,8 +37,8 @@ export const KidBadgesTab = dynamic(
   { loading: TabLoading }
 );
 
-export const KidCubesTab = dynamic(
-  () => import("./KidCubesTab").then((m) => m.KidCubesTab),
+export const KidTrainerTab = dynamic(
+  () => import("./KidTrainerTab").then((m) => m.KidTrainerTab),
   { loading: TabLoading }
 );
 
@@ -62,8 +62,8 @@ export function prefetchTab(tab: Tab): void {
     case "badges":
       void import("./KidBadgesTab");
       break;
-    case "cubes":
-      void import("./KidCubesTab");
+    case "trainer":
+      void import("./KidTrainerTab");
       break;
   }
 }

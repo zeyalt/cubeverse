@@ -8,22 +8,22 @@ import {
   KidCompetitionTab,
   KidAnalyticsTab,
   KidBadgesTab,
-  KidCubesTab,
+  KidTrainerTab,
   TabLoading,
   type Tab,
 } from "./lazyTabs";
 import { CuberSwitcherSheet } from "./CuberSwitcherSheet";
 import { CloudOff } from "lucide-react";
 import { useOfflineSync } from "@/lib/offline/syncStore";
-import { getTabData } from "@/app/actions/tabs";
+import { getClientTabData as getTabData } from "@/lib/client/tabData";
 import { setEventCookie } from "@/lib/eventCookie";
-import { KidDataContext } from "./KidDataContext";
+import { KidDataContext, type PracticeHeaderControls } from "./KidDataContext";
 import type {
   PracticeTabData,
   CompetitionTabData,
   AnalyticsTabData,
   BadgesTabData,
-  CubesTabData,
+  TrainerTabData,
 } from "@/lib/kid/tabData";
 
 interface Cuber {
@@ -49,7 +49,8 @@ interface KidModeShellProps {
   competitionData?: CompetitionTabData | null;
   analyticsData?: AnalyticsTabData | null;
   badgesData?: BadgesTabData | null;
-  cubesData?: CubesTabData | null;
+  trainerData?: TrainerTabData | null;
+  initialOpenHistory?: boolean;
 }
 
 interface TabDataCache {
@@ -57,7 +58,7 @@ interface TabDataCache {
   competitions?: CompetitionTabData;
   analytics?: AnalyticsTabData;
   badges?: BadgesTabData;
-  cubes?: CubesTabData;
+  trainer?: TrainerTabData;
 }
 
 function TabContent({
@@ -66,12 +67,14 @@ function TabContent({
   initialSubTab,
   selectedEventId,
   onEventChange,
+  openHistory,
 }: {
   tab: Tab;
   cache: TabDataCache;
   initialSubTab: "practice" | "competition";
   selectedEventId: string;
   onEventChange: (id: string) => void;
+  openHistory: boolean;
 }) {
   // Render from the client cache so revisiting a tab is instant. A tab only
   // shows the spinner the first time it's opened (before its data has loaded).
@@ -95,14 +98,19 @@ function TabContent({
           initialSubTab={initialSubTab}
           selectedEventId={selectedEventId}
           onEventChange={onEventChange}
+          openHistory={openHistory}
         />
       ) : (
         <TabLoading />
       );
     case "badges":
       return cache.badges ? <KidBadgesTab data={cache.badges} /> : <TabLoading />;
-    case "cubes":
-      return cache.cubes ? <KidCubesTab data={cache.cubes} /> : <TabLoading />;
+    case "trainer":
+      return cache.trainer ? (
+        <KidTrainerTab key={cache.trainer.cuberId} data={cache.trainer} />
+      ) : (
+        <TabLoading />
+      );
     default:
       return null;
   }
@@ -119,10 +127,13 @@ function KidModeShellContent({
   competitionData,
   analyticsData,
   badgesData,
-  cubesData,
+  trainerData,
+  initialOpenHistory = false,
 }: KidModeShellProps) {
   const [currentTab, setCurrentTab] = useState<Tab>(activeTab);
   const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [openHistory, setOpenHistory] = useState(initialOpenHistory);
+  const [practiceHeader, setPracticeHeader] = useState<PracticeHeaderControls | null>(null);
   const [, startTransition] = useTransition();
 
   // Single source of truth for the selected event, shared by every tab —
@@ -144,7 +155,7 @@ function KidModeShellContent({
     competitions: competitionData ?? undefined,
     analytics: analyticsData ?? undefined,
     badges: badgesData ?? undefined,
-    cubes: cubesData ?? undefined,
+    trainer: trainerData ?? undefined,
   }));
   const cuberRef = useRef(currentCuberId);
 
@@ -173,9 +184,9 @@ function KidModeShellContent({
       ...(competitionData ? { competitions: competitionData } : {}),
       ...(analyticsData ? { analytics: analyticsData } : {}),
       ...(badgesData ? { badges: badgesData } : {}),
-      ...(cubesData ? { cubes: cubesData } : {}),
+      ...(trainerData ? { trainer: trainerData } : {}),
     }));
-  }, [currentCuberId, practiceData, competitionData, analyticsData, badgesData, cubesData]);
+  }, [currentCuberId, practiceData, competitionData, analyticsData, badgesData, trainerData]);
 
   // Tabs whose cached data a mutation has invalidated. They keep rendering the
   // stale copy (no spinner flash) and refetch on next view.
@@ -218,8 +229,12 @@ function KidModeShellContent({
     if (stale.has(currentTab)) loadTab(currentTab);
   }, [stale, currentTab, loadTab]);
 
-  function switchTab(tab: Tab) {
-    if (tab === currentTab) return;
+  function switchTab(tab: Tab, opts?: { openHistory?: boolean }) {
+    const shouldOpenHistory = tab === "analytics" && Boolean(opts?.openHistory);
+    setOpenHistory(shouldOpenHistory);
+    if (tab === currentTab) {
+      return;
+    }
     setCurrentTab(tab);
 
     // Keep the address bar honest so a manual reload lands on the same tab,
@@ -227,7 +242,12 @@ function KidModeShellContent({
     // re-render the whole page server-side, which is exactly what this
     // refactor removes. replaceState (rather than pushState) preserves the
     // previous behaviour, where tabs did not create history entries.
-    const url = tab === "practice" ? "/" : `/?tab=${tab}`;
+    const url =
+      tab === "practice"
+        ? "/"
+        : shouldOpenHistory
+          ? `/?tab=${tab}&history=1`
+          : `/?tab=${tab}`;
     window.history.replaceState(null, "", url);
 
     if (!cache[tab] || stale.has(tab)) loadTab(tab);
@@ -239,7 +259,7 @@ function KidModeShellContent({
   const { pending: pendingSync } = useOfflineSync(currentCuberId);
 
   return (
-    <KidDataContext.Provider value={{ invalidate }}>
+    <KidDataContext.Provider value={{ invalidate, openTab: switchTab, practiceHeader, setPracticeHeader }}>
     <div className="kid-canvas relative flex h-dvh flex-col overflow-hidden text-white">
       <KidHeader
         cuberName={cuberName}
@@ -271,6 +291,7 @@ function KidModeShellContent({
             initialSubTab={initialSubTab}
             selectedEventId={selectedEventId}
             onEventChange={handleEventChange}
+            openHistory={openHistory}
           />
         </main>
 

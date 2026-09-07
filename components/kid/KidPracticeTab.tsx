@@ -1,11 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { ChevronDown, Trash2, ArrowRight } from "lucide-react";
-import { effectiveTime } from "@/lib/cubing";
+import { ChevronDown, Trash2, ArrowRight, History } from "lucide-react";
+import { effectiveTime, formatCs } from "@/lib/cubing";
 import { currentAoN } from "@/lib/practiceStats";
 import { EVENT_SHORT } from "@/lib/event-theme";
 import { useScramble } from "@/lib/useScramble";
+import {
+  isInspectionVoiceEnabled,
+  setInspectionVoiceEnabled,
+  silenceInspectionVoice,
+  speakInspectionMark,
+  unlockInspectionVoice,
+} from "@/lib/inspectionVoice";
 import { ScramblePreview } from "./ScramblePreview";
 import {
   TimerDisplay,
@@ -14,10 +21,10 @@ import {
   type Penalty as TimerDisplayPenalty,
 } from "./TimerDisplay";
 import { EventIcon } from "./EventIcon";
-import { recordSolve, updateSolve, deleteSolve as deleteSolveAction } from "@/app/actions/solve";
+import { recordSolve, updateSolve, deleteSolve as deleteSolveAction } from "@/lib/client/actions";
 import { enqueueSolve } from "@/lib/offline/queue";
 import { bumpPendingCount } from "@/lib/offline/syncStore";
-import { getPracticeSetupData, setPracticeGoal } from "@/app/actions/goals";
+import { getPracticeSetupData, setPracticeGoal } from "@/lib/client/actions";
 import { useKidData } from "./KidDataContext";
 
 interface Event {
@@ -26,21 +33,12 @@ interface Event {
   format: string;
 }
 
-interface Cube {
-  id: string;
-  name: string;
-  brand: string | null;
-  event_id: string | null;
-}
-
 interface KidPracticeTabProps {
   events: Event[];
   defaultEventId: string;
   selectedEventId: string;
   onEventChange: (id: string) => void;
   cuberId: string;
-  cubes: Cube[];
-  selectedCubeId: string | null;
   activeGoal: { id: string; target_cs: number } | null;
   ao5: number | null;
   ao12: number | null;
@@ -90,8 +88,12 @@ export function KidPracticeTab({
   onEventChange,
 }: KidPracticeTabProps) {
   const [, startTransition] = useTransition();
-  const { invalidate } = useKidData();
+  const { invalidate, openTab, setPracticeHeader } = useKidData();
   const { scramble, next: nextScramble } = useScramble(selectedId);
+  const [voiceOn, setVoiceOn] = useState(true);
+  const [inspCallout, setInspCallout] = useState<string | null>(null);
+  const calloutTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const voiceUnlocked = useRef(false);
 
   // Recent effective times (DNF = -1) for the selected event — the server's
   // tail, appended to after each in-session solve so the rolling averages move
@@ -167,6 +169,51 @@ export function KidPracticeTab({
   // Surfaces the reason a solve failed to save (instead of silently dropping it).
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const lastFive = liveTimes.slice(-5);
+  const lastFiveSlots: (number | null)[] = [
+    ...Array.from({ length: Math.max(0, 5 - lastFive.length) }, () => null),
+    ...lastFive,
+  ];
+  const canRescramble = timerPhase === "idle" || timerPhase === "stopped";
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setVoiceOn(isInspectionVoiceEnabled());
+  }, []);
+
+  function flashCallout(text: string) {
+    setInspCallout(text);
+    if (calloutTimer.current) clearTimeout(calloutTimer.current);
+    calloutTimer.current = setTimeout(() => setInspCallout(null), 1100);
+  }
+
+  const toggleVoice = useCallback(() => {
+    setVoiceOn((prev) => {
+      const next = !prev;
+      setInspectionVoiceEnabled(next);
+      if (!next) silenceInspectionVoice();
+      return next;
+    });
+  }, []);
+
+  const reshuffle = useCallback(() => {
+    if (timerPhase !== "idle" && timerPhase !== "stopped") return;
+    nextScramble();
+  }, [timerPhase, nextScramble]);
+
+  useEffect(() => {
+    setPracticeHeader({
+      voiceOn,
+      canRescramble,
+      toggleVoice,
+      reshuffle,
+    });
+  }, [voiceOn, canRescramble, toggleVoice, reshuffle, setPracticeHeader]);
+
+  useEffect(() => {
+    return () => setPracticeHeader(null);
+  }, [setPracticeHeader]);
+
   // Debounce + generation guard for target-time saves. Rapid +/- taps used to
   // fire one persist-then-refetch chain per tap; because those chains resolved
   // out of order, a stale response could land after a newer one and snap the
@@ -179,11 +226,11 @@ export function KidPracticeTab({
   // Same out-of-order hazard as the target-time save above: switching events
   // twice in quick succession fires two concurrent fetches, and without this
   // guard a slower response for the *first* event could land after the
-  // second and overwrite its cubes/goal/metrics with the wrong event's data.
+  // second and overwrite its goal/metrics with the wrong event's data.
   const eventSwitchGen = useRef(0);
 
   function handleSelectEvent(id: string) {
-    onEventChange(id); // shared with analytics/cubes; also writes the cookie
+    onEventChange(id); // shared with analytics; also writes the cookie
     const gen = ++eventSwitchGen.current;
     startTransition(async () => {
       const setup = await getPracticeSetupData(cuberId, id);
@@ -245,6 +292,12 @@ export function KidPracticeTab({
       clearInterval(timerRef.current.inspTimer);
       timerRef.current.inspTimer = null;
     }
+    silenceInspectionVoice();
+    if (calloutTimer.current) {
+      clearTimeout(calloutTimer.current);
+      calloutTimer.current = null;
+    }
+    setInspCallout(null);
   }
 
   const startRunning = useCallback(() => {
@@ -302,10 +355,14 @@ export function KidPracticeTab({
       // Warning at 8s elapsed (7s remaining)
       if (timerRef.current.inspElapsed === 8) {
         if ("vibrate" in navigator) navigator.vibrate(100);
+        speakInspectionMark(8);
+        flashCallout("8 seconds!");
       }
       // Warning at 12s elapsed (3s remaining)
       if (timerRef.current.inspElapsed === 12) {
         if ("vibrate" in navigator) navigator.vibrate(100);
+        speakInspectionMark(12);
+        flashCallout("12 seconds!");
       }
       // +2 penalty at 15s
       if (timerRef.current.inspElapsed === 15) {
@@ -332,6 +389,10 @@ export function KidPracticeTab({
 
     // Record press start time for tap detection
     timerRef.current.startMs = Date.now();
+    if (!voiceUnlocked.current) {
+      unlockInspectionVoice();
+      voiceUnlocked.current = true;
+    }
 
     // Start holding (works in both idle and inspecting states)
     goPhase("holding");
@@ -463,6 +524,7 @@ export function KidPracticeTab({
       timeCs: cs,
       penalty: chosenPenalty,
       scramble: currentScramble,
+      idempotencyId: crypto.randomUUID(),
     };
 
     if (!navigator.onLine) {
@@ -735,12 +797,12 @@ export function KidPracticeTab({
         {/* Scramble — pinned to the top of the hero */}
         <div className="practice-scramble shrink-0 pt-1 pointer-events-none">
           <div
-            className="kid-animate-in flex items-center gap-3 rounded-lg bg-white/5 w-full max-w-sm mx-auto px-4 py-2 select-none"
+            className="kid-animate-in flex w-full items-center gap-3 rounded-lg bg-white/5 px-3 py-2.5 select-none"
             style={{ animationDelay: "80ms", userSelect: "none", WebkitUserSelect: "none" }}
             onContextMenu={(e) => e.preventDefault()}
           >
             <p
-              className="font-mono-time flex-1 text-left text-[15px] leading-snug tracking-wide text-white/75"
+              className="font-mono-time w-[40%] min-w-0 shrink-0 text-left text-[15px] leading-snug tracking-wide text-white/75 whitespace-normal break-words"
               style={{ userSelect: "none", WebkitUserSelect: "none" }}
             >
               {scramble ?? "Generating scramble…"}
@@ -748,7 +810,7 @@ export function KidPracticeTab({
             <ScramblePreview
               event={selectedId}
               scramble={scramble}
-              className="h-32 w-48 shrink-0"
+              className="practice-scramble-preview min-w-0 flex-1"
             />
           </div>
         </div>
@@ -769,6 +831,11 @@ export function KidPracticeTab({
               penalty={penalty}
               finalCs={displayCs}
             />
+            {inspCallout && (
+              <p className="mt-2 font-display text-lg font-extrabold tracking-wide text-[#FFD500]">
+                {inspCallout}
+              </p>
+            )}
             <p className="practice-hint mt-3 text-sm text-white/45 select-none" style={{ userSelect: "none", WebkitUserSelect: "none" }}>
               {(() => {
                 // The live timer reads its ref during render on purpose to pick
@@ -850,6 +917,41 @@ export function KidPracticeTab({
         }}
         onContextMenu={(e) => e.preventDefault()}
       >
+            <div className="space-y-2 border-b border-white/8 px-3 py-2.5">
+              <div className="flex gap-1.5">
+                {lastFiveSlots.map((time, index) => {
+                  const newest = time != null && index === lastFiveSlots.length - 1;
+                  return (
+                    <div
+                      key={index}
+                      className="flex min-w-0 flex-1 flex-col items-center justify-center rounded-md border-2 py-1.5"
+                      style={{
+                        borderColor: newest ? "#FFD500" : "rgba(255,255,255,0.18)",
+                        backgroundColor: newest ? "rgba(255,213,0,0.14)" : "#1C1916",
+                        boxShadow: newest ? "2px 2px 0 #0A0A0A" : "2px 2px 0 rgba(0,0,0,0.35)",
+                      }}
+                    >
+                      <p
+                        className="font-mono-time text-[11px] font-bold leading-none"
+                        style={{ color: newest ? "#FFD500" : "rgba(255,255,255,0.88)" }}
+                      >
+                        {time == null ? "—" : formatCs(time)}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() => openTab("analytics", { openHistory: true })}
+                className="flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#FFD500] px-3 text-sm font-bold text-[#1A1208] [touch-action:manipulation]"
+              >
+                <History className="size-4" />
+                Practice history
+                <span className="font-mono-time font-bold opacity-70">({count})</span>
+                <ArrowRight className="size-4" />
+              </button>
+            </div>
         <div className="grid grid-cols-6 divide-x divide-white/8">
           {([
             { label: "ao5",   value: ao5 },
@@ -867,7 +969,7 @@ export function KidPracticeTab({
                 className="font-mono-time text-xs font-bold text-white leading-none"
                 style={{ userSelect: "none", WebkitUserSelect: "none" }}
               >
-                {value ? (value / 100).toFixed(2) : "—"}
+                {value == null ? "—" : formatCs(value)}
               </p>
               <p
                 className="text-[9px] font-bold uppercase tracking-wider text-white/40 mt-1"

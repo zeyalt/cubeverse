@@ -1,3 +1,11 @@
+import {
+  claimMutation,
+  enqueueMutation,
+  listMutations,
+  markMutationFailed,
+  removeMutation,
+} from "./outbox";
+
 export interface PendingSolve {
   id: string;
   cuberId: string;
@@ -7,97 +15,90 @@ export interface PendingSolve {
   scramble: string | null;
   solvedAt: string;
   cubeId?: string;
+  idempotencyId?: string;
+  attempts?: number;
+  nextAttemptAt?: number;
+  lastAttemptAt?: string;
+  lastError?: string;
 }
 
-const DB_NAME = "cubeverse-offline";
-const STORE = "pending-solves";
-const DB_VERSION = 1;
-
-// The connection is opened once and reused. Every call used to open and close
-// its own, which on a polling loop meant a steady drip of connection setup for
-// what is usually an empty queue.
-let dbPromise: Promise<IDBDatabase> | null = null;
-
-function openDb(): Promise<IDBDatabase> {
-  if (dbPromise) return dbPromise;
-
-  dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE)) {
-        db.createObjectStore(STORE, { keyPath: "id" });
-      }
-    };
-    req.onsuccess = () => {
-      const db = req.result;
-      // A held-open connection blocks another tab from upgrading the schema.
-      // Step aside when that happens; the next call reopens.
-      db.onversionchange = () => {
-        db.close();
-        dbPromise = null;
-      };
-      db.onclose = () => {
-        dbPromise = null;
-      };
-      resolve(db);
-    };
-    req.onerror = () => {
-      dbPromise = null;
-      reject(req.error);
-    };
-  });
-
-  // Don't cache a rejected promise — a transient failure would otherwise stick
-  // for the lifetime of the page.
-  dbPromise.catch(() => {
-    dbPromise = null;
-  });
-
-  return dbPromise;
-}
-
-function tx<T>(
-  db: IDBDatabase,
-  mode: IDBTransactionMode,
-  fn: (store: IDBObjectStore) => IDBRequest<T>
-): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE, mode);
-    const store = transaction.objectStore(STORE);
-    const request = fn(store);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
+type SolvePayload = Omit<
+  PendingSolve,
+  | "id"
+  | "idempotencyId"
+  | "attempts"
+  | "nextAttemptAt"
+  | "lastAttemptAt"
+  | "lastError"
+>;
 
 export async function enqueueSolve(
   solve: Omit<PendingSolve, "id" | "solvedAt"> & { solvedAt?: string }
 ): Promise<void> {
-  const db = await openDb();
-  const row: PendingSolve = {
-    ...solve,
-    id: crypto.randomUUID(),
-    solvedAt: solve.solvedAt ?? new Date().toISOString(),
+  const solvedAt = solve.solvedAt ?? new Date().toISOString();
+  const payload: SolvePayload = {
+    cuberId: solve.cuberId,
+    eventId: solve.eventId,
+    timeCs: solve.timeCs,
+    penalty: solve.penalty,
+    scramble: solve.scramble,
+    solvedAt,
+    ...(solve.cubeId && { cubeId: solve.cubeId }),
   };
-  await tx(db, "readwrite", (s) => s.add(row));
+  await enqueueMutation({
+    scope: `cuber:${solve.cuberId}`,
+    entityType: "solve",
+    operation: "create",
+    payload,
+    createdAt: solvedAt,
+    idempotencyKey: solve.idempotencyId,
+  });
 }
 
-export async function getPendingSolves(): Promise<PendingSolve[]> {
-  const db = await openDb();
-  const all = await tx<PendingSolve[]>(db, "readonly", (s) => s.getAll());
-  return all.sort(
-    (a, b) => new Date(a.solvedAt).getTime() - new Date(b.solvedAt).getTime()
-  );
+export async function getPendingSolves(
+  options: { dueOnly?: boolean } = {}
+): Promise<PendingSolve[]> {
+  const mutations = await listMutations<SolvePayload>({
+    entityType: "solve",
+    dueOnly: options.dueOnly,
+  });
+  return mutations
+    .map((mutation) => ({
+      ...mutation.payload,
+      id: mutation.id,
+      idempotencyId: mutation.idempotencyKey,
+      attempts: mutation.attempts,
+      nextAttemptAt: mutation.nextAttemptAt,
+      lastAttemptAt: mutation.lastAttemptAt,
+      lastError: mutation.lastError,
+    }))
+    .sort(
+      (a, b) => new Date(a.solvedAt).getTime() - new Date(b.solvedAt).getTime()
+    );
 }
 
 export async function getPendingCount(): Promise<number> {
-  const db = await openDb();
-  const count = await tx<number>(db, "readonly", (s) => s.count());
-  return count;
+  return (await listMutations({ entityType: "solve" })).length;
 }
 
 export async function removePendingSolve(id: string): Promise<void> {
-  const db = await openDb();
-  await tx(db, "readwrite", (s) => s.delete(id));
+  await removeMutation(id);
+}
+
+export async function claimPendingSolve(id: string): Promise<PendingSolve | null> {
+  const mutation = await claimMutation(id);
+  if (!mutation || mutation.entityType !== "solve") return null;
+  return {
+    ...(mutation.payload as SolvePayload),
+    id: mutation.id,
+    idempotencyId: mutation.idempotencyKey,
+    attempts: mutation.attempts,
+    nextAttemptAt: mutation.nextAttemptAt,
+    lastAttemptAt: mutation.lastAttemptAt,
+    lastError: mutation.lastError,
+  };
+}
+
+export async function markPendingSolveFailed(id: string, error: unknown): Promise<void> {
+  await markMutationFailed(id, error);
 }

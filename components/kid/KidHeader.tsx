@@ -1,7 +1,8 @@
 "use client";
 
-import { Moon, Sun, ChevronDown } from "lucide-react";
+import { Moon, Sun, ChevronDown, Shuffle, Volume2, VolumeX } from "lucide-react";
 import { useTheme } from "@/lib/useTheme";
+import { useKidData } from "./KidDataContext";
 
 const AVATAR_HEX: Record<string, string> = {
   gold: "#FFD500",
@@ -30,9 +31,12 @@ interface KidHeaderProps {
 
 export function KidHeader({ cuberName, currentCuberId, cubers, onOpenSwitcher }: KidHeaderProps) {
   const { theme, setTheme } = useTheme();
+  const { practiceHeader } = useKidData();
   const activeCuber = cubers.find((c) => c.id === currentCuberId);
   const avatarColor = AVATAR_HEX[activeCuber?.avatar_color ?? "blue"] ?? "#0046AD";
   const initial = (cuberName?.trim()?.[0] ?? "C").toUpperCase();
+  const headerBtn =
+    "flex size-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 transition-colors hover:bg-white/10 hover:text-white [touch-action:manipulation] disabled:opacity-30";
 
   return (
     <header className="relative z-10 flex items-center justify-between gap-3 px-5 pt-[max(0.75rem,env(safe-area-inset-top))] pb-0.5">
@@ -55,13 +59,38 @@ export function KidHeader({ cuberName, currentCuberId, cubers, onOpenSwitcher }:
         </div>
       </button>
 
-      <button
-        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-        className="flex size-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 transition-colors hover:bg-white/10 hover:text-white [touch-action:manipulation]"
-        aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-      >
-        {theme === "dark" ? <Sun className="size-[1.05rem]" /> : <Moon className="size-[1.05rem]" />}
-      </button>
+      <div className="flex shrink-0 items-center gap-1.5">
+        {practiceHeader && (
+          <>
+            <button
+              type="button"
+              onClick={practiceHeader.toggleVoice}
+              className={headerBtn}
+              aria-label={practiceHeader.voiceOn ? "Mute inspection voice" : "Unmute inspection voice"}
+              title={practiceHeader.voiceOn ? "Voice on" : "Voice off"}
+            >
+              {practiceHeader.voiceOn ? <Volume2 className="size-[1.05rem]" /> : <VolumeX className="size-[1.05rem]" />}
+            </button>
+            <button
+              type="button"
+              onClick={practiceHeader.reshuffle}
+              disabled={!practiceHeader.canRescramble}
+              className={headerBtn}
+              aria-label="New scramble"
+              title="New scramble"
+            >
+              <Shuffle className="size-[1.05rem]" />
+            </button>
+          </>
+        )}
+        <button
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          className={headerBtn}
+          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {theme === "dark" ? <Sun className="size-[1.05rem]" /> : <Moon className="size-[1.05rem]" />}
+        </button>
+      </div>
     </header>
   );
 }

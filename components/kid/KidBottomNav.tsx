@@ -1,6 +1,6 @@
 "use client";
 
-import { Timer, Trophy, BarChart2, Star, Box } from "lucide-react";
+import { Timer, Trophy, BarChart2, Star, Dumbbell } from "lucide-react";
 import { prefetchTab, type Tab } from "./lazyTabs";
 
 interface KidBottomNavProps {
@@ -13,7 +13,7 @@ const TABS = [
   { id: "competitions" as const, label: "Competitions", icon: Trophy },
   { id: "analytics" as const, label: "Analytics", icon: BarChart2 },
   { id: "badges" as const, label: "Badges", icon: Star },
-  { id: "cubes" as const, label: "Cubes", icon: Box },
+  { id: "trainer" as const, label: "Trainer", icon: Dumbbell },
 ];
 
 export function KidBottomNav({ activeTab, onSwitch }: KidBottomNavProps) {

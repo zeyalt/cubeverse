@@ -1,34 +1,73 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { lazy, Suspense, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { formatCs } from "@/lib/cubing";
 import { EVENT_SHORT } from "@/lib/event-theme";
-import type { AnalyticsPayload } from "@/app/actions/analytics";
-import { getHistoricalSolves, deleteSolve, updateSolve, type HistoricalSolve } from "@/app/actions/solve";
-import { getTabData } from "@/app/actions/tabs";
+import type { AnalyticsPayload } from "@/lib/client/tabData";
+import {
+  getHistoricalSolves,
+  deleteSolve,
+  updateSolve,
+  getTabData,
+  type HistoricalSolve,
+} from "@/lib/client/actions";
 import { AnalyticsFilters, type DateRange } from "./AnalyticsFilters";
 import { useKidData } from "./KidDataContext";
 import { CurrentStatsCards } from "./CurrentStatsCards";
-import { PracticeHeatmap } from "@/components/analytics/PracticeHeatmap";
-import { SolvesOverTime } from "@/components/analytics/SolvesOverTime";
-import { SolveDistribution } from "@/components/analytics/SolveDistribution";
-import { PbStaircase } from "@/components/analytics/PbStaircase";
 import { CompetitionImprovements } from "@/components/analytics/CompetitionImprovements";
-import { CompetitorBenchmark } from "@/components/analytics/CompetitorBenchmark";
 import { EventIcon } from "./EventIcon";
 import { distributionFromPoints, heatmapFromPoints, type CurrentPb } from "@/lib/analytics";
+
+const PracticeHeatmap = lazy(() =>
+  import("@/components/analytics/PracticeHeatmap").then((mod) => ({ default: mod.PracticeHeatmap }))
+);
+const SolvesOverTime = lazy(() =>
+  import("@/components/analytics/SolvesOverTime").then((mod) => ({ default: mod.SolvesOverTime }))
+);
+const SolveDistribution = lazy(() =>
+  import("@/components/analytics/SolveDistribution").then((mod) => ({ default: mod.SolveDistribution }))
+);
+const PbStaircase = lazy(() =>
+  import("@/components/analytics/PbStaircase").then((mod) => ({ default: mod.PbStaircase }))
+);
+const CompetitorBenchmark = lazy(() =>
+  import("@/components/analytics/CompetitorBenchmark").then((mod) => ({ default: mod.CompetitorBenchmark }))
+);
+
+function DeferredChart({ children, height }: { children: ReactNode; height: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || visible) return;
+    if (!("IntersectionObserver" in window)) {
+      const timer = globalThis.setTimeout(() => setVisible(true), 0);
+      return () => globalThis.clearTimeout(timer);
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        setVisible(true);
+        observer.disconnect();
+      },
+      { rootMargin: "240px 0px" }
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [visible]);
+
+  return (
+    <div ref={ref} style={{ minHeight: visible ? undefined : height }}>
+      {visible && <Suspense fallback={<div style={{ height }} aria-hidden />}>{children}</Suspense>}
+    </div>
+  );
+}
 
 interface Event {
   id: string;
   name: string;
   format: string;
-}
-
-interface Cube {
-  id: string;
-  name: string;
-  brand: string | null;
-  event_id: string | null;
 }
 
 interface KidAnalyticsTabProps {
@@ -39,10 +78,10 @@ interface KidAnalyticsTabProps {
   cuberId: string;
   initialAnalyticsData: AnalyticsPayload;
   pbs: CurrentPb[];
-  cubes: Cube[];
   wcaId: string | null;
   initialSessionTimes: HistoricalSolve[];
   initialSubTab: "practice" | "competition";
+  openHistory?: boolean;
 }
 
 const EVENT_NAMES: Record<string, string> = {
@@ -72,6 +111,7 @@ export function KidAnalyticsTab({
   wcaId,
   initialSessionTimes,
   initialSubTab,
+  openHistory = false,
 }: KidAnalyticsTabProps) {
   // Comes from the server's read of ?sub= rather than useSearchParams: this tab
   // can now mount without a navigation, so reading the live URL here would pick
@@ -85,11 +125,12 @@ export function KidAnalyticsTab({
   // page reload. Now refetched alongside the charts in refreshAnalytics.
   const [pbs, setPbs] = useState<CurrentPb[]>(initialPbs);
   const [dateRange, setDateRange] = useState<DateRange>("all");
-  const [timesOpen, setTimesOpen] = useState(false);
+  const [timesOpen, setTimesOpen] = useState(openHistory);
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editingCs, setEditingCs] = useState<number>(0);
   const [editingPenalty, setEditingPenalty] = useState<"none" | "plus2" | "dnf">("none");
   const [sessionTimes, setSessionTimes] = useState<HistoricalSolve[]>(initialSessionTimes);
+  const [visibleHistoryCount, setVisibleHistoryCount] = useState(48);
 
   // KidAnalyticsTab doesn't remount on every tab switch — it stays mounted
   // (or gets recreated with whatever KidModeShell's cache currently holds,
@@ -103,6 +144,7 @@ export function KidAnalyticsTab({
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSessionTimes(initialSessionTimes);
+    setVisibleHistoryCount(48);
   }, [initialSessionTimes]);
 
   useEffect(() => {
@@ -114,6 +156,7 @@ export function KidAnalyticsTab({
   const refreshSolves = useCallback(async (eventId: string) => {
     const solves = await getHistoricalSolves(cuberId, eventId);
     setSessionTimes(solves);
+    setVisibleHistoryCount(48);
   }, [cuberId]);
 
   const refreshAnalytics = useCallback(async (eventId: string) => {
@@ -139,6 +182,19 @@ export function KidAnalyticsTab({
   // repopulating. Only refetch once the selection actually moves off what
   // the current props already cover.
   const loadedRef = useRef(`${cuberId}:${defaultEventId}`);
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (!openHistory) return;
+    setSubTab("practice");
+    setTimesOpen(true);
+    const frame = requestAnimationFrame(() => {
+      document.getElementById("practice-history")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [openHistory]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
 
   // This effect synchronises with an external system (the database), so the
   // setState inside the refresh callbacks is intentional.
@@ -261,11 +317,13 @@ export function KidAnalyticsTab({
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">Solves Over Time</p>
             <div className="surface px-2 py-3">
-              <SolvesOverTime
-                data={filteredSolvesOverTime}
-                targetCs={analyticsData.targetCs}
-                prCs={selectedPb?.wcaAvg}
-              />
+              <DeferredChart height={404}>
+                <SolvesOverTime
+                  data={filteredSolvesOverTime}
+                  targetCs={analyticsData.targetCs}
+                  prCs={selectedPb?.wcaAvg}
+                />
+              </DeferredChart>
             </div>
           </div>
 
@@ -273,11 +331,13 @@ export function KidAnalyticsTab({
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">Solve Distribution</p>
             <div className="surface px-2 py-3">
-              <SolveDistribution
-                bins={filteredDistribution}
-                targetCs={analyticsData.targetCs}
-                prCs={selectedPb?.wcaAvg}
-              />
+              <DeferredChart height={220}>
+                <SolveDistribution
+                  bins={filteredDistribution}
+                  targetCs={analyticsData.targetCs}
+                  prCs={selectedPb?.wcaAvg}
+                />
+              </DeferredChart>
             </div>
           </div>
 
@@ -285,16 +345,18 @@ export function KidAnalyticsTab({
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">Practice Frequency</p>
             <div className="surface px-4 py-6">
-              <PracticeHeatmap
-                counts={filteredHeatmap}
-                startDate={dateRange === "all" ? undefined : dateRangeFilter.startStr}
-                endDate={dateRange === "all" ? undefined : dateRangeFilter.endStr}
-              />
+              <DeferredChart height={180}>
+                <PracticeHeatmap
+                  counts={filteredHeatmap}
+                  startDate={dateRange === "all" ? undefined : dateRangeFilter.startStr}
+                  endDate={dateRange === "all" ? undefined : dateRangeFilter.endStr}
+                />
+              </DeferredChart>
             </div>
           </div>
 
           {/* Practice History */}
-          <div className="relative z-10">
+          <div id="practice-history" className="relative z-10 scroll-mt-3">
             <button
               onClick={() => setTimesOpen(!timesOpen)}
               className="surface surface-hover w-full flex items-center justify-between px-4 py-3"
@@ -310,31 +372,42 @@ export function KidAnalyticsTab({
                 {sessionTimes.length === 0 ? (
                   <p className="text-xs text-white/40 text-center py-4">No solves recorded yet.</p>
                 ) : (
-                  <div className="grid grid-cols-4 gap-2">
-                    {sessionTimes.map((time, idx) => {
-                      const date = new Date(time.timestamp);
-                      const timeStr = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-                      const dateStr = date.toLocaleDateString([], { month: "short", day: "numeric" });
-                      let longPressTimer: NodeJS.Timeout | null = null;
-                      const openEdit = () => { setEditingIdx(idx); setEditingCs(time.cs); setEditingPenalty(time.penalty); };
-                      return (
-                        <button
-                          key={idx}
-                          onMouseDown={() => { longPressTimer = setTimeout(openEdit, 500); }}
-                          onMouseUp={() => { if (longPressTimer) clearTimeout(longPressTimer); }}
-                          onMouseLeave={() => { if (longPressTimer) clearTimeout(longPressTimer); }}
-                          onTouchStart={() => { longPressTimer = setTimeout(openEdit, 500); }}
-                          onTouchEnd={() => { if (longPressTimer) clearTimeout(longPressTimer); }}
-                          onContextMenu={(e) => { e.preventDefault(); openEdit(); }}
-                          className="flex flex-col items-center rounded-lg bg-white/8 px-2 py-2 text-center text-xs active:bg-white/12 transition-colors"
-                        >
-                          <p className="text-[10px] text-white/50">{dateStr} {timeStr}</p>
-                          <p className="font-mono-time font-bold text-white mt-1">
-                            {time.penalty === "dnf" ? "DNF" : time.penalty === "plus2" ? `${formatCs(time.cs + 200)}+` : formatCs(time.cs)}
-                          </p>
-                        </button>
-                      );
-                    })}
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-4 gap-2">
+                      {sessionTimes.slice(0, visibleHistoryCount).map((time, idx) => {
+                        const date = new Date(time.timestamp);
+                        const timeStr = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                        const dateStr = date.toLocaleDateString([], { month: "short", day: "numeric" });
+                        let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+                        const openEdit = () => { setEditingIdx(idx); setEditingCs(time.cs); setEditingPenalty(time.penalty); };
+                        return (
+                          <button
+                            key={time.id}
+                            onMouseDown={() => { longPressTimer = setTimeout(openEdit, 500); }}
+                            onMouseUp={() => { if (longPressTimer) clearTimeout(longPressTimer); }}
+                            onMouseLeave={() => { if (longPressTimer) clearTimeout(longPressTimer); }}
+                            onTouchStart={() => { longPressTimer = setTimeout(openEdit, 500); }}
+                            onTouchEnd={() => { if (longPressTimer) clearTimeout(longPressTimer); }}
+                            onContextMenu={(e) => { e.preventDefault(); openEdit(); }}
+                            className="flex flex-col items-center rounded-lg bg-white/8 px-2 py-2 text-center text-xs active:bg-white/12 transition-colors"
+                          >
+                            <p className="text-[10px] text-white/50">{dateStr} {timeStr}</p>
+                            <p className="font-mono-time font-bold text-white mt-1">
+                              {time.penalty === "dnf" ? "DNF" : time.penalty === "plus2" ? `${formatCs(time.cs + 200)}+` : formatCs(time.cs)}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {visibleHistoryCount < sessionTimes.length && (
+                      <button
+                        type="button"
+                        onClick={() => setVisibleHistoryCount((count) => count + 48)}
+                        className="btn-neutral min-h-10 w-full px-3 text-sm"
+                      >
+                        Show 48 more
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -529,7 +602,9 @@ export function KidAnalyticsTab({
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">PB Progression</p>
             <div className="surface px-2 py-3">
-              <PbStaircase data={analyticsData.pbStaircase} />
+              <DeferredChart height={280}>
+                <PbStaircase data={analyticsData.pbStaircase} />
+              </DeferredChart>
             </div>
           </div>
 
@@ -542,12 +617,14 @@ export function KidAnalyticsTab({
           {/* Competitor Benchmarking */}
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-wider text-white/40">Competitor Benchmarking</p>
-            <CompetitorBenchmark
-              cuberId={cuberId}
-              myWcaId={wcaId}
-              eventId={selectedEventId}
-              eventName={EVENT_NAMES[selectedEventId] || selectedEventId}
-            />
+            <DeferredChart height={120}>
+              <CompetitorBenchmark
+                cuberId={cuberId}
+                myWcaId={wcaId}
+                eventId={selectedEventId}
+                eventName={EVENT_NAMES[selectedEventId] || selectedEventId}
+              />
+            </DeferredChart>
           </div>
         </div>
       )}

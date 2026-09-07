@@ -3,13 +3,17 @@
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
-import { addResultKid, deleteResultKid, deleteCompetition } from "@/app/actions/competition";
-import { saveCompetitionNote } from "@/app/actions/notes";
+import {
+  addResultKid,
+  deleteResultKid,
+  deleteCompetition,
+  saveCompetitionNote,
+  type CompetitionNote,
+} from "@/lib/client/actions";
 import { formatCs, DNF } from "@/lib/cubing";
 import { getEventSticker, EVENT_SHORT } from "@/lib/event-theme";
 import { EventIcon } from "./EventIcon";
 import { ArrowLeft, Plus, Trash2, MessageSquare } from "lucide-react";
-import type { CompetitionNote } from "@/app/actions/notes";
 
 const ROUND_LABELS: Record<string, string> = {
   first: "Round 1",

@@ -7,7 +7,7 @@ import {
   removeBenchmarkCompetitor,
   updateBenchmarkCompetitorAlias,
   type SavedCompetitor,
-} from "@/app/actions/benchmark";
+} from "@/lib/client/actions";
 
 const WCA_ID_REGEX = /^\d{4}[A-Z]{4}\d{2}$/;
 

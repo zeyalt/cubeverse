@@ -112,6 +112,8 @@ export function PracticeHeatmap({ counts, weeks = 52, startDate, endDate }: Prop
 
   // Recent dates on the left: flip column order for display
   const flip = (c: number) => cols - 1 - c;
+  const cellsByPosition = new Map(days.map((day) => [`${day.col}:${day.row}`, day]));
+  const monthByColumn = new Map(monthLabels.map((month) => [month.col, month.label]));
 
   return (
     <div className="overflow-x-auto">
@@ -126,10 +128,10 @@ export function PracticeHeatmap({ counts, weeks = 52, startDate, endDate }: Prop
         {/* Month labels */}
         <div className="flex ml-8" style={{ gap: "2px" }}>
           {Array.from({ length: cols }, (_, c) => {
-            const lbl = monthLabels.find((m) => m.col === flip(c));
+            const label = monthByColumn.get(flip(c));
             return (
               <div key={c} className="text-xs text-token-muted shrink-0" style={{ fontSize: 9, width: "14px" }}>
-                {lbl?.label ?? ""}
+                {label ?? ""}
               </div>
             );
           })}
@@ -143,7 +145,7 @@ export function PracticeHeatmap({ counts, weeks = 52, startDate, endDate }: Prop
             </span>
             {Array.from({ length: cols }, (_, c) => {
               const col = flip(c);
-              const cell = days.find((d) => d.col === col && d.row === row);
+              const cell = cellsByPosition.get(`${col}:${row}`);
               if (!cell || !cell.inRange) return <div key={c} className="w-3.5 h-3.5 shrink-0" />;
               return (
                 <div

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
-import { completeOnboarding } from "@/app/actions/onboarding";
+import { completeOnboarding } from "@/lib/client/actions";
 
 const AVATAR_COLORS = [
   { key: "gold", color: "#FFD500", label: "Gold" },

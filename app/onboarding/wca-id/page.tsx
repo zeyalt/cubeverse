@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
+import { fetchWcaPerson } from "@/lib/client/actions";
 
 export default function OnboardingWcaIdPage() {
   const router = useRouter();
@@ -37,18 +38,7 @@ export default function OnboardingWcaIdPage() {
     setError("");
     startTransition(async () => {
       try {
-        const res = await fetch(`https://www.worldcubeassociation.org/api/v0/persons/${wcaId}`);
-        if (!res.ok) {
-          console.error(`WCA API error: ${res.status}`);
-          throw new Error("WCA ID not found");
-        }
-
-        const data = await res.json();
-        console.log("WCA data:", data);
-
-        if (!data) {
-          throw new Error("No data received from WCA API");
-        }
+        const data = await fetchWcaPerson(wcaId);
 
         // WCA API returns person object with optional name/country
         // Accept it even if name is missing

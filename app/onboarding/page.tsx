@@ -1,31 +1,27 @@
-import { redirect } from "next/navigation";
+"use client";
+
 import Link from "next/link";
-import { getServiceClient } from "@/lib/supabase/service";
-import { getOwnerId } from "@/lib/owner";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { requireUser } from "@/lib/supabase/auth";
+import { switchCuberInPlace } from "@/lib/client/actions";
 
-export default async function OnboardingWelcome() {
-  const db = getServiceClient();
-  const ownerId = getOwnerId();
+type Cuber = { id: string; name: string; display_name: string | null; avatar_color: string };
 
-  // Check if app_settings exists
-  const { data: settings } = await db
-    .from("app_settings")
-    .select("default_cuber_id, current_cuber_id")
-    .eq("owner_id", ownerId)
-    .maybeSingle();
+export default function OnboardingWelcome() {
+  const router = useRouter();
+  const [existingCubers, setExistingCubers] = useState<Cuber[]>([]);
 
-  // If settings exist with a valid default_cuber_id, user has already completed onboarding
-  if (settings?.default_cuber_id) {
-    redirect("/");
-  }
-
-  // Fetch existing cubers for this owner
-  const { data: cubers } = await db
-    .from("cubers")
-    .select("id, name, display_name, avatar_color")
-    .eq("owner_id", ownerId);
-
-  const existingCubers = cubers ?? [];
+  useEffect(() => {
+    void requireUser().then(async ({ db, ownerId }) => {
+      const [{ data: settings }, { data: cubers }] = await Promise.all([
+        db.from("app_settings").select("default_cuber_id").eq("owner_id", ownerId).maybeSingle(),
+        db.from("cubers").select("id, name, display_name, avatar_color").eq("owner_id", ownerId),
+      ]);
+      if (settings?.default_cuber_id) router.replace("/");
+      else setExistingCubers((cubers ?? []) as Cuber[]);
+    });
+  }, [router]);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-5 py-8">
@@ -58,15 +54,14 @@ export default async function OnboardingWelcome() {
               </summary>
               <div className="mt-3 space-y-2">
                 {existingCubers.map((cuber) => (
-                  <form key={cuber.id} action="/api/select-cuber" method="POST">
-                    <input type="hidden" name="cuber_id" value={cuber.id} />
                     <button
-                      type="submit"
+                      key={cuber.id}
+                      type="button"
+                      onClick={() => void switchCuberInPlace(cuber.id).then(() => router.replace("/"))}
                       className="block w-full rounded-lg bg-white/5 px-4 py-2.5 text-left font-medium transition-colors hover:bg-white/10 [touch-action:manipulation]"
                     >
                       {cuber.display_name ?? cuber.name}
                     </button>
-                  </form>
                 ))}
               </div>
             </details>

@@ -4,7 +4,7 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip,
   ResponsiveContainer, Legend,
 } from "recharts";
-import type { BenchmarkPerson } from "@/app/actions/benchmark";
+import type { BenchmarkPerson } from "@/lib/client/actions";
 import { formatCs, DNF } from "@/lib/cubing";
 import { COMPETITOR_PALETTE } from "@/lib/chartTheme";
 
@@ -122,6 +122,7 @@ export function CompetitorProgressChart({ people, mode }: Props) {
             strokeWidth={2}
             dot={{ r: 4, fill: COMPETITOR_PALETTE[i % COMPETITOR_PALETTE.length] }}
             connectNulls
+            isAnimationActive={false}
           />
         ))}
       </LineChart>

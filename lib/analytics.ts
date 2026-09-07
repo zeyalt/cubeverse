@@ -1,8 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { effectiveTime, aoN, DNF, formatCs } from "./cubing";
+import { effectiveTime, DNF, formatCs } from "./cubing";
 import type { Penalty } from "./cubing";
-import { practiceSummary, type PracticeSummary } from "./practiceStats";
-import { fetchAllRows } from "./supabase/fetchAll";
+import { currentAoN } from "./practiceStats";
 
 // ─── Types sent to chart components ──────────────────────────────────────────
 
@@ -55,10 +54,8 @@ function fmtDate(iso: string): string {
 
 function rollingAoN(times: number[], n: number): (number | null)[] {
   return times.map((_, i) => {
-    if (i < n - 1) return null;
-    const slice = times.slice(i - n + 1, i + 1);
-    const result = aoN(slice);
-    return result === DNF ? null : result;
+    const result = currentAoN(times.slice(0, i + 1), n);
+    return result == null || result === DNF ? null : result;
   });
 }
 
@@ -258,105 +255,54 @@ export interface CurrentPb {
 export async function getCurrentPbs(
   db: SupabaseClient,
   cuberId: string,
-  eventIds: string[]
+  eventIds: string[],
+  ownerId?: string
 ): Promise<CurrentPb[]> {
-  const [{ data: pbData }, solveData, { data: resultData }] = await Promise.all([
-    db
-      .from("pb_history")
-      .select("event_id, record_type, context, time_cs")
-      .eq("cuber_id", cuberId)
-      .in("event_id", eventIds)
-      .in("context", ["official", "practice"])
-      .gt("time_cs", 0),
-    // Paged: this spans every event at once, so it is the first query to cross
-    // PostgREST's row cap. Truncation here silently froze the practice averages
-    // and counts on the analytics PB table.
-    fetchAllRows<{ event_id: string; time_cs: number; penalty: string }>((from, to) =>
-      db
-        .from("solves")
-        .select("event_id, time_cs, penalty")
-        .eq("cuber_id", cuberId)
-        .in("event_id", eventIds)
-        .eq("context", "practice")
-        .order("solved_at")
-        .range(from, to)
-    ),
-    db
-      .from("results")
-      .select("event_id, best_cs, average_cs, competitions(type)")
-      .eq("cuber_id", cuberId)
-      .in("event_id", eventIds),
-  ]);
+  if (!ownerId) {
+    const { data: cuber, error } = await db
+      .from("cubers")
+      .select("owner_id")
+      .eq("id", cuberId)
+      .single();
+    if (error || !cuber) throw new Error(`Failed to resolve cuber owner: ${error?.message}`);
+    ownerId = cuber.owner_id as string;
+  }
 
-  // Split competition results into WCA vs non-WCA (unofficial) best single/avg.
-  type ResultRow = {
+  const { data, error } = await db.rpc("get_current_pbs", {
+    p_owner_id: ownerId,
+    p_cuber_id: cuberId,
+    p_event_ids: eventIds,
+  });
+  if (error) throw new Error(`Failed to load current PBs: ${error.message}`);
+
+  return ((data ?? []) as Array<{
     event_id: string;
-    best_cs: number | null;
-    average_cs: number | null;
-    competitions: { type: string } | null;
-  };
-  const compBest: Record<string, number> = {}; // key: `${eventId}:${wca|unofficial}:${single|average}`
-  for (const r of (resultData ?? []) as unknown as ResultRow[]) {
-    const isWca = (r.competitions?.type ?? "").toLowerCase() === "wca";
-    const kind = isWca ? "wca" : "unofficial";
-    const single = r.best_cs ?? null;
-    const avg = r.average_cs ?? null;
-    if (single !== null && single > 0) {
-      const k = `${r.event_id}:${kind}:single`;
-      if (compBest[k] === undefined || single < compBest[k]) compBest[k] = single;
-    }
-    if (avg !== null && avg > 0) {
-      const k = `${r.event_id}:${kind}:average`;
-      if (compBest[k] === undefined || avg < compBest[k]) compBest[k] = avg;
-    }
-  }
-
-  // Find minimum per (event, recordType, context)
-  const best: Record<string, number> = {};
-  for (const r of pbData ?? []) {
-    const key = `${r.event_id}:${r.record_type}:${r.context}`;
-    const cur = best[key];
-    if (cur === undefined || (r.time_cs as number) < cur) {
-      best[key] = r.time_cs as number;
-    }
-  }
-
-  // Group solves by event and calculate rolling averages
-  const solvesByEvent: Record<string, Array<{ time_cs: number; penalty: string }>> = {};
-  for (const solve of solveData) {
-    const eventId = solve.event_id as string;
-    if (!solvesByEvent[eventId]) {
-      solvesByEvent[eventId] = [];
-    }
-    solvesByEvent[eventId].push(solve as { time_cs: number; penalty: string });
-  }
-
-  // Calculate rolling averages + best single for each event, all derived from
-  // live solves so they always reflect deletions (pb_history can go stale and
-  // is only used for official records below).
-  // Shared with the Practice tab via practiceSummary, so the two screens can't
-  // drift apart. It also only averages the tail window rather than building the
-  // whole rolling series and discarding all but the last entry.
-  const practiceStats: Record<string, PracticeSummary> = {};
-  for (const [eventId, solves] of Object.entries(solvesByEvent)) {
-    const effs = solves.map((s) => effectiveTime(s.time_cs, s.penalty as Penalty));
-    practiceStats[eventId] = practiceSummary(effs);
-  }
-
-  return eventIds.map((id) => ({
-    eventId: id,
-    officialSingle: best[`${id}:single:official`] ?? null,
-    officialAvg:    best[`${id}:average:official`] ?? null,
-    wcaSingle:        compBest[`${id}:wca:single`] ?? null,
-    wcaAvg:           compBest[`${id}:wca:average`] ?? null,
-    unofficialSingle: compBest[`${id}:unofficial:single`] ?? null,
-    unofficialAvg:    compBest[`${id}:unofficial:average`] ?? null,
-    practiceSingle: practiceStats[id]?.best ?? null,
-    practiceAo5:    practiceStats[id]?.ao5 ?? null,
-    practiceAo12:   practiceStats[id]?.ao12 ?? null,
-    practiceAo50:   practiceStats[id]?.ao50 ?? null,
-    practiceAo100:  practiceStats[id]?.ao100 ?? null,
-    practiceCount:  practiceStats[id]?.count ?? 0,
+    official_single: number | null;
+    official_avg: number | null;
+    wca_single: number | null;
+    wca_avg: number | null;
+    unofficial_single: number | null;
+    unofficial_avg: number | null;
+    practice_single: number | null;
+    practice_ao5: number | null;
+    practice_ao12: number | null;
+    practice_ao50: number | null;
+    practice_ao100: number | null;
+    practice_count: number | string;
+  }>).map((row) => ({
+    eventId: row.event_id,
+    officialSingle: row.official_single,
+    officialAvg: row.official_avg,
+    wcaSingle: row.wca_single,
+    wcaAvg: row.wca_avg,
+    unofficialSingle: row.unofficial_single,
+    unofficialAvg: row.unofficial_avg,
+    practiceSingle: row.practice_single,
+    practiceAo5: row.practice_ao5,
+    practiceAo12: row.practice_ao12,
+    practiceAo50: row.practice_ao50,
+    practiceAo100: row.practice_ao100,
+    practiceCount: Number(row.practice_count),
   }));
 }
 

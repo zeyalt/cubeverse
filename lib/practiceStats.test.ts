@@ -23,13 +23,22 @@ describe("currentAoN", () => {
     expect(currentAoN([100, 200, 300, 400, DNF], 5)).toBe(300);
   });
 
-  it("returns null when a DNF lands in the counted middle", () => {
+  it("returns DNF when a DNF lands in the counted middle", () => {
     // Two DNFs: one is dropped as worst, the other stays in the middle.
-    expect(currentAoN([100, 200, 300, DNF, DNF], 5)).toBeNull();
+    expect(currentAoN([100, 200, 300, DNF, DNF], 5)).toBe(DNF);
   });
 
-  it("returns null when every solve is a DNF", () => {
-    expect(currentAoN([DNF, DNF, DNF, DNF, DNF], 5)).toBeNull();
+  it("returns DNF when every solve is a DNF", () => {
+    expect(currentAoN([DNF, DNF, DNF, DNF, DNF], 5)).toBe(DNF);
+  });
+
+  it("skips DNFs for ao12, ao50, and ao100", () => {
+    const times = [...Array.from({ length: 50 }, (_, i) => 200 + i), DNF, DNF];
+    // 50 successful solves 200..249; drop 200 and 249, mean 201..248 = 224.5 → 225
+    expect(currentAoN(times, 50)).toBe(225);
+    expect(
+      currentAoN([100, 200, 300, DNF, DNF, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200], 12),
+    ).toBe(currentAoN([100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200], 12));
   });
 });
 

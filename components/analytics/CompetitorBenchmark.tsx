@@ -7,7 +7,7 @@ import {
   getBenchmarkSeries,
   type SavedCompetitor,
   type BenchmarkPerson,
-} from "@/app/actions/benchmark";
+} from "@/lib/client/actions";
 import { CompetitorProgressChart } from "./CompetitorProgressChart";
 import { ManageCompetitorsSheet } from "./ManageCompetitorsSheet";
 import { COMPETITOR_PALETTE } from "@/lib/chartTheme";

@@ -139,7 +139,13 @@ export function SolveDistribution({ bins, targetCs, prCs }: Props) {
           />
         )}
 
-        <Bar dataKey="count" name="Solves" fill={cc.bar} radius={[3, 3, 0, 0]} />
+        <Bar
+          dataKey="count"
+          name="Solves"
+          fill={cc.bar}
+          radius={[3, 3, 0, 0]}
+          isAnimationActive={false}
+        />
       </BarChart>
     </ResponsiveContainer>
   );

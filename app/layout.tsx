@@ -1,25 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, IBM_Plex_Mono, IBM_Plex_Sans, Rubik } from "next/font/google";
+import { IBM_Plex_Mono, IBM_Plex_Sans, Rubik } from "next/font/google";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { AuthGate } from "@/components/AuthGate";
 import "./globals.css";
 import "@cubing/icons/css";
 
 const plexSans = IBM_Plex_Sans({
   variable: "--font-plex",
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
-});
-
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
+  weight: ["400", "600"],
 });
 
 const rubik = Rubik({
   variable: "--font-rubik",
   subsets: ["latin"],
-  weight: ["600", "700", "800"],
+  weight: ["700", "800"],
 });
 
 const plexMono = IBM_Plex_Mono({
@@ -52,7 +47,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${plexSans.variable} ${fraunces.variable} ${rubik.variable} ${plexMono.variable} theme-dark h-full`}
+      className={`${plexSans.variable} ${rubik.variable} ${plexMono.variable} theme-dark h-full`}
     >
       <head>
         {/* Apply the saved theme before first paint to avoid a flash of the
@@ -66,7 +61,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <ServiceWorkerRegister />
-        {children}
+        <AuthGate>{children}</AuthGate>
       </body>
     </html>
   );

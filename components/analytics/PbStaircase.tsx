@@ -142,12 +142,12 @@ export function PbStaircase({ data }: Props) {
           <Legend wrapperStyle={{ fontSize: 12 }} />
           {showSingle && hasOfficial && (
             <Line dataKey="officialSingle" name="Single" type="stepAfter"
-              stroke="#f59e0b" strokeWidth={2} dot={{ r: 4, fill: "#f59e0b" }} connectNulls />
+              stroke="#f59e0b" strokeWidth={2} dot={{ r: 4, fill: "#f59e0b" }} connectNulls isAnimationActive={false} />
           )}
           {showAvg && hasOfficial && (
             <Line dataKey="officialAvg" name="Average" type="stepAfter"
               stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 3"
-              dot={{ r: 4, fill: "#f59e0b" }} connectNulls />
+              dot={{ r: 4, fill: "#f59e0b" }} connectNulls isAnimationActive={false} />
           )}
         </LineChart>
       </ResponsiveContainer>
