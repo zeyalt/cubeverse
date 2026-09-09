@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { ChevronDown, Trash2, ArrowRight, History } from "lucide-react";
+import { ChevronDown, Trash2, ArrowRight } from "lucide-react";
 import { effectiveTime, formatCs } from "@/lib/cubing";
 import { currentAoN } from "@/lib/practiceStats";
 import { EVENT_SHORT } from "@/lib/event-theme";
@@ -169,10 +169,10 @@ export function KidPracticeTab({
   // Surfaces the reason a solve failed to save (instead of silently dropping it).
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const lastFive = liveTimes.slice(-5);
+  const lastFiveNewestFirst = liveTimes.slice(-5).reverse();
   const lastFiveSlots: (number | null)[] = [
-    ...Array.from({ length: Math.max(0, 5 - lastFive.length) }, () => null),
-    ...lastFive,
+    ...lastFiveNewestFirst,
+    ...Array.from({ length: Math.max(0, 5 - lastFiveNewestFirst.length) }, () => null),
   ];
   const canRescramble = timerPhase === "idle" || timerPhase === "stopped";
 
@@ -797,12 +797,14 @@ export function KidPracticeTab({
         {/* Scramble — pinned to the top of the hero */}
         <div className="practice-scramble shrink-0 pt-1 pointer-events-none">
           <div
-            className="kid-animate-in flex w-full items-center gap-3 rounded-lg bg-white/5 px-3 py-2.5 select-none"
+            className="kid-animate-in flex w-full items-center gap-2 rounded-lg bg-white/5 px-2.5 py-1.5 select-none"
             style={{ animationDelay: "80ms", userSelect: "none", WebkitUserSelect: "none" }}
             onContextMenu={(e) => e.preventDefault()}
           >
             <p
-              className="font-mono-time w-[40%] min-w-0 shrink-0 text-left text-[15px] leading-snug tracking-wide text-white/75 whitespace-normal break-words"
+              className={`font-mono-time w-[48%] min-w-0 shrink-0 text-left tracking-wide text-white/75 whitespace-normal break-words ${
+                (scramble?.length ?? 0) > 70 ? "text-[11px] leading-tight" : "text-[13px] leading-snug"
+              }`}
               style={{ userSelect: "none", WebkitUserSelect: "none" }}
             >
               {scramble ?? "Generating scramble…"}
@@ -874,7 +876,7 @@ export function KidPracticeTab({
                   className="flex items-center justify-center w-14 h-14 rounded-lg font-bold text-lg transition-all [touch-action:manipulation]"
                   style={{
                     backgroundColor: penalty === "plus2" ? "#FFD500" : "rgba(255,213,0,0.3)",
-                    color: penalty === "plus2" ? "#1A1200" : "#FFD500",
+                    color: penalty === "plus2" ? "#1A1200" : "var(--kid-accent)",
                     boxShadow: penalty === "plus2" ? "3px 3px 0 #0A0A0A" : "1px 1px 0 rgba(255,213,0,0.2)",
                   }}
                 >
@@ -917,10 +919,17 @@ export function KidPracticeTab({
         }}
         onContextMenu={(e) => e.preventDefault()}
       >
-            <div className="space-y-2 border-b border-white/8 px-3 py-2.5">
-              <div className="flex gap-1.5">
+            <div className="border-b border-white/8 px-3 py-2">
+              <p className="mb-1.5 text-left text-[9px] font-bold uppercase tracking-wider text-white/40">
+                Last 5 timings
+              </p>
+              <div
+                className="flex gap-1.5"
+                role="group"
+                aria-label="Last 5 times, newest first"
+              >
                 {lastFiveSlots.map((time, index) => {
-                  const newest = time != null && index === lastFiveSlots.length - 1;
+                  const newest = time != null && index === 0;
                   return (
                     <div
                       key={index}
@@ -933,24 +942,26 @@ export function KidPracticeTab({
                     >
                       <p
                         className="font-mono-time text-[11px] font-bold leading-none"
-                        style={{ color: newest ? "#FFD500" : "rgba(255,255,255,0.88)" }}
+                        style={{ color: newest ? "var(--kid-accent)" : "rgba(255,255,255,0.88)" }}
                       >
                         {time == null ? "—" : formatCs(time)}
                       </p>
                     </div>
                   );
                 })}
+                <button
+                  type="button"
+                  onClick={() => openTab("analytics", { openHistory: true })}
+                  aria-label={`View full solve history (${count} times)`}
+                  className="flex min-w-0 flex-[1.2] items-center justify-center gap-0.5 rounded-md border-2 border-[#FFD500] bg-[#FFD500] px-1 py-1.5 [touch-action:manipulation]"
+                  style={{ color: "#1A1208" }}
+                >
+                  <span className="text-center text-[9px] font-bold leading-tight">
+                    View More
+                  </span>
+                  <ArrowRight className="size-3 shrink-0" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => openTab("analytics", { openHistory: true })}
-                className="flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#FFD500] px-3 text-sm font-bold text-[#1A1208] [touch-action:manipulation]"
-              >
-                <History className="size-4" />
-                Practice history
-                <span className="font-mono-time font-bold opacity-70">({count})</span>
-                <ArrowRight className="size-4" />
-              </button>
             </div>
         <div className="grid grid-cols-6 divide-x divide-white/8">
           {([

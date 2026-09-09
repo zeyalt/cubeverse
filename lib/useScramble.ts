@@ -36,7 +36,7 @@ export function useScramble(eventId: string) {
       const type = SCRAMBOW_EVENT[eventId] ?? "333";
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const [scramble] = new Scrambow().setType(type).get(1).map((s: any) => s.scramble_string);
-      setScramble(scramble);
+      setScramble(String(scramble).replace(/\s+/g, " ").trim());
     } catch (err) {
       console.error("Scramble generation failed:", err);
       // Deterministic fallback so the user always gets something.

@@ -6,7 +6,8 @@ import {
 } from "recharts";
 import type { BenchmarkPerson } from "@/lib/client/actions";
 import { formatCs, DNF } from "@/lib/cubing";
-import { COMPETITOR_PALETTE } from "@/lib/chartTheme";
+import { competitorPalette } from "@/lib/chartTheme";
+import { useTheme } from "@/lib/useTheme";
 
 interface Props {
   people: BenchmarkPerson[];
@@ -59,6 +60,8 @@ function ChartTooltip({
 }
 
 export function CompetitorProgressChart({ people, mode }: Props) {
+  const { theme } = useTheme();
+  const palette = competitorPalette(theme);
   const key = mode === "single" ? "bestCs" : "averageCs";
 
   // Build one merged, ts-sorted dataset with one field per person, skipping
@@ -118,9 +121,9 @@ export function CompetitorProgressChart({ people, mode }: Props) {
             dataKey={person.wcaId}
             name={person.name}
             type="monotone"
-            stroke={COMPETITOR_PALETTE[i % COMPETITOR_PALETTE.length]}
+            stroke={palette[i % palette.length]}
             strokeWidth={2}
-            dot={{ r: 4, fill: COMPETITOR_PALETTE[i % COMPETITOR_PALETTE.length] }}
+            dot={{ r: 4, fill: palette[i % palette.length] }}
             connectNulls
             isAnimationActive={false}
           />

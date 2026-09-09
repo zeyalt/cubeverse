@@ -90,7 +90,7 @@ interface Rank {
 // Reuses the app's existing accent palette rather than introducing a new one.
 const RANKS: Rank[] = [
   { min: 100, label: "Diamond Cuber", color: "#5B9DFF" },
-  { min: 75, label: "Gold Cuber", color: "#FFD500" },
+  { min: 75, label: "Gold Cuber", color: "var(--kid-accent)" },
   { min: 50, label: "Silver Cuber", color: "#C7CDD6" },
   { min: 25, label: "Bronze Cuber", color: "#CD7F32" },
   { min: 0, label: "Rookie Cuber", color: "#8A8578" },

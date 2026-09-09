@@ -48,31 +48,30 @@ export function CllCaseCard({
     >
       <PassHoldButton passed={entry.passed} caseId={cubeCase.id} onToggle={onTogglePassed} />
 
-      <div className="flex items-stretch gap-3 pr-9">
-        {subcaseInfo && (
-          <div className="shrink-0 self-center">
+      <div className="mb-3 flex items-center justify-between gap-2 pr-8">
+        <h2 className="font-display text-lg font-extrabold text-token">{cubeCase.id}</h2>
+        <button
+          type="button"
+          onClick={onToggleEasy}
+          aria-pressed={entry.easy}
+          className={`inline-flex min-h-8 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-wide [touch-action:manipulation] ${
+            entry.easy
+              ? "border-[#FFD500] bg-[#FFD500] text-[#1A1208]"
+              : "border-token text-token-muted"
+          }`}
+        >
+          <Star className={`size-3 ${entry.easy ? "fill-current" : ""}`} />
+          Easy
+        </button>
+      </div>
+
+      {subcaseInfo ? (
+        <div className="grid grid-cols-[2fr_3fr] gap-x-3 gap-y-2">
+          <div className="rounded-lg border border-token bg-surface p-0.5">
             <CllCaseCheckDiagram cubeCase={cubeCase} info={subcaseInfo} />
           </div>
-        )}
-        <CllCaseDiagram cubeCase={cubeCase} />
-        <div className="grid min-w-0 flex-1 content-start gap-2">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="font-display text-lg font-extrabold text-token">{cubeCase.id}</h2>
-            <button
-              type="button"
-              onClick={onToggleEasy}
-              aria-pressed={entry.easy}
-              className={`inline-flex min-h-8 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-wide [touch-action:manipulation] ${
-                entry.easy
-                  ? "border-[#FFD500] bg-[#FFD500] text-[#1A1208]"
-                  : "border-token text-token-muted"
-              }`}
-            >
-              <Star className={`size-3 ${entry.easy ? "fill-current" : ""}`} />
-              Easy
-            </button>
-          </div>
           <AlgBlock label="Set up" algorithm={reverseAlgorithm(cubeCase.solve)} />
+          <CllCaseDiagram cubeCase={cubeCase} />
           <AlgBlock
             label="Solve it"
             algorithm={cubeCase.solve}
@@ -80,7 +79,21 @@ export function CllCaseCard({
             onEditNote={onEditNote}
           />
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-[2fr_3fr] gap-3">
+          <CllCaseDiagram cubeCase={cubeCase} />
+          <div className="flex min-w-0 flex-col gap-2">
+            <AlgBlock className="flex-1" label="Set up" algorithm={reverseAlgorithm(cubeCase.solve)} />
+            <AlgBlock
+              className="flex-1"
+              label="Solve it"
+              algorithm={cubeCase.solve}
+              note={entry.note}
+              onEditNote={onEditNote}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-strong">
         <div
@@ -120,14 +133,16 @@ function AlgBlock({
   algorithm,
   note,
   onEditNote,
+  className,
 }: {
   label: string;
   algorithm: string;
   note?: string;
   onEditNote?: () => void;
+  className?: string;
 }) {
   return (
-    <div className="rounded-lg bg-surface-strong px-2.5 py-2">
+    <div className={`flex h-full min-h-0 flex-col justify-center rounded-lg bg-surface-strong px-2.5 py-2 ${className ?? ""}`}>
       <div className="mb-1 flex items-center justify-between gap-2">
         <span className="text-[10px] font-bold uppercase tracking-wider text-token-muted">{label}</span>
         {onEditNote && (

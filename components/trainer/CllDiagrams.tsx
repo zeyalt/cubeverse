@@ -1,49 +1,107 @@
 import type { CllCase, CllCorner, CllSubcaseInfo } from "@/lib/trainer/cll";
 import { DIAGRAM, checkLabelFor } from "@/lib/trainer/cll";
+import { cn } from "@/lib/utils";
 
-function tabPosition(corner: CllCorner, edge: CllSubcaseInfo["checkStickers"][number]["edge"], offset: number) {
-  const pos = DIAGRAM.cornerPos[corner];
+type DiagramLayout = {
+  cell: number;
+  tab: number;
+  offset: number;
+  size: number;
+  corners: Record<CllCorner, { x: number; y: number }>;
+};
+
+function diagramLayout(withTabs: boolean): DiagramLayout {
+  if (!withTabs) {
+    return {
+      cell: DIAGRAM.cell,
+      tab: DIAGRAM.tab,
+      offset: DIAGRAM.pad,
+      size: DIAGRAM.size,
+      corners: DIAGRAM.cornerPos,
+    };
+  }
+
+  const cell = 34;
+  const gap = 3;
+  const tab = 16;
+  const offset = 3 + tab;
+  return {
+    cell,
+    tab,
+    offset,
+    size: offset * 2 + cell * 2 + gap,
+    corners: {
+      tl: { x: 0, y: 0 },
+      tr: { x: cell + gap, y: 0 },
+      bl: { x: 0, y: cell + gap },
+      br: { x: cell + gap, y: cell + gap },
+    },
+  };
+}
+
+function tabPosition(
+  corner: CllCorner,
+  edge: CllSubcaseInfo["checkStickers"][number]["edge"],
+  layout: DiagramLayout,
+) {
+  const pos = layout.corners[corner];
   if (edge === "top") {
-    return { left: offset + pos.x + DIAGRAM.cell / 2 - DIAGRAM.tab / 2, top: offset + pos.y - DIAGRAM.tab };
+    return { left: layout.offset + pos.x + layout.cell / 2 - layout.tab / 2, top: layout.offset + pos.y - layout.tab };
   }
   if (edge === "bottom") {
-    return { left: offset + pos.x + DIAGRAM.cell / 2 - DIAGRAM.tab / 2, top: offset + pos.y + DIAGRAM.cell };
+    return { left: layout.offset + pos.x + layout.cell / 2 - layout.tab / 2, top: layout.offset + pos.y + layout.cell };
   }
   if (edge === "left") {
-    return { left: offset + pos.x - DIAGRAM.tab, top: offset + pos.y + DIAGRAM.cell / 2 - DIAGRAM.tab / 2 };
+    return { left: layout.offset + pos.x - layout.tab, top: layout.offset + pos.y + layout.cell / 2 - layout.tab / 2 };
   }
-  return { left: offset + pos.x + DIAGRAM.cell, top: offset + pos.y + DIAGRAM.cell / 2 - DIAGRAM.tab / 2 };
+  return { left: layout.offset + pos.x + layout.cell, top: layout.offset + pos.y + layout.cell / 2 - layout.tab / 2 };
+}
+
+function pct(value: number, size: number): string {
+  return `${(value / size) * 100}%`;
 }
 
 export function CllSubcaseDiagram({
   info,
   label,
   withTabs = false,
+  className,
 }: {
   info: CllSubcaseInfo;
   label?: string;
   withTabs?: boolean;
+  className?: string;
 }) {
-  const offset = withTabs ? DIAGRAM.cardOffset : DIAGRAM.pad;
-  const size = withTabs ? DIAGRAM.cardSize : DIAGRAM.size;
+  const layout = diagramLayout(withTabs);
+  const fluid = Boolean(className);
   return (
-    <div className="relative shrink-0" style={{ width: size, height: size }} aria-hidden>
+    <div
+      className={cn(
+        "relative",
+        fluid ? "aspect-square [container-type:inline-size]" : "shrink-0",
+        className,
+      )}
+      style={fluid ? undefined : { width: layout.size, height: layout.size }}
+      aria-hidden
+    >
       {(["tl", "tr", "bl", "br"] as const).map((corner) => {
-        const pos = DIAGRAM.cornerPos[corner];
+        const pos = layout.corners[corner];
         const lit = info.oppositeCorners.includes(corner);
         return (
           <span
             key={corner}
-            className={`absolute flex items-center justify-center rounded-[3px] border text-[11px] font-extrabold ${
+            className={`absolute flex items-center justify-center rounded-[4px] border font-extrabold ${
+              fluid ? "text-[18cqw]" : "text-[11px]"
+            } ${
               lit
                 ? "border-[#FFD500] bg-[#FFD500] text-[#4A3308]"
                 : "border-token bg-surface text-token-muted"
             }`}
             style={{
-              left: offset + pos.x,
-              top: offset + pos.y,
-              width: DIAGRAM.cell - 1,
-              height: DIAGRAM.cell - 1,
+              left: pct(layout.offset + pos.x, layout.size),
+              top: pct(layout.offset + pos.y, layout.size),
+              width: pct(layout.cell, layout.size),
+              height: pct(layout.cell, layout.size),
             }}
           >
             {lit ? "O" : ""}
@@ -53,12 +111,19 @@ export function CllSubcaseDiagram({
       {withTabs &&
         label &&
         info.checkStickers.map((sticker, index) => {
-          const pos = tabPosition(sticker.corner, sticker.edge, offset);
+          const pos = tabPosition(sticker.corner, sticker.edge, layout);
           return (
             <span
               key={`${sticker.corner}-${sticker.edge}-${index}`}
-              className="absolute flex items-center justify-center text-[13px] font-extrabold text-token"
-              style={{ ...pos, width: DIAGRAM.tab, height: DIAGRAM.tab }}
+              className={`absolute flex items-center justify-center font-extrabold text-token ${
+                fluid ? "text-[16cqw]" : "text-[13px]"
+              }`}
+              style={{
+                left: pct(pos.left, layout.size),
+                top: pct(pos.top, layout.size),
+                width: pct(layout.tab, layout.size),
+                height: pct(layout.tab, layout.size),
+              }}
             >
               {label}
             </span>
@@ -71,7 +136,7 @@ export function CllSubcaseDiagram({
 export function CllCaseDiagram({ cubeCase }: { cubeCase: CllCase }) {
   return (
     <div
-      className="relative aspect-square min-h-[5.5rem] min-w-[5.5rem] flex-1 overflow-hidden rounded-lg border border-token bg-surface"
+      className="relative aspect-square w-full overflow-hidden rounded-lg border border-token bg-surface"
       aria-label={`${cubeCase.id} colour diagram showing top, front, right, back, and left stickers`}
     >
       {/* Static local PNGs; next/image is a no-op under `output: "export"`. */}
@@ -79,7 +144,7 @@ export function CllCaseDiagram({ cubeCase }: { cubeCase: CllCase }) {
       <img
         src={cubeCase.image}
         alt=""
-        className="absolute inset-[18%] h-[64%] w-[64%] object-contain"
+        className="absolute inset-[10%] h-[80%] w-[80%] object-contain"
         style={cubeCase.imageRotate ? { transform: `rotate(${cubeCase.imageRotate}deg)` } : undefined}
       />
       {[
@@ -100,5 +165,12 @@ export function CllCaseDiagram({ cubeCase }: { cubeCase: CllCase }) {
 }
 
 export function CllCaseCheckDiagram({ cubeCase, info }: { cubeCase: CllCase; info: CllSubcaseInfo }) {
-  return <CllSubcaseDiagram info={info} label={checkLabelFor(cubeCase)} withTabs />;
+  return (
+    <CllSubcaseDiagram
+      info={info}
+      label={checkLabelFor(cubeCase)}
+      withTabs
+      className="w-full"
+    />
+  );
 }

@@ -25,7 +25,7 @@ function inset(points: Pt[], amount = 0.12): Pt[] {
   return points.map((point) => lerp(point, origin, amount));
 }
 
-function poly(points: Pt[], color: string, key: string) {
+function poly(points: Pt[], color: string, key: string, amount = 0.12) {
   return (
     <polygon
       key={key}
@@ -175,37 +175,57 @@ function PyraminxNet({ preview }: { preview: PyraminxPreview }) {
   );
 }
 
-function skewbFace(
-  origin: Pt,
+function skewbRhombus(
+  pts: [Pt, Pt, Pt, Pt],
   center: string,
   corners: [string, string, string, string],
   key: string,
 ) {
-  const [tl, tr, br, bl] = square(origin.x, origin.y, FACE);
-  const mid = { x: origin.x + FACE / 2, y: origin.y + FACE / 2 };
+  const [tl, tr, br, bl] = pts;
+  const mid = {
+    x: (tl.x + tr.x + br.x + bl.x) / 4,
+    y: (tl.y + tr.y + br.y + bl.y) / 4,
+  };
   return [
-    poly([tl, tr, mid], corners[0], `${key}-n`),
-    poly([tr, br, mid], corners[1], `${key}-e`),
-    poly([br, bl, mid], corners[2], `${key}-s`),
-    poly([bl, tl, mid], corners[3], `${key}-w`),
+    poly([tl, tr, mid], corners[0], `${key}-n`, 0.06),
+    poly([tr, br, mid], corners[1], `${key}-e`, 0.06),
+    poly([br, bl, mid], corners[2], `${key}-s`, 0.06),
+    poly([bl, tl, mid], corners[3], `${key}-w`, 0.06),
     poly(
-      [lerp(tl, mid, 0.42), lerp(tr, mid, 0.42), lerp(br, mid, 0.42), lerp(bl, mid, 0.42)],
+      [lerp(tl, mid, 0.38), lerp(tr, mid, 0.38), lerp(br, mid, 0.38), lerp(bl, mid, 0.38)],
       center,
       `${key}-c`,
+      0.04,
     ),
   ];
 }
 
+/**
+ * Flattened skewb net (same cross as the NxN cubes) so all six faces show
+ * at once. Each face is the skewb cut: four corner triangles around a center.
+ *       U
+ *     L F R B
+ *       D
+ */
 function SkewbNet({ preview }: { preview: SkewbPreview }) {
   const c = preview.corners;
+  const face = (
+    origin: Pt,
+    center: string,
+    corners: [string, string, string, string],
+    key: string,
+  ) => {
+    const [tl, tr, br, bl] = square(origin.x, origin.y, FACE);
+    return skewbRhombus([tl, tr, br, bl], center, corners, key);
+  };
   return (
     <>
-      {skewbFace(NET.U, preview.centers.U, [c.UBR[0], c.UFR[0], c.UFL[0], c.UBL[0]], "U")}
-      {skewbFace(NET.L, preview.centers.L, [c.UBL[2], c.UFL[2], c.DFL[2], c.DBL[2]], "L")}
-      {skewbFace(NET.F, preview.centers.F, [c.UFL[1], c.UFR[1], c.DFR[1], c.DFL[1]], "F")}
-      {skewbFace(NET.R, preview.centers.R, [c.UFR[2], c.UBR[2], c.DBR[2], c.DFR[2]], "R")}
-      {skewbFace(NET.B, preview.centers.B, [c.UBR[1], c.UBL[1], c.DBL[1], c.DBR[1]], "B")}
-      {skewbFace(NET.D, preview.centers.D, [c.DFL[0], c.DFR[0], c.DBR[0], c.DBL[0]], "D")}
+      {face(NET.U, preview.centers.U, [c.UBR[0], c.UFR[0], c.UFL[0], c.UBL[0]], "U")}
+      {face(NET.L, preview.centers.L, [c.UBL[2], c.UFL[2], c.DFL[2], c.DBL[2]], "L")}
+      {face(NET.F, preview.centers.F, [c.UFL[1], c.UFR[1], c.DFR[1], c.DFL[1]], "F")}
+      {face(NET.R, preview.centers.R, [c.UFR[2], c.UBR[2], c.DBR[2], c.DFR[2]], "R")}
+      {face(NET.B, preview.centers.B, [c.UBR[1], c.UBL[1], c.DBL[1], c.DBR[1]], "B")}
+      {face(NET.D, preview.centers.D, [c.DFL[0], c.DFR[0], c.DBR[0], c.DBL[0]], "D")}
     </>
   );
 }
@@ -219,7 +239,7 @@ function ClockFace({
   pins?: [boolean, boolean, boolean, boolean];
   origin: Pt;
 }) {
-  const step = 12.5;
+  const step = 10;
   return (
     <>
       {clocks.map((hours, index) => {
@@ -268,8 +288,14 @@ function ClockFace({
 function ClockNet({ preview }: { preview: ClockPreview }) {
   return (
     <>
-      <ClockFace clocks={preview.front} pins={preview.pins} origin={{ x: 16, y: 16 }} />
-      <ClockFace clocks={preview.back} origin={{ x: 58, y: 16 }} />
+      <text x="22" y="8" textAnchor="middle" fill="#888" fontSize="4.2" fontWeight="700">
+        Front
+      </text>
+      <ClockFace clocks={preview.front} pins={preview.pins} origin={{ x: 12, y: 18 }} />
+      <text x="56" y="8" textAnchor="middle" fill="#888" fontSize="4.2" fontWeight="700">
+        Back
+      </text>
+      <ClockFace clocks={preview.back} origin={{ x: 46, y: 18 }} />
     </>
   );
 }
@@ -288,6 +314,11 @@ function PreviewBody({
   return <CubeNet preview={preview} />;
 }
 
+function viewBoxFor(event: string): string {
+  if (event === "clock") return "0 0 90 52";
+  return `0 0 ${NET_W} ${NET_H}`;
+}
+
 export function ScramblePreview({
   event,
   scramble,
@@ -297,16 +328,16 @@ export function ScramblePreview({
   scramble: string | null;
   className?: string;
 }) {
-  const viewBox = `0 0 ${NET_W} ${NET_H}`;
   return (
     <div
-      className={`flex flex-col items-center justify-center ${className ?? ""}`}
+      className={`flex flex-col items-center justify-center overflow-visible ${className ?? ""}`}
       role="img"
       aria-label={scramble ? `${event} scramble preview` : `${event} scramble loading`}
     >
       <svg
-        viewBox={viewBox}
-        className={`h-full w-full ${scramble ? "" : "opacity-35"}`}
+        viewBox={viewBoxFor(event)}
+        className={`h-full w-full overflow-visible ${scramble ? "" : "opacity-35"}`}
+        preserveAspectRatio="xMidYMid meet"
         aria-hidden
       >
         <PreviewBody event={event} scramble={scramble} />

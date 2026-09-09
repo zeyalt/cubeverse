@@ -10,7 +10,8 @@ import {
 } from "@/lib/client/actions";
 import { CompetitorProgressChart } from "./CompetitorProgressChart";
 import { ManageCompetitorsSheet } from "./ManageCompetitorsSheet";
-import { COMPETITOR_PALETTE } from "@/lib/chartTheme";
+import { competitorPalette } from "@/lib/chartTheme";
+import { useTheme } from "@/lib/useTheme";
 
 interface Props {
   cuberId: string;
@@ -20,6 +21,8 @@ interface Props {
 }
 
 export function CompetitorBenchmark({ cuberId, myWcaId, eventId, eventName }: Props) {
+  const { theme } = useTheme();
+  const palette = competitorPalette(theme);
   const [saved, setSaved] = useState<SavedCompetitor[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [manageOpen, setManageOpen] = useState(false);
@@ -83,7 +86,7 @@ export function CompetitorBenchmark({ cuberId, myWcaId, eventId, eventName }: Pr
   // pill colors here and passed into the Manage sheet so swatches match.
   const colorFor = (wcaId: string) => {
     const idx = selectedWcaIds.indexOf(wcaId);
-    return COMPETITOR_PALETTE[(idx === -1 ? 0 : idx + 1) % COMPETITOR_PALETTE.length];
+    return palette[(idx === -1 ? 0 : idx + 1) % palette.length];
   };
 
   const onToggle = (id: string) => {

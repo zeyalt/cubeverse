@@ -54,8 +54,12 @@ export function chartColors(theme: "light" | "dark"): ChartColors {
 }
 
 /**
- * Static categorical palette for the Competitor Benchmarking chart, one color
- * per line. Hardcoded rather than theme-branched, matching PbStaircase's
- * convention. Index 0 (gold) is reserved for "You".
+ * Categorical palette for the Competitor Benchmarking chart, one color per
+ * line. Index 0 is reserved for "You"; it switches to dark orange in light
+ * mode because raw gold fails contrast on the paper canvas.
  */
-export const COMPETITOR_PALETTE = ["#FFD500", "#5B9DFF", "#2ED573", "#FF6B6B", "#C084FC", "#FF9F40"];
+const COMPETITOR_REST = ["#5B9DFF", "#2ED573", "#FF6B6B", "#C084FC", "#FF9F40"] as const;
+
+export function competitorPalette(theme: "light" | "dark"): string[] {
+  return [theme === "light" ? "#C2410C" : "#FFD500", ...COMPETITOR_REST];
+}
