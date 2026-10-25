@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { RecordType } from "./pb";
 import type { CurrentPb } from "./analytics";
+import { ACTIVE_EVENTS } from "./event-theme";
 
 export interface BadgeTier {
   key: string;
@@ -70,6 +71,16 @@ export const BADGE_TIERS: BadgeTier[] = [
   { key: "sub60_444_single",    label: "Sub-1:00 4×4 Single",     eventId: "444",   recordType: "single",  thresholdCs: 6000 },
   { key: "sub90_444_average",   label: "Sub-1:30 4×4 Average",    eventId: "444",   recordType: "average", thresholdCs: 9000 },
   { key: "sub80_444_average",   label: "Sub-1:20 4×4 Average",    eventId: "444",   recordType: "average", thresholdCs: 8000 },
+  // sq1
+  { key: "sub60_sq1_single",    label: "Sub-1:00 Square-1 Single",  eventId: "sq1", recordType: "single",  thresholdCs: 6000 },
+  { key: "sub45_sq1_single",    label: "Sub-45 Square-1 Single",    eventId: "sq1", recordType: "single",  thresholdCs: 4500 },
+  { key: "sub30_sq1_single",    label: "Sub-30 Square-1 Single",    eventId: "sq1", recordType: "single",  thresholdCs: 3000 },
+  { key: "sub20_sq1_single",    label: "Sub-20 Square-1 Single",    eventId: "sq1", recordType: "single",  thresholdCs: 2000 },
+  { key: "sub15_sq1_single",    label: "Sub-15 Square-1 Single",    eventId: "sq1", recordType: "single",  thresholdCs: 1500 },
+  { key: "sub60_sq1_average",   label: "Sub-1:00 Square-1 Average", eventId: "sq1", recordType: "average", thresholdCs: 6000 },
+  { key: "sub45_sq1_average",   label: "Sub-45 Square-1 Average",   eventId: "sq1", recordType: "average", thresholdCs: 4500 },
+  { key: "sub30_sq1_average",   label: "Sub-30 Square-1 Average",   eventId: "sq1", recordType: "average", thresholdCs: 3000 },
+  { key: "sub20_sq1_average",   label: "Sub-20 Square-1 Average",   eventId: "sq1", recordType: "average", thresholdCs: 2000 },
 ];
 
 // ─── Activity badges (count / streak / comp) ─────────────────────────────────
@@ -88,7 +99,7 @@ export const ACTIVITY_BADGES: ActivityBadge[] = [
   { key: "1000_solves",            label: "1000 Solves",         description: "1000 practice solves" },
   { key: "streak_7",               label: "Week Streak",         description: "7 days of practice in a row" },
   { key: "streak_30",              label: "Month Streak",        description: "30 days of practice in a row" },
-  { key: "all_events_in_one_comp", label: "All Events",          description: "Competed in all 7 active events at one competition" },
+  { key: "all_events_in_one_comp", label: "All Events",          description: "Competed in every active event at one competition" },
 ];
 
 /**
@@ -132,7 +143,6 @@ export async function checkActivityBadges(
 
   // all_events_in_one_comp: check lazily if compCount >= 1
   if (compCount && compCount >= 1) {
-    const ACTIVE = ["333", "222", "pyram", "skewb", "clock", "444", "333oh"];
     const { data: comps } = await db
       .from("competitions")
       .select("id")
@@ -146,7 +156,7 @@ export async function checkActivityBadges(
         .eq("cuber_id", cuberId);
 
       const eventSet = new Set((events ?? []).map((r) => r.event_id as string));
-      if (ACTIVE.every((e) => eventSet.has(e))) {
+      if (ACTIVE_EVENTS.every((e) => eventSet.has(e))) {
         candidates.push("all_events_in_one_comp");
         break;
       }

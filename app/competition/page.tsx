@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { KidCompetitionDetail } from "@/components/kid/KidCompetitionDetail";
 import { getCompetitionNotes } from "@/lib/client/actions";
 import { requireUser } from "@/lib/supabase/auth";
+import { ACTIVE_EVENTS } from "@/lib/event-theme";
 
 type Detail = React.ComponentProps<typeof KidCompetitionDetail>;
 
@@ -22,7 +23,7 @@ function CompetitionLoader() {
         db.from("results")
           .select("id, event_id, round_type, format, best_cs, average_cs, solves(id, time_cs, penalty, position)")
           .eq("competition_id", id).order("created_at"),
-        db.from("events").select("id, name, format").gte("sort_order", 1).lte("sort_order", 7).order("sort_order"),
+        db.from("events").select("id, name, format").in("id", ACTIVE_EVENTS).order("sort_order"),
       ]);
       if (!competition) {
         setMissing(true);

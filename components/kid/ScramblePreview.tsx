@@ -1,10 +1,13 @@
 import {
+  FACE_COLORS,
   previewFor,
   type ClockPreview,
   type CubePreview,
   type Face,
   type PyraminxPreview,
   type SkewbPreview,
+  type Square1Piece,
+  type Square1Preview,
 } from "@/lib/scrambleCube";
 
 type Pt = { x: number; y: number };
@@ -25,7 +28,7 @@ function inset(points: Pt[], amount = 0.12): Pt[] {
   return points.map((point) => lerp(point, origin, amount));
 }
 
-function poly(points: Pt[], color: string, key: string, amount = 0.12) {
+function poly(points: Pt[], color: string, key: string) {
   return (
     <polygon
       key={key}
@@ -187,15 +190,14 @@ function skewbRhombus(
     y: (tl.y + tr.y + br.y + bl.y) / 4,
   };
   return [
-    poly([tl, tr, mid], corners[0], `${key}-n`, 0.06),
-    poly([tr, br, mid], corners[1], `${key}-e`, 0.06),
-    poly([br, bl, mid], corners[2], `${key}-s`, 0.06),
-    poly([bl, tl, mid], corners[3], `${key}-w`, 0.06),
+    poly([tl, tr, mid], corners[0], `${key}-n`),
+    poly([tr, br, mid], corners[1], `${key}-e`),
+    poly([br, bl, mid], corners[2], `${key}-s`),
+    poly([bl, tl, mid], corners[3], `${key}-w`),
     poly(
       [lerp(tl, mid, 0.38), lerp(tr, mid, 0.38), lerp(br, mid, 0.38), lerp(bl, mid, 0.38)],
       center,
       `${key}-c`,
-      0.04,
     ),
   ];
 }
@@ -300,6 +302,104 @@ function ClockNet({ preview }: { preview: ClockPreview }) {
   );
 }
 
+const SQ1_R = 12;
+const SQ1_EDGE_R = SQ1_R / Math.cos(Math.PI / 12);
+const SQ1_CORNER_R = SQ1_R * Math.SQRT2;
+const SQ1_BAND = 1.2;
+const SQ1_SLICE_DEG = 15;
+
+/**
+ * One Square-1 layer seen face-on, back at the top. Pieces sit at their
+ * 30° slots; the outer band shows each slot's side sticker. The bottom layer
+ * is mirrored left–right, as if the puzzle were rolled over to look at it.
+ */
+function Square1Layer({
+  pieces,
+  center,
+  mirror,
+  keyPrefix,
+}: {
+  pieces: Square1Piece[];
+  center: Pt;
+  mirror: boolean;
+  keyPrefix: string;
+}) {
+  const at = (deg: number, r: number): Pt => {
+    const rad = (deg * Math.PI) / 180;
+    return { x: center.x + (mirror ? -1 : 1) * r * Math.sin(rad), y: center.y - r * Math.cos(rad) };
+  };
+  const band = (a: Pt, b: Pt): Pt[] => [a, b, lerp(center, b, SQ1_BAND), lerp(center, a, SQ1_BAND)];
+  const sliceEnd = SQ1_EDGE_R * SQ1_BAND + 1;
+  const slice = [at(SQ1_SLICE_DEG, sliceEnd), at(SQ1_SLICE_DEG + 180, sliceEnd)];
+  return (
+    <>
+      {pieces.flatMap((piece) => {
+        const deg = SQ1_SLICE_DEG + piece.start * 30;
+        const key = `${keyPrefix}-${piece.start}`;
+        if (piece.kind === "edge") {
+          const [a, b] = [at(deg, SQ1_EDGE_R), at(deg + 30, SQ1_EDGE_R)];
+          return [poly([center, a, b], piece.face, key), poly(band(a, b), piece.sides[0], `${key}-s`)];
+        }
+        const [a, tip, b] = [at(deg, SQ1_EDGE_R), at(deg + 30, SQ1_CORNER_R), at(deg + 60, SQ1_EDGE_R)];
+        return [
+          poly([center, a, tip, b], piece.face, key),
+          poly(band(a, tip), piece.sides[0], `${key}-s0`),
+          poly(band(tip, b), piece.sides[1], `${key}-s1`),
+        ];
+      })}
+      <line
+        x1={slice[0].x}
+        y1={slice[0].y}
+        x2={slice[1].x}
+        y2={slice[1].y}
+        stroke="#E11D48"
+        strokeWidth="0.7"
+        strokeLinecap="round"
+      />
+    </>
+  );
+}
+
+/**
+ * Middle layer seen from the front. The slice sits left of centre, so the
+ * right piece is wider; after an odd number of "/" turns its narrower back
+ * face shows instead.
+ */
+function Square1Middle({ flipped, origin }: { flipped: boolean; origin: Pt }) {
+  const half = 20;
+  const offset = half * Math.tan(Math.PI / 12);
+  const left = half - offset;
+  const right = flipped ? half - offset : half + offset;
+  const rect = (x: number, w: number): Pt[] => [
+    { x, y: origin.y },
+    { x: x + w, y: origin.y },
+    { x: x + w, y: origin.y + 4 },
+    { x, y: origin.y + 4 },
+  ];
+  return (
+    <>
+      {poly(rect(origin.x, left), FACE_COLORS.F, "sq1-mid-l")}
+      {poly(rect(origin.x + left, right), flipped ? FACE_COLORS.B : FACE_COLORS.F, "sq1-mid-r")}
+    </>
+  );
+}
+
+function Square1Net({ preview }: { preview: Square1Preview }) {
+  return (
+    <>
+      <text x="24" y="5" textAnchor="middle" fill="#888" fontSize="4.2" fontWeight="700">
+        Top
+      </text>
+      <Square1Layer pieces={preview.top} center={{ x: 24, y: 29 }} mirror={false} keyPrefix="sq1-u" />
+      <text x="72" y="5" textAnchor="middle" fill="#888" fontSize="4.2" fontWeight="700">
+        Bottom
+      </text>
+      <Square1Layer pieces={preview.bottom} center={{ x: 72, y: 29 }} mirror keyPrefix="sq1-d" />
+      <Square1Middle flipped={preview.middleFlipped} origin={{ x: 28, y: 55 }} />
+    </>
+  );
+}
+
 function PreviewBody({
   event,
   scramble,
@@ -311,11 +411,13 @@ function PreviewBody({
   if (preview.kind === "pyraminx") return <PyraminxNet preview={preview} />;
   if (preview.kind === "skewb") return <SkewbNet preview={preview} />;
   if (preview.kind === "clock") return <ClockNet preview={preview} />;
+  if (preview.kind === "sq1") return <Square1Net preview={preview} />;
   return <CubeNet preview={preview} />;
 }
 
 function viewBoxFor(event: string): string {
   if (event === "clock") return "0 0 90 52";
+  if (event === "sq1") return "0 0 96 60";
   return `0 0 ${NET_W} ${NET_H}`;
 }
 

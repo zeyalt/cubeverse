@@ -44,7 +44,29 @@ export type ClockPreview = {
   pins: [boolean, boolean, boolean, boolean];
 };
 
-export type ScramblePreviewModel = CubePreview | PyraminxPreview | SkewbPreview | ClockPreview;
+/** One Square-1 piece; `start` is its first 30° slot, clockwise from the back slice. */
+export type Square1Piece = {
+  kind: "edge" | "corner";
+  start: number;
+  face: string;
+  /** Side sticker per 30° slot, in slot order (one for edges, two for corners). */
+  sides: string[];
+};
+
+export type Square1Preview = {
+  kind: "sq1";
+  /** Both layers indexed by the same top-view slots, so the slice is shared. */
+  top: Square1Piece[];
+  bottom: Square1Piece[];
+  middleFlipped: boolean;
+};
+
+export type ScramblePreviewModel =
+  | CubePreview
+  | PyraminxPreview
+  | SkewbPreview
+  | ClockPreview
+  | Square1Preview;
 
 function idx(n: number, row: number, col: number) {
   return row * n + col;
@@ -517,6 +539,77 @@ export function applyClockScramble(scramble: string): ClockPreview {
   return { kind: "clock", front, back, pins };
 }
 
+// ─── Square-1 ────────────────────────────────────────────────────────────────
+
+type Sq1Slot = { id: string; kind: Square1Piece["kind"]; face: string; side: string };
+
+/**
+ * Slots run clockwise (viewed from the top) starting at the slice's back end,
+ * which sits between UB and UBR; slots 0–5 are the right half that "/" turns.
+ * Corners fill two slots. Checked against scrambow: any other offset or turn
+ * direction makes scrambles slice through a corner.
+ */
+function solvedSq1Layer(layer: "U" | "D"): Sq1Slot[] {
+  const pieces: [string, Face[]][] = [
+    ["BR", ["B", "R"]], ["R", ["R"]], ["FR", ["R", "F"]], ["F", ["F"]],
+    ["FL", ["F", "L"]], ["L", ["L"]], ["BL", ["L", "B"]], ["B", ["B"]],
+  ];
+  return pieces.flatMap(([name, sides]) =>
+    sides.map((side) => ({
+      id: layer + name,
+      kind: sides.length === 2 ? ("corner" as const) : ("edge" as const),
+      face: FACE_COLORS[layer],
+      side: FACE_COLORS[side],
+    })),
+  );
+}
+
+function rotateSq1Layer(slots: Sq1Slot[], clockwiseFromTop: number): Sq1Slot[] {
+  const next = [...slots];
+  slots.forEach((slot, i) => (next[mod12(i + clockwiseFromTop)] = slot));
+  return next;
+}
+
+function sq1Pieces(slots: Sq1Slot[]): Square1Piece[] {
+  // Begin at a piece boundary so a corner straddling slot 11/0 stays whole.
+  const first = slots.findIndex((slot, i) => slot.id !== slots[mod12(i - 1)].id);
+  const pieces: Square1Piece[] = [];
+  for (let offset = 0; offset < 12; ) {
+    const start = mod12(first + offset);
+    const slot = slots[start];
+    const width = slot.kind === "corner" ? 2 : 1;
+    const sides = Array.from({ length: width }, (_, k) => slots[mod12(start + k)].side);
+    pieces.push({ kind: slot.kind, start, face: slot.face, sides });
+    offset += width;
+  }
+  return pieces;
+}
+
+/** WCA Square-1 notation: `(x, y)` turns U and D clockwise (each seen from its own face); `/` turns the right half. */
+export function applySquare1Scramble(scramble: string): Square1Preview {
+  let top = solvedSq1Layer("U");
+  let bottom = solvedSq1Layer("D");
+  let middleFlipped = false;
+  for (const match of scramble.matchAll(/\((-?\d+),\s*(-?\d+)\)|\//g)) {
+    if (match[0] === "/") {
+      // 180° about the left–right axis: top slot i ↔ bottom slot 5 - i.
+      const nextTop = [...top];
+      const nextBottom = [...bottom];
+      for (let i = 0; i < 6; i++) {
+        nextTop[i] = bottom[5 - i];
+        nextBottom[i] = top[5 - i];
+      }
+      top = nextTop;
+      bottom = nextBottom;
+      middleFlipped = !middleFlipped;
+      continue;
+    }
+    top = rotateSq1Layer(top, Number(match[1]));
+    bottom = rotateSq1Layer(bottom, -Number(match[2]));
+  }
+  return { kind: "sq1", top: sq1Pieces(top), bottom: sq1Pieces(bottom), middleFlipped };
+}
+
 export function previewFor(eventId: string, scramble: string | null): ScramblePreviewModel {
   const text = scramble ?? "";
   const n = cubeSize(eventId);
@@ -526,5 +619,6 @@ export function previewFor(eventId: string, scramble: string | null): ScramblePr
   }
   if (eventId === "skewb") return applySkewbScramble(text);
   if (eventId === "clock") return applyClockScramble(text);
+  if (eventId === "sq1") return applySquare1Scramble(text);
   return cubePreview(applyNxnScramble(3, text));
 }

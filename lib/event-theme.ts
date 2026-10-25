@@ -1,4 +1,8 @@
 /** WCA-inspired sticker palette + per-event identity for kid mode. */
+
+/** Events shown across the app, in display order. */
+export const ACTIVE_EVENTS = ["333", "222", "pyram", "skewb", "clock", "444", "333oh", "sq1"];
+
 export const EVENT_SHORT: Record<string, string> = {
   "333": "3×3",
   "222": "2×2",
@@ -7,6 +11,7 @@ export const EVENT_SHORT: Record<string, string> = {
   clock: "Clock",
   "444": "4×4",
   "333oh": "3×3 OH",
+  sq1: "Square-1",
 };
 
 export interface EventSticker {
@@ -28,6 +33,7 @@ export const EVENT_STICKERS: Record<string, EventSticker> = {
   clock: { face: "#F4F4F4", ink: "#1A1A1A", glow: "#FFFFFF", name: "Sticker White" },
   "444": { face: "#B71234", ink: "#FFFFFF", glow: "#E84D6A", name: "Sticker Red" },
   "333oh": { face: "#7C3AED", ink: "#FFFFFF", glow: "#A78BFA", name: "One-hand Purple" },
+  sq1: { face: "#0D9488", ink: "#FFFFFF", glow: "#2DD4BF", name: "Shape Teal" },
 };
 
 export function getEventSticker(eventId: string): EventSticker {

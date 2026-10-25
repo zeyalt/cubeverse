@@ -20,6 +20,7 @@ import {
   type SolvesOverTimeData,
 } from "@/lib/analytics";
 import { CLL_TRAINER_KEY, normalizeProgress } from "@/lib/trainer/cll";
+import { ACTIVE_EVENTS } from "@/lib/event-theme";
 
 export interface AnalyticsPayload {
   solvesOverTime: SolvesOverTimeData;
@@ -35,7 +36,6 @@ export type ClientTabDataResult =
   | { tab: "badges"; data: BadgesTabData }
   | { tab: "trainer"; data: TrainerTabData };
 
-const ACTIVE_EVENTS = ["333", "222", "pyram", "skewb", "clock", "444", "333oh"];
 const TAIL = 160;
 type HistoricalRow = {
   id: string;
@@ -50,8 +50,7 @@ async function events(): Promise<EventRow[]> {
   const { data, error } = await db
     .from("events")
     .select("id, name, format")
-    .gte("sort_order", 1)
-    .lte("sort_order", 7)
+    .in("id", ACTIVE_EVENTS)
     .order("sort_order");
   if (error) throw error;
   return (data ?? []) as EventRow[];

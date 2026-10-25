@@ -77,6 +77,7 @@ const EVENT_LABELS: Record<string, string> = {
   skewb: "Skewb",
   clock: "Clock",
   "444": "4×4×4",
+  sq1: "Square-1",
 };
 
 const RECORD_LABEL: Record<RecordType, string> = { single: "Single", average: "Average" };

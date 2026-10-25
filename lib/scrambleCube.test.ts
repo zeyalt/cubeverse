@@ -4,6 +4,7 @@ import {
   applyNxnScramble,
   applyPyraminxScramble,
   applySkewbScramble,
+  applySquare1Scramble,
   parseNxnMoves,
   previewFor,
   solvedCube,
@@ -201,5 +202,49 @@ describe("skewb", () => {
     const scramble = "R U L' B R'";
     const inverse = "R B' L U' R'";
     expect(applySkewbScramble(`${scramble} ${inverse}`)).toEqual(applySkewbScramble(""));
+  });
+});
+
+describe("square-1", () => {
+  const solved = applySquare1Scramble("");
+  const invert = (scramble: string) =>
+    [...scramble.matchAll(/\((-?\d+),\s*(-?\d+)\)|\//g)]
+      .reverse()
+      .map((m) => (m[0] === "/" ? "/" : `(${-Number(m[1])}, ${-Number(m[2])})`))
+      .join(" ");
+  // A "/" is only legal when no corner straddles the slice (slots 5|6 and 11|0).
+  const sliceBlocked = (pieces: ReturnType<typeof applySquare1Scramble>["top"]) =>
+    pieces.some((p) => p.kind === "corner" && (p.start === 5 || p.start === 11));
+
+  it("starts in cube shape with white on top and yellow on the bottom", () => {
+    expect(solved.top).toHaveLength(8);
+    expect(solved.top.every((p) => p.face === FACE_COLORS.U)).toBe(true);
+    expect(solved.bottom.every((p) => p.face === FACE_COLORS.D)).toBe(true);
+    expect(solved.middleFlipped).toBe(false);
+  });
+
+  it("returns to solved after two slashes or a full layer turn", () => {
+    expect(applySquare1Scramble("/ /")).toEqual(solved);
+    expect(applySquare1Scramble("(6, 6) (6, 6)")).toEqual(solved);
+  });
+
+  it("swaps the right half of each layer on a slash", () => {
+    const slashed = applySquare1Scramble("/");
+    expect(slashed.middleFlipped).toBe(true);
+    expect(slashed.top.filter((p) => p.face === FACE_COLORS.D)).toHaveLength(4);
+    expect(slashed.bottom.filter((p) => p.face === FACE_COLORS.U)).toHaveLength(4);
+  });
+
+  it("keeps every slash of generated scrambles unblocked and inverts back to solved", async () => {
+    const { Scrambow } = await import("scrambow");
+    const scrambles = new Scrambow().setType("sq1").get(50).map((s: { scramble_string: string }) => s.scramble_string);
+    for (const scramble of scrambles) {
+      const slashes = [...scramble.matchAll(/\//g)];
+      for (const slash of slashes) {
+        const before = applySquare1Scramble(scramble.slice(0, slash.index));
+        expect(sliceBlocked(before.top) || sliceBlocked(before.bottom)).toBe(false);
+      }
+      expect(applySquare1Scramble(`${scramble} ${invert(scramble)}`)).toEqual(solved);
+    }
   });
 });

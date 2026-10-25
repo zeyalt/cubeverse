@@ -92,6 +92,7 @@ const EVENT_NAMES: Record<string, string> = {
   clock: "Clock",
   "444": "4×4×4",
   "333oh": "3×3 OH",
+  sq1: "Square-1",
 };
 
 function fmt(cs: number | null): string {
