@@ -235,11 +235,103 @@ describe("solve machine", () => {
     });
   });
 
+  describe("mixed clocks", () => {
+    // Reproduces a real solve from 2026-11-06: Cross recorded as 0 ms across 21 moves and F2L 1's
+    // recognition as 20,751,077 ms. When the cube loses a Bluetooth packet it re-sends the missed
+    // moves with *no* timestamps, and the old code fell back to the browser's clock for just those
+    // moves — a clock ~5.7 hours away from the cube's.
+    const readyState = () => turn(run([scrambleEvent]), SOLVED, splitMoves(SCRAMBLE));
+    const BROWSER_CLOCK = 20_751_077.1; // performance.now() on a tab open for hours
+
+    it("never mixes the browser clock into a cube-timed solve", () => {
+      const ready = readyState();
+      let state = ready.state;
+      let model = ready.model;
+      const solution = splitMoves("F2 U R U' R'");
+      solution.forEach((move, i) => {
+        model = applyMove(model, move);
+        // Move 2 is a recovered move: no cube timestamp, stamped with the browser clock instead.
+        const recovered = i === 2;
+        state = reduceSolve(state, {
+          type: "move",
+          move,
+          cubeTs: recovered ? null : 1_000 + i * 200,
+          localTs: BROWSER_CLOCK + i * 200,
+          after: model,
+        });
+      });
+
+      expect(state.phase).toBe("solved");
+      expect(state.timingSource).toBe("cube");
+      const ts = state.moves.map((m) => m.t);
+      // Every time stays inside the solve and in order — no move 5.7 hours away.
+      for (const t of ts) {
+        expect(t).toBeGreaterThanOrEqual(0);
+        expect(t).toBeLessThanOrEqual(800);
+      }
+      expect([...ts].sort((a, b) => a - b)).toEqual(ts);
+      expect(solveTimeCs(state)).toBe(80);
+    });
+
+    it("keeps the solve time right when the last move is the recovered one", () => {
+      const ready = readyState();
+      let state = ready.state;
+      let model = ready.model;
+      const solution = splitMoves("F2 U R U' R'");
+      solution.forEach((move, i) => {
+        model = applyMove(model, move);
+        const last = i === solution.length - 1;
+        state = reduceSolve(state, {
+          type: "move",
+          move,
+          cubeTs: last ? null : 1_000 + i * 200,
+          localTs: BROWSER_CLOCK + i * 200,
+          after: model,
+        });
+      });
+      expect(state.phase).toBe("solved");
+      // The recovered final move can't be timed, so it is placed at the last known time rather than
+      // hours later — the time under-reads by at most one move's gap, never by hours.
+      expect(solveTimeCs(state)).toBe(60);
+    });
+  });
+
+  describe("confidence", () => {
+    const solvingState = () => {
+      const ready = turn(run([scrambleEvent]), SOLVED, splitMoves(SCRAMBLE));
+      return turn(ready.state, ready.model, ["F2"], 0);
+    };
+
+    it("does not distrust a solve because the cube sent a snapshot that agrees", () => {
+      // The cube sends state snapshots routinely. Flagging on every one marked all three of the
+      // first real solves as unreliable, which made the flag meaningless.
+      const { state, model } = solvingState();
+      const next = reduceSolve(state, { type: "facelets", facelets: model, localTs: 5_000 });
+      expect(next.resynced).toBe(false);
+    });
+
+    it("does not distrust a solve over a snapshot that is merely behind a fast turn", () => {
+      // A snapshot taken just before the latest move arrives disagrees for a moment. That's
+      // latency, not a missed move; the connection store applies the same quiet-period rule.
+      const { state } = solvingState();
+      const next = reduceSolve(state, { type: "facelets", facelets: SOLVED, localTs: 100 });
+      expect(next.resynced).toBe(false);
+    });
+
+    it("distrusts a solve when a settled snapshot disagrees", () => {
+      const { state } = solvingState();
+      const next = reduceSolve(state, { type: "facelets", facelets: SOLVED, localTs: 5_000 });
+      expect(next.resynced).toBe(true);
+    });
+  });
+
   it("flags a solve whose state had to be corrected mid-way", () => {
     const ready = turn(run([scrambleEvent]), SOLVED, splitMoves(SCRAMBLE));
     let state = reduceSolve(ready.state, { type: "startInspection", now: 0 });
     const partial = turn(state, ready.model, ["F2"], 0);
-    state = reduceSolve(partial.state, { type: "facelets", facelets: SOLVED, localTs: 10 });
+    // Settled (well past the quiet period) and disagreeing: the model says F2 was applied, the
+    // cube says solved. That is a genuine missed move.
+    state = reduceSolve(partial.state, { type: "facelets", facelets: SOLVED, localTs: 5_000 });
     expect(state.resynced).toBe(true);
 
     const solved = turn(state, partial.model, splitMoves("U R U' R'"), 200, 100);

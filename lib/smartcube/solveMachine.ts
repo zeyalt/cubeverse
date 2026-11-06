@@ -50,6 +50,10 @@ export interface SolveState {
    * wrong, so it is saved with reduced confidence rather than silently trusted.
    */
   resynced: boolean;
+  /** Cube state after the latest solve move, to check snapshots against. */
+  model: string | null;
+  /** Browser time of the latest solve move, for the snapshot quiet period. */
+  lastMoveLocalTs: number | null;
   penalty: Penalty;
 }
 
@@ -66,8 +70,17 @@ export const INITIAL_SOLVE: SolveState = {
   endTs: null,
   timingSource: "cube",
   resynced: false,
+  model: null,
+  lastMoveLocalTs: null,
   penalty: "none",
 };
+
+/**
+ * A snapshot that disagrees with the model is only evidence of a missed move once turning has
+ * settled; until then it is just a snapshot taken before the latest move arrived. The connection
+ * store applies the same rule before overwriting its model.
+ */
+export const SNAPSHOT_QUIET_MS = 700;
 
 /** WCA inspection: over 15 s is +2, over 17 s is a DNF. */
 export const INSPECTION_LIMIT_MS = 15_000;
@@ -140,20 +153,45 @@ export function reduceSolve(state: SolveState, event: SolveEvent): SolveState {
         case "ready":
         case "inspecting":
         case "solving": {
-          const usingCube = event.cubeTs !== null;
-          const ts = event.cubeTs ?? event.localTs;
+          // The clock is chosen once, on the first move, and every later move is read from that
+          // same clock. Choosing per move mixed the cube's clock with the browser's, which differ
+          // by however long the tab has been open — hours, in practice. A GAN cube re-sends moves
+          // lost over Bluetooth with no timestamp at all, so the per-move fallback fired on exactly
+          // the moves that were already in trouble.
           const starting = state.phase !== "solving";
-          const start = starting ? ts : state.startTs;
-          const t = starting ? 0 : ts - (start ?? ts);
+          const source = starting ? (event.cubeTs !== null ? "cube" : "local") : state.timingSource;
+          const reading = source === "cube" ? event.cubeTs : event.localTs;
+          const previousT = state.moves.length ? state.moves[state.moves.length - 1].t : 0;
+
+          let start = state.startTs;
+          let t: number;
+          if (starting) {
+            start = reading;
+            t = 0;
+          } else if (reading === null || start === null) {
+            // A recovered move has no reading on the solve's clock. It happened somewhere between
+            // the last timed move and now; placing it at the last known time keeps the stream in
+            // order and costs at most one gap of precision, where any other clock costs hours.
+            t = previousT;
+          } else {
+            // Never earlier than the move before: a reading that goes backwards is a clock glitch,
+            // and a negative gap would turn into a negative step time downstream.
+            t = Math.max(previousT, reading - start);
+          }
+
           const moves = [...state.moves, { move: event.move, t }];
           const done = isSolved(event.after);
           return {
             ...state,
             phase: done ? "solved" : "solving",
             startTs: start,
-            endTs: done ? ts : null,
-            timingSource: starting ? (usingCube ? "cube" : "local") : state.timingSource,
+            // Derived from the move times rather than read raw, so it is on the same clock by
+            // construction and the solve time always equals the last move's time.
+            endTs: done && start !== null ? start + t : null,
+            timingSource: source,
             moves,
+            model: event.after,
+            lastMoveLocalTs: event.localTs,
             inspectionStartedAt: null,
           };
         }
@@ -166,8 +204,13 @@ export function reduceSolve(state: SolveState, event: SolveEvent): SolveState {
     case "facelets": {
       // Only meaningful mid-solve: a snapshot that disagrees means a move was missed, so the
       // reconstruction can't be fully trusted even though the solve itself still counts.
-      if (state.phase !== "solving") return state;
-      return state.resynced ? state : { ...state, resynced: true };
+      if (state.phase !== "solving" || state.resynced) return state;
+      // A snapshot that matches is the cube agreeing with us — the normal case, not a warning.
+      if (state.model === null || event.facelets === state.model) return state;
+      // One taken mid-turn trails the latest move; only a settled disagreement means a lost move.
+      const settled =
+        state.lastMoveLocalTs === null || event.localTs - state.lastMoveLocalTs > SNAPSHOT_QUIET_MS;
+      return settled ? { ...state, resynced: true } : state;
     }
 
     default:

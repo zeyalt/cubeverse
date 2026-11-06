@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { SOLVED, applyMove, isSolved } from "./facelets";
+import { SNAPSHOT_QUIET_MS } from "./solveMachine";
 import type { CubeEvent, CubeHardwareInfo, SmartCube } from "./drivers/types";
 
 /**
@@ -15,8 +16,11 @@ import type { CubeEvent, CubeHardwareInfo, SmartCube } from "./drivers/types";
  * Same shape as `lib/offline/syncStore.ts` — one owner, `useSyncExternalStore` for readers.
  */
 
-/** A cube snapshot that disagrees with our model is only trusted once turning has paused. */
-const RESYNC_QUIET_MS = 700;
+/**
+ * A cube snapshot that disagrees with our model is only trusted once turning has paused. Shared with
+ * the solve machine, which uses the same rule to decide whether a solve lost a move.
+ */
+const RESYNC_QUIET_MS = SNAPSHOT_QUIET_MS;
 
 export type SmartCubeStatus = "disconnected" | "connecting" | "connected";
 
