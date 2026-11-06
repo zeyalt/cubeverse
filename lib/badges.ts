@@ -263,20 +263,14 @@ export function getBadgeInfo(key: string): BadgeInfo {
   return { key, label: key.replace(/_/g, " ") };
 }
 
-/** All badge definitions for the achievements shelf (tiers + activity). */
-export function getAllBadgeDefinitions(): BadgeInfo[] {
-  const tiers = BADGE_TIERS.map((b) => getBadgeInfo(b.key));
-  const activity = ACTIVITY_BADGES.map((b) => getBadgeInfo(b.key));
-  return [...tiers, ...activity];
-}
-
 // ─── Progress helpers (pure — for the Badges tab UI) ─────────────────────────
 
 /**
  * The time that actually unlocks a tier badge for this event/recordType —
- * whichever is faster of the practice PB and the official (WCA) PB, matching
- * how checkAndUnlockBadges gets triggered from both app/actions/solve.ts
- * (practice PBs) and app/actions/import.ts (official results).
+ * whichever is faster of the practice PB and the official (WCA) PB. Practice
+ * tier badges unlock server-side in record_practice_solve (see migrations
+ * 0011 and 0015); official-result times currently unlock nothing (see note
+ * below), so this helper anchors UI progress to whichever PB is faster.
  */
 export function bestTimeForRecord(pb: CurrentPb, recordType: RecordType): number | null {
   const practice = recordType === "single" ? pb.practiceSingle : pb.practiceAo5;

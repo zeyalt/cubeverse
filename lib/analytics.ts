@@ -252,60 +252,6 @@ export interface CurrentPb {
   practiceCount: number;
 }
 
-export async function getCurrentPbs(
-  db: SupabaseClient,
-  cuberId: string,
-  eventIds: string[],
-  ownerId?: string
-): Promise<CurrentPb[]> {
-  if (!ownerId) {
-    const { data: cuber, error } = await db
-      .from("cubers")
-      .select("owner_id")
-      .eq("id", cuberId)
-      .single();
-    if (error || !cuber) throw new Error(`Failed to resolve cuber owner: ${error?.message}`);
-    ownerId = cuber.owner_id as string;
-  }
-
-  const { data, error } = await db.rpc("get_current_pbs", {
-    p_owner_id: ownerId,
-    p_cuber_id: cuberId,
-    p_event_ids: eventIds,
-  });
-  if (error) throw new Error(`Failed to load current PBs: ${error.message}`);
-
-  return ((data ?? []) as Array<{
-    event_id: string;
-    official_single: number | null;
-    official_avg: number | null;
-    wca_single: number | null;
-    wca_avg: number | null;
-    unofficial_single: number | null;
-    unofficial_avg: number | null;
-    practice_single: number | null;
-    practice_ao5: number | null;
-    practice_ao12: number | null;
-    practice_ao50: number | null;
-    practice_ao100: number | null;
-    practice_count: number | string;
-  }>).map((row) => ({
-    eventId: row.event_id,
-    officialSingle: row.official_single,
-    officialAvg: row.official_avg,
-    wcaSingle: row.wca_single,
-    wcaAvg: row.wca_avg,
-    unofficialSingle: row.unofficial_single,
-    unofficialAvg: row.unofficial_avg,
-    practiceSingle: row.practice_single,
-    practiceAo5: row.practice_ao5,
-    practiceAo12: row.practice_ao12,
-    practiceAo50: row.practice_ao50,
-    practiceAo100: row.practice_ao100,
-    practiceCount: Number(row.practice_count),
-  }));
-}
-
 // ─── Competition Improvements ──────────────────────────────────────────────────
 
 export interface CompetitionImprovement {

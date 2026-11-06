@@ -1,5 +1,4 @@
 import { aoN } from "./cubing";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * The six practice metrics shown on both the Practice tab and the Analytics
@@ -13,54 +12,6 @@ export interface PracticeSummary {
   ao100: number | null;
   best: number | null;
   count: number;
-}
-
-export interface PracticeSummaryWithTail extends PracticeSummary {
-  eventId: string;
-  recentTimes: number[];
-}
-
-/**
- * Fetch current practice metrics without transferring the cuber's history.
- * PostgreSQL aggregates count/best and reads at most the newest 100–500 rows
- * per event for current rolling averages and the requested client tail.
- */
-export async function getPracticeSummaries(
-  db: SupabaseClient,
-  ownerId: string,
-  cuberId: string,
-  eventIds: string[],
-  tailLimit = 0
-): Promise<PracticeSummaryWithTail[]> {
-  if (eventIds.length === 0) return [];
-
-  const { data, error } = await db.rpc("get_practice_summaries", {
-    p_owner_id: ownerId,
-    p_cuber_id: cuberId,
-    p_event_ids: eventIds,
-    p_tail_limit: tailLimit,
-  });
-  if (error) throw new Error(`Failed to load practice summaries: ${error.message}`);
-
-  return ((data ?? []) as Array<{
-    event_id: string;
-    ao5: number | null;
-    ao12: number | null;
-    ao50: number | null;
-    ao100: number | null;
-    best: number | null;
-    count: number | string;
-    recent_times: number[] | null;
-  }>).map((row) => ({
-    eventId: row.event_id,
-    ao5: row.ao5,
-    ao12: row.ao12,
-    ao50: row.ao50,
-    ao100: row.ao100,
-    best: row.best,
-    count: Number(row.count),
-    recentTimes: row.recent_times ?? [],
-  }));
 }
 
 /**

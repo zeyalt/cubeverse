@@ -77,10 +77,6 @@ export async function getPendingSolves(
     );
 }
 
-export async function getPendingCount(): Promise<number> {
-  return (await listMutations({ entityType: "solve" })).length;
-}
-
 export async function removePendingSolve(id: string): Promise<void> {
   await removeMutation(id);
 }
