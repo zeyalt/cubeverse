@@ -42,18 +42,28 @@ export function MacDialog({
           One-time setup for {deviceName}
         </h2>
         <p className="mt-2 text-sm text-token-muted">
-          This cube encrypts its messages using its own Bluetooth address, and macOS won&apos;t tell
-          the browser what that is. You only need to do this once per cube.
+          This cube encrypts what it sends, using its own Bluetooth address as the key. Your browser
+          can normally read that address by itself, but the API for it is still behind a Chrome
+          flag.
         </p>
-        <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-token-muted">
-          <li>
-            Open Terminal and run{" "}
-            <code className="rounded bg-surface-strong px-1 py-0.5 text-xs">
-              system_profiler SPBluetoothDataType
-            </code>
-          </li>
-          <li>Find your cube in the list and copy the address next to it.</li>
-        </ol>
+
+        <p className="mt-3 text-sm font-bold text-token">Skip this for good</p>
+        <p className="mt-1 text-sm text-token-muted">
+          Turn on{" "}
+          <code className="rounded bg-surface-strong px-1 py-0.5 text-xs">
+            chrome://flags/#enable-experimental-web-platform-features
+          </code>{" "}
+          and restart Chrome. Every cube then connects without asking.
+        </p>
+
+        <p className="mt-3 text-sm font-bold text-token">Or enter it once</p>
+        <p className="mt-1 text-sm text-token-muted">
+          Run{" "}
+          <code className="rounded bg-surface-strong px-1 py-0.5 text-xs">
+            system_profiler SPBluetoothDataType
+          </code>{" "}
+          in Terminal and copy the address shown next to your cube. Saved for next time.
+        </p>
         <input
           autoFocus
           value={value}
