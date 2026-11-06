@@ -71,16 +71,16 @@ export async function listMutations<T = unknown>(
     .slice(0, query.limit ?? Number.POSITIVE_INFINITY);
 }
 
-export async function claimMutation(
+export async function claimMutation<T = unknown>(
   id: string,
   now = Date.now(),
   leaseMs = 60_000
-): Promise<PendingMutation | null> {
+): Promise<PendingMutation<T> | null> {
   const db = await openOfflineDb();
   const transaction = db.transaction(OUTBOX_STORE, "readwrite");
   const done = transactionDone(transaction);
   const store = transaction.objectStore(OUTBOX_STORE);
-  const row = (await requestResult(store.get(id))) as PendingMutation | undefined;
+  const row = (await requestResult(store.get(id))) as PendingMutation<T> | undefined;
 
   if (
     !row ||
@@ -106,7 +106,7 @@ export async function claimMutation(
   };
   await requestResult(store.put(claimed));
   await done;
-  return claimed;
+  return claimed as PendingMutation<T>;
 }
 
 export async function markMutationFailed(

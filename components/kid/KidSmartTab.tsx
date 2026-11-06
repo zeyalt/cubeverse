@@ -38,7 +38,7 @@ const MAX_LOG = 5000;
 
 export function KidSmartTab({ cuberId }: { cuberId: string }) {
   const cube = useSmartCube();
-  const session = useSmartSolve("333");
+  const session = useSmartSolve(cuberId, "333");
   const [macRequest, setMacRequest] = useState<{
     name: string;
     resolve: (mac: string | null) => void;

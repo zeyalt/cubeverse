@@ -12,7 +12,15 @@ import {
   type SolveState,
 } from "./solveMachine";
 import { subscribeEvents, subscribeMoves, useSmartCube } from "./useSmartCube";
-import type { TimedMove } from "./moveStream";
+import {
+  getServerSnapshot,
+  getSolvesSnapshot,
+  loadSolves,
+  removeSolve,
+  saveSolve,
+  setSolvePenalty,
+  subscribeSolves,
+} from "./solveStore";
 
 /**
  * Drives one solve: hand out a scramble, watch the cube reach it, run inspection, time the solve
@@ -22,55 +30,28 @@ import type { TimedMove } from "./moveStream";
  * the timers React needs.
  */
 
-export interface CompletedSolve {
-  id: string;
-  scramble: string;
-  scrambledState: string;
-  timeCs: number | null;
-  penalty: SolveState["penalty"];
-  moves: TimedMove[];
-  analysis: SolveAnalysis;
-  timingSource: SolveState["timingSource"];
-  resynced: boolean;
-  solvedAt: string;
-}
-
 /**
- * Finished solves live at module level, like the connection itself, so switching tabs mid-session
- * doesn't throw away the session's history. Persisting them to Supabase comes next; until then
- * this is deliberately session-only, and the UI says so rather than implying they're saved.
+ * Finished solves live in `solveStore.ts`, which owns both the session list and its trip to
+ * Supabase. This hook only produces them.
  */
-let history: CompletedSolve[] = [];
-const historyListeners = new Set<() => void>();
-const emitHistory = () => {
-  for (const listener of [...historyListeners]) listener();
-};
-const subscribeHistory = (listener: () => void) => {
-  historyListeners.add(listener);
-  return () => {
-    historyListeners.delete(listener);
-  };
-};
-
-export function clearHistory(): void {
-  history = [];
-  emitHistory();
-}
+export type { SmartSolveRecord } from "./solveStore";
 
 const INSPECTION_TICK_MS = 100;
 
-export function useSmartSolve(eventId = "333") {
+export function useSmartSolve(cuberId: string, eventId = "333") {
   const cube = useSmartCube();
   const { scramble, next: nextScramble } = useScramble(eventId);
   const [solve, setSolve] = useState<SolveState>(INITIAL_SOLVE);
   const [inspectionMs, setInspectionMs] = useState(0);
   const [liveMs, setLiveMs] = useState(0);
 
-  const solves = useSyncExternalStore(
-    subscribeHistory,
-    () => history,
-    () => history
-  );
+  const store = useSyncExternalStore(subscribeSolves, getSolvesSnapshot, getServerSnapshot);
+  const solves = store.solves;
+
+  // Earlier solves for this cuber and event, from Supabase plus anything still queued offline.
+  useEffect(() => {
+    void loadSolves(cuberId, eventId);
+  }, [cuberId, eventId]);
 
   // The reducer is driven from cube callbacks, which don't re-render in step with React, so the
   // current state is mirrored in a ref for them to read.
@@ -147,35 +128,43 @@ export function useSmartSolve(eventId = "333") {
     return () => clearInterval(id);
   }, [phase]);
 
-  // Finished: analyse once, record, and leave the result on screen until the next scramble.
+  // Finished: analyse once, save, and leave the result on screen until the next scramble.
   const recordedFor = useRef<SolveState | null>(null);
   useEffect(() => {
     if (solve.phase !== "solved" || recordedFor.current === solve) return;
     recordedFor.current = solve;
 
-    const analysis = analyseSolve(solve.target ?? "", solve.moves);
-    const completed: CompletedSolve = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      scramble: solve.scramble ?? "",
-      scrambledState: solve.target ?? "",
-      timeCs: solveTimeCs(solve),
+    const raw = analyseSolve(solve.target ?? "", solve.moves);
+    // Drift lowers confidence; it never discards the solve. The reason travels with the record so
+    // the UI can say why rather than showing a bare badge.
+    const analysis: SolveAnalysis =
+      solve.resynced && raw.method === "cfop"
+        ? {
+            ...raw,
+            confidence: "low",
+            reason: "A turn was missed over Bluetooth, so the step splits may be off.",
+          }
+        : raw;
+
+    void saveSolve({
+      cuberId,
+      eventId,
+      timeCs: solveTimeCs(solve) ?? 0,
       penalty: solve.penalty,
+      scramble: solve.scramble,
       moves: solve.moves,
-      analysis:
-        solve.resynced && analysis.method === "cfop"
-          ? {
-              ...analysis,
-              confidence: "low",
-              reason: "A turn was missed over Bluetooth, so the step splits may be off.",
-            }
-          : analysis,
+      // Stored even when the method wasn't recognised: the totals (time, turns, TPS, fluency) are
+      // in there and are worth keeping. Only the step breakdown is absent, and it says so.
+      reconstruction: analysis,
       timingSource: solve.timingSource,
-      resynced: solve.resynced,
+      confidence: solve.resynced ? "low" : "high",
+      cubeName: cube.name,
       solvedAt: new Date().toISOString(),
-    };
-    history = [completed, ...history];
-    emitHistory();
-  }, [solve]);
+    });
+    // cube.name is read, not depended on: it can't change between the solve and this effect, and
+    // depending on it would re-save the solve on a battery update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [solve, cuberId, eventId]);
 
   const startInspection = useCallback(
     () => dispatch({ type: "startInspection", now: performance.now() }),
@@ -191,12 +180,16 @@ export function useSmartSolve(eventId = "333") {
     scramble,
     solves,
     latest: solves[0] ?? null,
+    loading: store.loading,
+    loadError: store.error,
     inspectionMs,
     liveMs,
     connected: cube.status === "connected",
     startInspection,
     setPenalty,
     nextScramble,
-    clearHistory,
+    /** Penalty on an already-saved solve, as opposed to the one in progress. */
+    setSolvePenalty,
+    removeSolve,
   };
 }

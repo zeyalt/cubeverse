@@ -43,8 +43,13 @@ export interface SolveAnalysis {
   method: "cfop" | "unknown";
   steps: SolveStep[];
   totalMs: number;
+  /** Raw quarter-turn events, as the cube reported them. */
   moveCount: number;
+  /** Turns in HTM, where a half turn is one turn — what a cuber means by "moves". */
+  turns: number;
   tps: number;
+  /** Share of the solve spent turning rather than stopped, 0–1. Our own definition; see below. */
+  fluency: number;
   pauseCount: number;
   /** Which colour went on the bottom, if a cross was found. */
   crossColor: FaceLetter | null;
@@ -55,6 +60,15 @@ export interface SolveAnalysis {
 
 /** A gap longer than this counts as a hesitation rather than normal turning. */
 export const PAUSE_MS = 300;
+
+/**
+ * The gap above which time is counted as *stopped* rather than slow, for fluency.
+ *
+ * Deliberately higher than `PAUSE_MS`: a 300 ms gap is a hesitation worth counting, but it isn't
+ * time the solver spent doing nothing. 500 ms is the threshold the spec proposes, and on real
+ * solves it puts a comfortable solve in the 20–30% range, matching the reference app's figures.
+ */
+export const FLUENCY_PAUSE_MS = 500;
 
 const STEP_LABELS: Record<StepName, string> = {
   cross: "Cross",
@@ -154,14 +168,61 @@ function makeStep(
   };
 }
 
+/**
+ * Count turns the way speedcubers do (HTM): a half turn is one turn, not two.
+ *
+ * The cube can only report quarter turns, so `R2` arrives as two separate moves. Reporting the raw
+ * event count as "turns" would inflate every solve's move count and deflate its TPS against any
+ * other timer. Runs of consecutive moves on the same face are therefore collapsed, and a run that
+ * nets to nothing (`R` then `R'` — a changed mind) counts as zero.
+ */
+export function htmTurns(moves: readonly TimedMove[]): number {
+  let turns = 0;
+  let i = 0;
+  while (i < moves.length) {
+    const face = moves[i].move[0];
+    let quarters = 0;
+    while (i < moves.length && moves[i].move[0] === face) {
+      const m = moves[i].move;
+      quarters += m.endsWith("2") ? 2 : m.endsWith("'") ? -1 : 1;
+      i++;
+    }
+    if (((quarters % 4) + 4) % 4 !== 0) turns++;
+  }
+  return turns;
+}
+
+/**
+ * Share of the solve spent actually turning: `1 − (time stopped / total time)`.
+ *
+ * The reference app shows this as "fluency" without defining it, so this is our own definition and
+ * the UI says so. Returns 1 for a solve too short to have any gaps, never NaN.
+ */
+export function fluency(moves: readonly TimedMove[]): number {
+  if (moves.length < 2) return 1;
+  const totalMs = moves[moves.length - 1].t - moves[0].t;
+  if (totalMs <= 0) return 1;
+  let stoppedMs = 0;
+  for (let i = 1; i < moves.length; i++) {
+    const gap = moves[i].t - moves[i - 1].t;
+    if (gap > FLUENCY_PAUSE_MS) stoppedMs += gap;
+  }
+  return Math.max(0, Math.min(1, 1 - stoppedMs / totalMs));
+}
+
 function totals(moves: TimedMove[]) {
   const totalMs = moves.length ? moves[moves.length - 1].t - moves[0].t : 0;
   let pauseCount = 0;
   for (let i = 1; i < moves.length; i++) if (moves[i].t - moves[i - 1].t > PAUSE_MS) pauseCount++;
+  const turns = htmTurns(moves);
   return {
     totalMs,
     moveCount: moves.length,
-    tps: totalMs > 0 ? ((moves.length - 1) / totalMs) * 1000 : 0,
+    turns,
+    // Turns per second over the whole solve, matching how every other timer quotes it: HTM turns
+    // divided by the solve's duration.
+    tps: totalMs > 0 ? (turns / totalMs) * 1000 : 0,
+    fluency: fluency(moves),
     pauseCount,
   };
 }

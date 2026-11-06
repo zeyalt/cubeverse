@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SOLVED, applyMoves, splitMoves } from "./facelets";
-import { analyseSolve, PAUSE_MS } from "./analysis";
+import { analyseSolve, fluency, htmTurns, PAUSE_MS } from "./analysis";
 import type { TimedMove } from "./moveStream";
 
 /**
@@ -124,7 +124,11 @@ describe("solve analysis", () => {
     // The solve itself is never lost just because the breakdown failed.
     expect(result.moveCount).toBe(6);
     expect(result.totalMs).toBe(600);
-    expect(result.tps).toBeCloseTo(5 / 0.6, 5);
+    // Six turns on six different faces, so HTM agrees with the raw count here.
+    expect(result.turns).toBe(6);
+    expect(result.tps).toBeCloseTo(6 / 0.6, 5);
+    // Every gap is 120 ms, so nothing counts as stopped.
+    expect(result.fluency).toBe(1);
   });
 
   it("refuses to analyse a stream that doesn't end solved", () => {
@@ -140,5 +144,69 @@ describe("solve analysis", () => {
     expect(result.moveCount).toBe(0);
     expect(result.totalMs).toBe(0);
     expect(result.reason).toBeTruthy();
+  });
+});
+
+describe("turn counting", () => {
+  const at = (moves: string) => splitMoves(moves).map((move, i) => ({ move, t: i * 100 }));
+
+  it("counts a half turn as one turn, however the cube reported it", () => {
+    // The cube has no notion of a half turn: R2 reaches us as R, R. Counting those as two would
+    // inflate the move count of every real solve, since every scramble and most algs contain them.
+    expect(htmTurns(at("R R"))).toBe(1);
+    expect(htmTurns(at("R2"))).toBe(1);
+    expect(htmTurns(at("R U R' U'"))).toBe(4);
+  });
+
+  it("counts a change of mind as no turn at all", () => {
+    expect(htmTurns(at("R R'"))).toBe(0);
+    expect(htmTurns(at("U R R' U'"))).toBe(2);
+  });
+
+  it("does not merge turns on the same face that are separated by another", () => {
+    expect(htmTurns(at("R U R"))).toBe(3);
+  });
+
+  it("counts four quarter turns of one face as nothing", () => {
+    expect(htmTurns(at("R R R R"))).toBe(0);
+  });
+});
+
+describe("fluency", () => {
+  it("is 1 for a solve with no long gaps", () => {
+    expect(fluency([{ move: "R", t: 0 }, { move: "U", t: 200 }, { move: "F", t: 400 }])).toBe(1);
+  });
+
+  it("drops by the share of time spent stopped", () => {
+    // 100 ms of turning, then a 900 ms stop, then 100 ms more: 900 of 1100 ms stopped.
+    const moves = [
+      { move: "R", t: 0 },
+      { move: "U", t: 100 },
+      { move: "F", t: 1_000 },
+      { move: "L", t: 1_100 },
+    ];
+    expect(fluency(moves)).toBeCloseTo(1 - 900 / 1100, 5);
+  });
+
+  it("is 1 rather than NaN for a stream too short to have gaps", () => {
+    expect(fluency([])).toBe(1);
+    expect(fluency([{ move: "R", t: 0 }])).toBe(1);
+  });
+
+  it("lands in the reference app's range for a slow, hesitant solve", () => {
+    // The screenshot in the spec shows 1:15.09 at 1.61 TPS reported as 22% fluency. A solve that
+    // slow is mostly thinking, so a definition that scored it near 100% would be useless.
+    const moves: TimedMove[] = [];
+    let t = 0;
+    for (let i = 0; i < 60; i++) {
+      // Two quick turns, then a long think: the shape of a 1:15 solve.
+      moves.push({ move: "R", t });
+      t += 150;
+      moves.push({ move: "U", t });
+      t += 1_000;
+    }
+    const f = fluency(moves);
+    expect(f).toBeGreaterThan(0.1);
+    expect(f).toBeLessThan(0.35);
   });
 });

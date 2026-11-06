@@ -3,7 +3,7 @@
 import { Lightbulb } from "lucide-react";
 import { aoN, formatCs } from "@/lib/cubing";
 import { headlineInsight, summariseSession } from "@/lib/smartcube/insights";
-import type { CompletedSolve } from "@/lib/smartcube/useSmartSolve";
+import type { SmartSolveRecord } from "@/lib/smartcube/solveStore";
 
 /**
  * What the session says, once there's enough of it to say anything.
@@ -12,10 +12,14 @@ import type { CompletedSolve } from "@/lib/smartcube/useSmartSolve";
  * claim from one solve is worse than no claim, because it sends someone off practising the wrong
  * thing.
  */
-export function SessionInsights({ solves }: { solves: readonly CompletedSolve[] }) {
+export function SessionInsights({ solves }: { solves: readonly SmartSolveRecord[] }) {
   if (solves.length === 0) return null;
 
-  const insights = summariseSession(solves.map((s) => s.analysis));
+  // A solve saved before analysis existed has no reconstruction; it still counts as a time, just
+  // not towards the step insights.
+  const insights = summariseSession(
+    solves.map((s) => s.analysis).filter((a): a is NonNullable<typeof a> => a !== null)
+  );
   const headline = headlineInsight(insights);
 
   // Reuses the app's own WCA-correct average, so these agree with the Practice tab's numbers.

@@ -2,7 +2,7 @@
 
 import { useMemo, useSyncExternalStore } from "react";
 import { getPendingSolves, type PendingSolve } from "./queue";
-import { syncPendingSolves } from "./sync";
+import { syncPendingSolves, syncQueuedSmartSolves } from "./sync";
 
 /**
  * Single owner of the offline-solve flush loop.
@@ -67,8 +67,22 @@ export function syncNow(): Promise<void> {
   if (typeof navigator !== "undefined" && !navigator.onLine) return Promise.resolve();
 
   setState({ syncing: true });
-  inFlight = syncPendingSolves()
-    .then((result) => {
+  // Both queues flush on the one loop, so a smart solve queued offline reaches the server on the
+  // same "online" event as a practice solve. `allSettled`, not `all`: one queue failing must not
+  // leave the other unflushed.
+  inFlight = Promise.allSettled([syncPendingSolves(), syncQueuedSmartSolves()])
+    .then((outcomes) => {
+      const result = outcomes.reduce(
+        (acc, outcome) =>
+          outcome.status === "fulfilled"
+            ? {
+                synced: acc.synced + outcome.value.synced,
+                failed: acc.failed + outcome.value.failed,
+                errors: [...acc.errors, ...outcome.value.errors],
+              }
+            : { ...acc, failed: acc.failed + 1, errors: [...acc.errors, String(outcome.reason)] },
+        { synced: 0, failed: 0, errors: [] as string[] }
+      );
       if (result.failed > 0) {
         // Still queued — the next poll or "online" event retries. Logged so a
         // permanently-failing item is diagnosable rather than silently looping.

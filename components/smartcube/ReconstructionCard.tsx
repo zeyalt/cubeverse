@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertTriangle } from "lucide-react";
-import type { CompletedSolve } from "@/lib/smartcube/useSmartSolve";
+import type { SmartSolveRecord } from "@/lib/smartcube/solveStore";
 
 /**
  * Breakdown of the solve just finished.
@@ -10,10 +10,10 @@ import type { CompletedSolve } from "@/lib/smartcube/useSmartSolve";
  * same scale across steps, so the slow part of a solve is visible at a glance rather than needing
  * the numbers read and compared.
  */
-export function ReconstructionCard({ solve }: { solve: CompletedSolve }) {
+export function ReconstructionCard({ solve }: { solve: SmartSolveRecord }) {
   const { analysis } = solve;
 
-  if (analysis.method !== "cfop" || analysis.steps.length === 0) {
+  if (!analysis || analysis.method !== "cfop" || analysis.steps.length === 0) {
     return (
       <div className="surface rounded-2xl p-4">
         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-token-muted">
@@ -22,14 +22,17 @@ export function ReconstructionCard({ solve }: { solve: CompletedSolve }) {
         <div className="mt-2 flex items-start gap-2">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-token-muted" />
           <p className="text-sm text-token-muted">
-            {analysis.reason ?? "Couldn't break this solve into steps."}
+            {analysis?.reason ?? "Couldn't break this solve into steps."}
           </p>
         </div>
-        <dl className="mt-3 grid grid-cols-3 gap-3">
-          <Stat label="Turns" value={String(analysis.moveCount)} />
-          <Stat label="TPS" value={analysis.tps.toFixed(1)} />
-          <Stat label="Pauses" value={String(analysis.pauseCount)} />
-        </dl>
+        {analysis ? (
+          <dl className="mt-3 grid grid-cols-4 gap-3">
+            <Stat label="Turns" value={String(analysis.turns)} />
+            <Stat label="TPS" value={analysis.tps.toFixed(2)} />
+            <Stat label="Fluency" value={`${Math.round(analysis.fluency * 100)}%`} />
+            <Stat label="Pauses" value={String(analysis.pauseCount)} />
+          </dl>
+        ) : null}
       </div>
     );
   }
@@ -46,7 +49,8 @@ export function ReconstructionCard({ solve }: { solve: CompletedSolve }) {
           This solve
         </p>
         <p className="text-xs text-token-muted">
-          {analysis.moveCount} turns · {analysis.tps.toFixed(1)} TPS
+          {analysis.turns} turns · {analysis.tps.toFixed(2)} TPS ·{" "}
+          {Math.round(analysis.fluency * 100)}% fluency
         </p>
       </div>
 

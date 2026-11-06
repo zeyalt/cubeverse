@@ -1,6 +1,13 @@
 "use client";
 
 import { recordSolve } from "@/lib/client/actions";
+import { recordSmartSolve } from "@/lib/client/smartSolves";
+import {
+  claimQueuedSmartSolve,
+  getQueuedSmartSolves,
+  markQueuedSmartSolveFailed,
+  removeQueuedSmartSolve,
+} from "./smartSolveQueue";
 import {
   claimPendingSolve,
   getPendingSolves,
@@ -37,6 +44,45 @@ export async function syncPendingSolves(): Promise<SyncResult> {
       synced++;
     } catch (e) {
       await markPendingSolveFailed(claimed.id, e);
+      failed++;
+      errors.push((e as Error).message);
+    }
+  }
+
+  return { synced, failed, errors };
+}
+
+/**
+ * Flush queued smart-cube solves.
+ *
+ * Separate from `syncPendingSolves` for the same reason the table is separate: these go to
+ * `smart_solves` and must never be handed to `record_practice_solve`. The queued payload is
+ * passed to the action **whole** rather than rebuilt field by field — see the note at the top of
+ * `smartSolveQueue.ts` for why that matters here.
+ */
+export async function syncQueuedSmartSolves(): Promise<SyncResult> {
+  if (!navigator.onLine) return { synced: 0, failed: 0, errors: [] };
+
+  const pending = await getQueuedSmartSolves({ dueOnly: true });
+  if (!pending.length) return { synced: 0, failed: 0, errors: [] };
+
+  let synced = 0;
+  let failed = 0;
+  const errors: string[] = [];
+
+  for (const queued of pending) {
+    const claimed = await claimQueuedSmartSolve(queued.id);
+    if (!claimed) continue;
+    try {
+      // Resolving does not imply success — recordSmartSolve returns its error rather than
+      // throwing, exactly as recordSolve does. Without this check a solve rejected for a real
+      // reason would be dropped from the queue and lost.
+      const result = await recordSmartSolve(claimed.payload);
+      if (result.error) throw new Error(result.error);
+      await removeQueuedSmartSolve(claimed.id);
+      synced++;
+    } catch (e) {
+      await markQueuedSmartSolveFailed(claimed.id, e);
       failed++;
       errors.push((e as Error).message);
     }
