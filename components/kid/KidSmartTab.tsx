@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { Bluetooth, BluetoothOff, Box } from "lucide-react";
 import { TabLoading } from "./lazyTabs";
+import { LiveCube } from "@/components/smartcube/LiveCube";
 import { MacDialog } from "@/components/smartcube/MacDialog";
 import { Segmented } from "@/components/smartcube/Segmented";
 import { SolveFlow } from "@/components/smartcube/SolveFlow";
@@ -34,10 +35,6 @@ import { isWebBluetoothSupported, unsupportedMessage, unsupportedReason } from "
  * Heavy pieces load only when needed: three.js and the Bluetooth stack on connect, and the charts
  * (recharts) only when History or Insights is opened, so the timer itself stays light.
  */
-const Cube3DView = dynamic(() => import("@/components/smartcube/Cube3DView"), {
-  ssr: false,
-  loading: () => <TabLoading />,
-});
 const HistoryView = dynamic(
   () => import("@/components/smartcube/HistoryView").then((m) => m.HistoryView),
   { ssr: false, loading: () => <TabLoading /> }
@@ -128,7 +125,6 @@ export function KidSmartTab({ cuberId }: { cuberId: string }) {
 
   const connected = cube.status === "connected";
   const solveNumber = session.solves.length + 1;
-  const liveCube = <Cube3DView facelets={cube.facelets} className="absolute inset-0" />;
 
   // While solving: the cube and the time, and nothing that could be mis-tapped.
   if (solving) {
@@ -137,7 +133,7 @@ export function KidSmartTab({ cuberId }: { cuberId: string }) {
         <SolveFlow
           solve={session.solve}
           solveNumber={solveNumber}
-          cube={liveCube}
+          cube={<LiveCube controls={false} />}
           inspectionMs={session.inspectionMs}
           liveMs={session.liveMs}
           latest={session.latest}
@@ -189,7 +185,7 @@ export function KidSmartTab({ cuberId }: { cuberId: string }) {
             <SolveFlow
               solve={session.solve}
               solveNumber={solveNumber}
-              cube={liveCube}
+              cube={<LiveCube />}
               inspectionMs={session.inspectionMs}
               liveMs={session.liveMs}
               latest={session.latest}

@@ -47,8 +47,10 @@ export const ganDriver: CubeDriver = {
     rememberMac(connection.deviceName, connection.deviceMAC);
 
     const emitter = new Emitter();
-    // The i4 reports gyroSupported:false yet still streams orientation, so trust the events
-    // rather than the flag.
+    // Gen4 cubes' `gyroSupported` is a hard-coded list in the library (one model, the GAN12uiM),
+    // not something the cube reports, so it says nothing about the cube in hand. Whether this cube
+    // has a gyro is decided by orientation packets actually arriving. Not yet confirmed either way
+    // for the i4.
     let sawGyro = false;
 
     connection.events$.subscribe((event: GanCubeEvent) => {

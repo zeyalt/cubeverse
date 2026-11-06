@@ -32,6 +32,12 @@ const STICKER_COLORS: Record<FaceLetter, number> = {
 };
 
 const SPACING = 1.02;
+/**
+ * How quickly the drawn cube catches up with the gyro: the time constant of an exponential approach.
+ * Packets arrive every 20–50 ms; following each one exactly looks like jitter, while much over
+ * ~80 ms feels as if the cube is dragging behind your hand.
+ */
+const FOLLOW_MS = 55;
 /** Duration of one quarter turn when nothing is queued behind it. */
 const BASE_MS = 140;
 const MIN_MS = 35;
@@ -60,6 +66,9 @@ export class Cube3D {
   private shown = SOLVED;
   private raf = 0;
   private running = true;
+  /** Where the gyro says the cube is; the drawn cube eases towards it every frame. */
+  private targetOrientation = new THREE.Quaternion();
+  private lastFrame = 0;
   private resizeObserver: ResizeObserver;
   private onVisibility = () => {
     // A hidden tab shouldn't burn battery spinning a render loop.
@@ -104,6 +113,7 @@ export class Cube3D {
   private loop = (t: number) => {
     this.raf = 0;
     this.tick(t);
+    this.follow(t);
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
     if (this.running) this.raf = requestAnimationFrame(this.loop);
@@ -174,6 +184,34 @@ export class Cube3D {
 
   get displayed(): string {
     return this.shown;
+  }
+
+  /**
+   * Draw the whole cube at this orientation, from the gyro. [x, y, z, w] in the app's axes.
+   *
+   * It rotates the cube rather than the camera, so face turns — animated inside the cube — keep
+   * turning about the cube's own axes however it is being held.
+   */
+  setOrientation([x, y, z, w]: readonly [number, number, number, number]): void {
+    this.targetOrientation.set(x, y, z, w);
+  }
+
+  /**
+   * While the gyro is steering, dragging the view would fight it, and a dragged camera would also
+   * survive Recalibrate and leave the cube looking wrong. So following the cube switches drag off
+   * and puts the camera back where calibration assumes it is.
+   */
+  setFollowing(following: boolean): void {
+    this.controls.enableRotate = !following;
+    if (following) this.resetView();
+  }
+
+  private follow(now: number) {
+    const dt = this.lastFrame ? Math.min(100, now - this.lastFrame) : 16;
+    this.lastFrame = now;
+    // Frame-rate independent: the same feel at 60 Hz and 120 Hz.
+    const alpha = 1 - Math.exp(-dt / FOLLOW_MS);
+    this.cubeRoot.quaternion.slerp(this.targetOrientation, alpha);
   }
 
   resetView(): void {

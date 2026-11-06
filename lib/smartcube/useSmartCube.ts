@@ -43,6 +43,14 @@ export interface SmartCubeState {
   needsSync: boolean;
   moveCount: number;
   lastMove: string | null;
+  /**
+   * Whether the cube is streaming its orientation. Decided by packets actually arriving, never by
+   * the cube's `gyroSupported` flag: for GAN Gen4 cubes that flag is a hard-coded list in the
+   * library with a single model on it, so it says nothing about the cube in hand.
+   */
+  orientationLive: boolean;
+  /** Bumped by `recalibrateOrientation()`; the 3D view re-takes its home reading on each change. */
+  calibration: number;
 }
 
 const INITIAL: SmartCubeState = {
@@ -57,6 +65,8 @@ const INITIAL: SmartCubeState = {
   needsSync: false,
   moveCount: 0,
   lastMove: null,
+  orientationLive: false,
+  calibration: 0,
 };
 
 let state: SmartCubeState = INITIAL;
@@ -143,6 +153,10 @@ function handleEvent(event: CubeEvent) {
       teardown();
       break;
     case "gyro":
+      // Orientation streams at tens of packets a second, so it never goes through React state:
+      // the 3D view reads it from the raw event feed. Only the first packet touches the store,
+      // to record that this cube does send orientation at all.
+      if (!state.orientationLive) setState({ orientationLive: true });
       break;
   }
   for (const listener of [...eventListeners]) listener(event);
@@ -182,6 +196,7 @@ export async function connect({ askMac }: ConnectOptions): Promise<boolean> {
       haveCubeState: false,
       moveCount: 0,
       lastMove: null,
+      orientationLive: false,
     });
     if (typeof window !== "undefined") window.addEventListener("beforeunload", disconnectSync);
     // A cube can be on for an hour; one reading at connect time goes stale. Cheap to refresh.
@@ -221,6 +236,14 @@ export async function requestState(): Promise<void> {
 /** Replace the model, e.g. after the user confirms the cube is in a known state. */
 export function setFacelets(facelets: string): void {
   setState({ facelets, needsSync: !isSolved(facelets) });
+}
+
+/**
+ * Take the cube's current position as home: white on top, green facing you. Needed because the
+ * gyro has no compass — it can't know which way the screen faces until it's told once.
+ */
+export function recalibrateOrientation(): void {
+  setState({ calibration: state.calibration + 1 });
 }
 
 export function resetMoveCount(): void {
