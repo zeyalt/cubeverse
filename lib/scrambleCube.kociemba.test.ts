@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { FACE_COLORS, applyNxnScramble, type Face } from "./scrambleCube";
+import {
+  CORNER_COLOR,
+  CORNER_FACELET,
+  EDGE_COLOR,
+  EDGE_FACELET,
+} from "./smartcube/cubies";
 
-/** Kociemba corner/edge move tables ("replaced by") plus facelet maps. */
+/**
+ * Kociemba corner/edge move tables ("replaced by"). The facelet layout maps they pair with now
+ * live in `lib/smartcube/cubies.ts`, because solve analysis needs them at runtime — importing them
+ * here keeps this cross-check honest about the same tables the app actually uses.
+ */
 const CP = {
   U: [3, 0, 1, 2, 4, 5, 6, 7],
   R: [4, 1, 2, 0, 7, 5, 6, 3],
@@ -35,54 +45,6 @@ const EO = {
   B: [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1],
 } as const;
 
-const CORNER_FACELET = [
-  [8, 9, 20],
-  [6, 18, 38],
-  [0, 36, 47],
-  [2, 45, 11],
-  [29, 26, 15],
-  [27, 44, 24],
-  [33, 53, 42],
-  [35, 17, 51],
-];
-const EDGE_FACELET = [
-  [5, 10],
-  [7, 19],
-  [3, 37],
-  [1, 46],
-  [32, 16],
-  [28, 25],
-  [30, 43],
-  [34, 52],
-  [23, 12],
-  [21, 41],
-  [50, 39],
-  [48, 14],
-];
-const CORNER_COLOR = [
-  ["U", "R", "F"],
-  ["U", "F", "L"],
-  ["U", "L", "B"],
-  ["U", "B", "R"],
-  ["D", "F", "R"],
-  ["D", "L", "F"],
-  ["D", "B", "L"],
-  ["D", "R", "B"],
-] as const;
-const EDGE_COLOR = [
-  ["U", "R"],
-  ["U", "F"],
-  ["U", "L"],
-  ["U", "B"],
-  ["D", "R"],
-  ["D", "F"],
-  ["D", "L"],
-  ["D", "B"],
-  ["F", "R"],
-  ["F", "L"],
-  ["B", "L"],
-  ["B", "R"],
-] as const;
 
 type Cubie = { cp: number[]; co: number[]; ep: number[]; eo: number[] };
 
