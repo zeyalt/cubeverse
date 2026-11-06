@@ -1,8 +1,10 @@
 "use client";
 
-import { phaseBarLayout } from "@/lib/smartcube/phaseBar";
+import { useCallback, useRef, useState } from "react";
+import { DEFAULT_BAR_WIDTH_PX, phaseBarLayout } from "@/lib/smartcube/phaseBar";
 import type { SolveAnalysis } from "@/lib/smartcube/analysis";
 import type { TimedMove } from "@/lib/smartcube/moveStream";
+import { STEP_COLOR } from "./palette";
 
 /**
  * The solve as a single proportional bar: each CFOP step in its own colour, with hesitations drawn
@@ -16,17 +18,6 @@ import type { TimedMove } from "@/lib/smartcube/moveStream";
  * `lib/smartcube/phaseBar.ts`, where that decision is made and tested.
  */
 
-/** Step colours. Hue carries the order, so the eye reads the bar left to right as a sequence. */
-const STEP_COLOR: Record<string, string> = {
-  cross: "#7c5cc4",
-  f2l1: "#5a5ab8",
-  f2l2: "#5068bd",
-  f2l3: "#4a7cc0",
-  f2l4: "#4490c2",
-  oll: "#3fa5b4",
-  pll: "#4bb08a",
-};
-
 const seconds = (ms: number) => (ms / 1000).toFixed(2);
 
 export function PhaseBar({
@@ -36,11 +27,24 @@ export function PhaseBar({
   analysis: SolveAnalysis | null;
   moves: readonly TimedMove[];
 }) {
-  const layout = phaseBarLayout(analysis, moves);
+  // Labels are placed against the bar's real width, which isn't known until it's on screen.
+  // A callback ref, so it attaches whenever the bar appears — including when it first rendered
+  // nothing and an analysis arrived later.
+  const [width, setWidth] = useState(DEFAULT_BAR_WIDTH_PX);
+  const observer = useRef<ResizeObserver | null>(null);
+  const ref = useCallback((el: HTMLDivElement | null) => {
+    observer.current?.disconnect();
+    observer.current = null;
+    if (!el) return;
+    observer.current = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
+    observer.current.observe(el);
+  }, []);
+
+  const layout = phaseBarLayout(analysis, moves, width);
   if (!layout) return null;
 
   return (
-    <div>
+    <div ref={ref}>
       {/* Times, above their own segment. Positioned by percentage so they track the bar at any width. */}
       <div className="relative h-4">
         {layout.segments
@@ -69,7 +73,7 @@ export function PhaseBar({
             className="relative h-full"
             style={{
               width: `${segment.width * 100}%`,
-              backgroundColor: STEP_COLOR[segment.name] ?? "#5a5ab8",
+              backgroundColor: STEP_COLOR[segment.name],
             }}
           />
         ))}
@@ -111,7 +115,7 @@ export function PhaseBar({
             <span key={segment.name} className="flex items-center gap-1.5 text-[10px] text-token-muted">
               <span
                 className="size-2 rounded-full"
-                style={{ backgroundColor: STEP_COLOR[segment.name] ?? "#5a5ab8" }}
+                style={{ backgroundColor: STEP_COLOR[segment.name] }}
               />
               <span className="font-bold uppercase tracking-wider">{segment.label}</span>
               <span className="tabular-nums">{seconds(segment.ms)}</span>

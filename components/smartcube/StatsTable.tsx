@@ -1,7 +1,7 @@
 "use client";
 
 import { DNF, formatCs } from "@/lib/cubing";
-import { bestSingleIndex, sessionStats } from "@/lib/smartcube/sessionStats";
+import { bestSingleIndex, effectiveCs, sessionStats } from "@/lib/smartcube/sessionStats";
 import type { SmartSolveRecord } from "@/lib/smartcube/solveStore";
 
 /**
@@ -16,10 +16,7 @@ import type { SmartSolveRecord } from "@/lib/smartcube/solveStore";
 const RECENT = 5;
 
 /** Oldest-first effective times, which is what every average helper in this repo expects. */
-const effectiveTimes = (solves: readonly SmartSolveRecord[]): number[] =>
-  [...solves]
-    .reverse()
-    .map((s) => (s.penalty === "dnf" || s.timeCs === null ? DNF : s.timeCs + (s.penalty === "plus2" ? 200 : 0)));
+const effectiveTimes = (solves: readonly SmartSolveRecord[]): number[] => [...solves].reverse().map(effectiveCs);
 
 const show = (cs: number | null) => (cs === null ? "–" : formatCs(cs));
 
@@ -59,9 +56,7 @@ export function StatsTable({
                 >
                   <span>{solve.analysis ? solve.analysis.tps.toFixed(2) : "–"}</span>
                   <span className="font-bold">
-                    {solve.penalty === "dnf" || solve.timeCs === null
-                      ? "DNF"
-                      : formatCs(solve.timeCs + (solve.penalty === "plus2" ? 200 : 0))}
+                    {effectiveCs(solve) === DNF ? "DNF" : formatCs(effectiveCs(solve))}
                     {solve.penalty === "plus2" ? "+" : ""}
                     {/* A solve still in the outbox is marked, not implied to be saved. */}
                     {solve.pending ? <span className="text-token-muted"> ·</span> : null}

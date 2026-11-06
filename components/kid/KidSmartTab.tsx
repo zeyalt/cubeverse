@@ -1,13 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Bluetooth, BluetoothOff, Download } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Bluetooth, BluetoothOff, Box } from "lucide-react";
 import { TabLoading } from "./lazyTabs";
 import { MacDialog } from "@/components/smartcube/MacDialog";
-import { ReconstructionCard } from "@/components/smartcube/ReconstructionCard";
-import { SessionInsights } from "@/components/smartcube/SessionInsights";
-import { ScrambleNavigator, SolveFlow } from "@/components/smartcube/SolveFlow";
+import { Segmented } from "@/components/smartcube/Segmented";
+import { SolveFlow } from "@/components/smartcube/SolveFlow";
 import { StatsTable } from "@/components/smartcube/StatsTable";
 import { useSmartSolve } from "@/lib/smartcube/useSmartSolve";
 import { setSolveFocus } from "@/lib/smartcube/focusStore";
@@ -20,56 +19,63 @@ import {
   subscribeEvents,
   useSmartCube,
 } from "@/lib/smartcube/useSmartCube";
-import { isSolved } from "@/lib/smartcube/facelets";
 import { isWebBluetoothSupported, unsupportedMessage, unsupportedReason } from "@/lib/smartcube/support";
-import type { CubeEvent } from "@/lib/smartcube/drivers/types";
 
 /**
- * Smart cube tab.
+ * Smart cube tab: Timer, History, Insights.
  *
- * Everything heavy — three.js and the Bluetooth stack — is behind a dynamic import that only runs
- * when the person actually connects, so opening this tab costs a few KB and nothing more.
+ * Self-contained, as decided: smart-cube solves never reach the app's PBs, badges or Analytics, so
+ * their history and insights live here rather than in those tabs.
  *
- * While a solve is running the tab shows the cube and the time and nothing else (spec §4.4). That
- * isn't minimalism for its own sake: a scramble, a stats table and a row of tab icons in peripheral
- * vision during a timed solve are all distractions, and one of them is a mis-tap away from
- * navigating out of the solve.
+ * Laid out as one centred column at phone width on every screen. On a desktop window the earlier
+ * version stretched its tables edge to edge, with 9 px labels a metre apart; a timer is something
+ * you glance at, and a glance needs everything close together.
+ *
+ * Heavy pieces load only when needed: three.js and the Bluetooth stack on connect, and the charts
+ * (recharts) only when History or Insights is opened, so the timer itself stays light.
  */
 const Cube3DView = dynamic(() => import("@/components/smartcube/Cube3DView"), {
   ssr: false,
   loading: () => <TabLoading />,
 });
+const HistoryView = dynamic(
+  () => import("@/components/smartcube/HistoryView").then((m) => m.HistoryView),
+  { ssr: false, loading: () => <TabLoading /> }
+);
+const InsightsView = dynamic(
+  () => import("@/components/smartcube/InsightsView").then((m) => m.InsightsView),
+  { ssr: false, loading: () => <TabLoading /> }
+);
 
-/** Raw capture for building test fixtures from real hardware. */
-type LogEntry = { t: number; event: CubeEvent };
-const MAX_LOG = 5000;
+type Section = "timer" | "history" | "insights";
+const SECTIONS: ReadonlyArray<{ value: Section; label: string }> = [
+  { value: "timer", label: "Timer" },
+  { value: "history", label: "History" },
+  { value: "insights", label: "Insights" },
+];
 
 export function KidSmartTab({ cuberId }: { cuberId: string }) {
   const cube = useSmartCube();
   const session = useSmartSolve(cuberId, "333");
+  const [section, setSection] = useState<Section>("timer");
   const [macRequest, setMacRequest] = useState<{
     name: string;
     resolve: (mac: string | null) => void;
   } | null>(null);
-  const [recording, setRecording] = useState(false);
-  const [logCount, setLogCount] = useState(0);
-  const [reviewingId, setReviewingId] = useState<string | null>(null);
-  const logRef = useRef<LogEntry[]>([]);
 
   const supported = isWebBluetoothSupported();
   const reason = unsupportedReason();
   const solving = session.solve.phase === "solving";
 
-  // Hide the app's bottom nav for the duration of the solve, and put it back on unmount so a tab
-  // switch mid-solve can't leave the nav hidden with no way to bring it back.
+  // Hide the app's bottom nav for the duration of a solve, and restore it on unmount so a tab
+  // switch can never leave it hidden.
   useEffect(() => {
     setSolveFocus(solving);
     return () => setSolveFocus(false);
   }, [solving]);
 
-  // `U×4` confirms the tracked state, `D×4` declares the cube solved — the gestures from §4.5, so
-  // the sync prompt can be answered without putting the cube down. Only armed while that prompt is
-  // up, since four U turns during a solve must stay four U turns.
+  // U×4 re-reads the cube, D×4 declares it solved: the sync prompt can be answered without putting
+  // the cube down. Armed only while the prompt is up, so four U turns in a solve stay four U turns.
   useEffect(() => {
     if (!cube.needsSync) return;
     const detector = createGestureDetector(["U", "D"]);
@@ -80,18 +86,6 @@ export function KidSmartTab({ cuberId }: { cuberId: string }) {
       if (gesture === "D") void markSolved();
     });
   }, [cube.needsSync]);
-
-  // Raw event capture, only while armed.
-  useEffect(() => {
-    if (!recording) return;
-    return subscribeEvents((event) => {
-      if (event.type === "gyro") return;
-      const log = logRef.current;
-      if (log.length >= MAX_LOG) return;
-      log.push({ t: Math.round(performance.now()), event });
-      setLogCount(log.length);
-    });
-  }, [recording]);
 
   const onConnect = useCallback(async () => {
     await connect({
@@ -108,47 +102,22 @@ export function KidSmartTab({ cuberId }: { cuberId: string }) {
     });
   }, []);
 
-  // A penalty on the finished solve has to reach two places: the state machine, so the time on
-  // screen updates, and the saved record, so it survives a reload.
+  // A penalty on the solve just finished reaches the state machine (so the time on screen updates)
+  // and the saved record (so it survives a reload).
+  const { setPenalty, setSolvePenalty, latest } = session;
   const onPenalty = useCallback(
     (penalty: "none" | "plus2" | "dnf") => {
-      session.setPenalty(penalty);
-      if (session.latest) void session.setSolvePenalty(session.latest.id, penalty);
+      setPenalty(penalty);
+      if (latest) void setSolvePenalty(latest.id, penalty);
     },
-    [session]
+    [setPenalty, setSolvePenalty, latest]
   );
-
-  const downloadLog = useCallback(() => {
-    const blob = new Blob(
-      [
-        JSON.stringify(
-          {
-            capturedAt: new Date().toISOString(),
-            cuberId,
-            device: cube.name,
-            brand: cube.brand,
-            hardware: cube.hardware,
-            userAgent: typeof navigator === "undefined" ? null : navigator.userAgent,
-            entries: logRef.current,
-          },
-          null,
-          1
-        ),
-      ],
-      { type: "application/json" }
-    );
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `smartcube-capture-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }, [cube.brand, cube.hardware, cube.name, cuberId]);
 
   if (!supported && reason) {
     const { title, detail } = unsupportedMessage(reason);
     return (
-      <div className="space-y-5 px-3 pt-2 pb-4">
-        <div className="surface rounded-2xl p-5 text-center">
+      <div className="mx-auto w-full max-w-xl px-4 pt-2 pb-4">
+        <div className="surface rounded-3xl p-6 text-center">
           <BluetoothOff className="mx-auto size-8 text-token-muted" />
           <h2 className="font-display mt-3 text-lg font-bold text-token">{title}</h2>
           <p className="mt-2 text-sm text-token-muted">{detail}</p>
@@ -158,25 +127,17 @@ export function KidSmartTab({ cuberId }: { cuberId: string }) {
   }
 
   const connected = cube.status === "connected";
-  const solved = isSolved(cube.facelets);
   const solveNumber = session.solves.length + 1;
-  const reviewing = reviewingId
-    ? session.solves.find((s) => s.id === reviewingId) ?? null
-    : null;
+  const liveCube = <Cube3DView facelets={cube.facelets} className="absolute inset-0" />;
 
-  // While solving: the cube, the time, nothing else.
+  // While solving: the cube and the time, and nothing that could be mis-tapped.
   if (solving) {
     return (
-      <div className="flex flex-1 flex-col justify-center gap-4 px-3 py-4">
-        <div
-          className="surface relative overflow-hidden rounded-2xl"
-          style={{ height: "clamp(200px, 32vh, 300px)" }}
-        >
-          <Cube3DView facelets={cube.facelets} className="absolute inset-0" />
-        </div>
+      <div className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-4 py-4">
         <SolveFlow
           solve={session.solve}
           solveNumber={solveNumber}
+          cube={liveCube}
           inspectionMs={session.inspectionMs}
           liveMs={session.liveMs}
           latest={session.latest}
@@ -188,7 +149,7 @@ export function KidSmartTab({ cuberId }: { cuberId: string }) {
   }
 
   return (
-    <div className="space-y-4 px-3 pt-2 pb-4">
+    <div className="mx-auto w-full max-w-xl space-y-4 px-4 pt-2 pb-4">
       {macRequest ? (
         <MacDialog
           deviceName={macRequest.name}
@@ -197,187 +158,184 @@ export function KidSmartTab({ cuberId }: { cuberId: string }) {
         />
       ) : null}
 
-      {/* Header pill: who's connected, and how much battery it has left. */}
-      <div className="surface flex items-center gap-3 rounded-full p-2 pl-4">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold text-token">
-            {connected ? `${cube.brand} ${cube.name}` : "No cube connected"}
-          </p>
-          <p className="truncate text-[11px] text-token-muted">
-            {cube.status === "connecting"
-              ? "Choose your cube in the browser dialog…"
-              : connected
-                ? cube.hardware?.softwareVersion
-                  ? `Firmware ${cube.hardware.softwareVersion}`
-                  : "Connected"
-                : "Connect a GAN smart cube to see it move here."}
-          </p>
-        </div>
-        {connected ? (
-          <>
-            {cube.battery !== null ? (
-              <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-token px-2.5 py-1 text-[11px] font-bold tabular-nums text-token-muted">
-                <span
-                  className="size-1.5 rounded-full"
-                  style={{
-                    // Green, amber, red at the thresholds in §5.6 — a cube that dies mid-session
-                    // is worth a glance's warning.
-                    backgroundColor:
-                      cube.battery > 30 ? "#4bb08a" : cube.battery > 15 ? "#e0a33e" : "#ef4444",
-                  }}
-                />
-                {cube.battery}%
-              </span>
-            ) : null}
-            <button
-              onClick={() => void disconnect()}
-              className="shrink-0 rounded-full border border-token px-3 py-2 text-xs font-bold text-token-muted"
-            >
-              Disconnect
-            </button>
-          </>
-        ) : (
-          <button
-            onClick={() => void onConnect()}
-            disabled={cube.status === "connecting"}
-            className="flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold text-black disabled:opacity-50"
-            style={{ backgroundColor: "var(--kid-accent)" }}
-          >
-            <Bluetooth className="size-4" /> Connect
-          </button>
-        )}
-      </div>
+      <CubePill
+        status={cube.status}
+        name={connected ? `${cube.brand} ${cube.name}` : null}
+        battery={cube.battery}
+        onConnect={() => void onConnect()}
+        onDisconnect={() => void disconnect()}
+      />
+
+      <Segmented label="Smart cube sections" options={SECTIONS} value={section} onChange={setSection} />
 
       {cube.error ? (
-        <div className="surface rounded-2xl border-l-4 border-red-500 p-4 text-sm text-token-muted">
+        <div role="alert" className="surface rounded-2xl border-l-4 border-red-500 p-4 text-sm text-token-muted">
           {cube.error}
         </div>
       ) : null}
 
       {session.loadError ? (
         <div className="surface rounded-2xl p-4 text-sm text-token-muted">
-          Couldn&apos;t load your earlier smart-cube solves. This session still works and anything
-          you solve now will sync when the connection is back.
+          Couldn&apos;t load earlier solves. Timing still works, and new solves sync when the
+          connection is back.
         </div>
       ) : null}
 
-      {cube.needsSync ? (
-        <div className="surface rounded-2xl p-4">
-          <p className="text-sm text-token">
-            Your cube thinks it&apos;s scrambled. If it&apos;s actually solved, tell it so — its
-            memory drifts when you turn it while disconnected.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              onClick={() => void markSolved()}
-              className="rounded-xl px-4 py-2 text-sm font-bold text-black"
-              style={{ backgroundColor: "var(--kid-accent)" }}
-            >
-              It&apos;s solved <span className="font-mono opacity-60">D×4</span>
-            </button>
-            <button
-              onClick={() => void requestState()}
-              className="rounded-xl border border-token px-4 py-2 text-sm font-bold text-token-muted"
-            >
-              Re-read cube <span className="font-mono opacity-60">U×4</span>
-            </button>
-          </div>
-          <p className="mt-2 text-xs text-token-muted">
-            Or do it on the cube: four turns of D to mark it solved, four of U to re-read it.
-          </p>
-        </div>
-      ) : null}
-
-      {connected ? (
+      {section === "timer" ? (
         <>
-          {!cube.needsSync ? (
-            <>
-              <ScrambleNavigator
-                solveNumber={solveNumber}
-                eventLabel="3x3x3"
-                canGoBack={session.solves.length > 0}
-                onPrevious={() => setReviewingId(session.solves[0]?.id ?? null)}
-                onNext={session.nextScramble}
-              />
-              <SolveFlow
-                solve={session.solve}
-                solveNumber={solveNumber}
-                inspectionMs={session.inspectionMs}
-                liveMs={session.liveMs}
-                latest={session.latest}
-                onStartInspection={session.startInspection}
-                onNextScramble={session.nextScramble}
-                onPenalty={onPenalty}
-              />
-            </>
+          {cube.needsSync ? <SyncPrompt /> : null}
+
+          {connected && !cube.needsSync ? (
+            <SolveFlow
+              solve={session.solve}
+              solveNumber={solveNumber}
+              cube={liveCube}
+              inspectionMs={session.inspectionMs}
+              liveMs={session.liveMs}
+              latest={session.latest}
+              onStartInspection={session.startInspection}
+              onNextScramble={session.nextScramble}
+              onPenalty={onPenalty}
+            />
           ) : null}
 
-          <div className="surface relative overflow-hidden rounded-2xl" style={{ height: "clamp(230px, 38vh, 360px)" }}>
-            <Cube3DView facelets={cube.facelets} className="absolute inset-0" />
-            <span className="absolute left-3 top-3 rounded-full bg-black/40 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
-              {solved ? "Solved" : "Scrambled"}
-            </span>
-            <span className="absolute right-3 top-3 rounded-full bg-black/40 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
-              {cube.moveCount} turns{cube.lastMove ? ` · ${cube.lastMove}` : ""}
-            </span>
-          </div>
-
-          {reviewing ? (
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-token-muted">
-                  Earlier solve
-                </p>
-                <button
-                  onClick={() => setReviewingId(null)}
-                  className="text-xs font-bold text-token-muted"
-                >
-                  Close
-                </button>
-              </div>
-              <ReconstructionCard solve={reviewing} />
-            </div>
-          ) : session.latest && session.solve.phase === "solved" ? (
-            <ReconstructionCard solve={session.latest} />
+          {!connected ? (
+            <ConnectHero connecting={cube.status === "connecting"} onConnect={() => void onConnect()} />
           ) : null}
 
-          <StatsTable solves={session.solves} onSelect={(solve) => setReviewingId(solve.id)} />
-
-          <SessionInsights solves={session.solves} />
-
-          {/* Development aid: capture real hardware output as test fixtures. */}
-          <div className="surface rounded-2xl p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-token">Record a capture</p>
-                <p className="text-xs text-token-muted">
-                  {recording ? `${logCount} events recorded` : "Saves raw cube output as test data."}
-                </p>
-              </div>
-              <div className="flex shrink-0 gap-2">
-                <button
-                  onClick={() => setRecording((r) => !r)}
-                  className="rounded-xl border border-token px-3 py-2 text-xs font-bold text-token-muted"
-                >
-                  {recording ? "Stop" : "Record"}
-                </button>
-                <button
-                  onClick={downloadLog}
-                  disabled={logCount === 0}
-                  aria-label="Download capture"
-                  className="rounded-xl border border-token p-2 text-token-muted disabled:opacity-40"
-                >
-                  <Download className="size-4" />
-                </button>
-              </div>
-            </div>
-          </div>
+          <StatsTable solves={session.solves} onSelect={() => setSection("history")} />
         </>
-      ) : (
-        /* Solves outlive the connection, so the session's numbers stay on screen after a
-           disconnect rather than vanishing with the cube. */
-        <StatsTable solves={session.solves} onSelect={(solve) => setReviewingId(solve.id)} />
-      )}
+      ) : null}
+
+      {section === "history" ? (
+        <HistoryView
+          solves={session.solves}
+          onPenalty={(id, penalty) => void session.setSolvePenalty(id, penalty)}
+          onDelete={(id) => void session.removeSolve(id)}
+        />
+      ) : null}
+
+      {section === "insights" ? <InsightsView cuberId={cuberId} solves={session.solves} /> : null}
+    </div>
+  );
+}
+
+/** Which cube, its battery, and the one connection action that applies right now. */
+function CubePill({
+  status,
+  name,
+  battery,
+  onConnect,
+  onDisconnect,
+}: {
+  status: "disconnected" | "connecting" | "connected";
+  name: string | null;
+  battery: number | null;
+  onConnect: () => void;
+  onDisconnect: () => void;
+}) {
+  const connected = status === "connected";
+  return (
+    <div className="surface flex min-h-14 items-center gap-3 rounded-full py-2 pr-2 pl-4">
+      <Bluetooth
+        className="size-4 shrink-0"
+        style={{ color: connected ? "#3dbb92" : undefined }}
+        aria-hidden
+      />
+      <p className="min-w-0 flex-1 truncate text-sm font-bold text-token">
+        {connected ? name : status === "connecting" ? "Connecting…" : "No cube connected"}
+      </p>
+      {connected && battery !== null ? (
+        <span
+          className="flex shrink-0 items-center gap-1.5 text-xs font-bold tabular-nums text-token-muted"
+          aria-label={`Battery ${battery}%`}
+        >
+          {/* Green, amber, red at the spec's thresholds: a cube about to die is worth a glance. */}
+          <span
+            className="size-2 rounded-full"
+            style={{ backgroundColor: battery > 30 ? "#3dbb92" : battery > 15 ? "#e0a33e" : "#ef4444" }}
+          />
+          {battery}%
+        </span>
+      ) : null}
+      {connected ? (
+        <button
+          onClick={onDisconnect}
+          className="min-h-10 shrink-0 cursor-pointer rounded-full border border-token px-4 text-xs font-bold text-token-muted hover:text-token"
+        >
+          Disconnect
+        </button>
+      ) : status === "disconnected" ? (
+        <button
+          onClick={onConnect}
+          className="min-h-10 shrink-0 cursor-pointer rounded-full px-4 text-sm font-bold text-black"
+          style={{ backgroundColor: "var(--kid-accent)" }}
+        >
+          Connect
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * The timer card's place when no cube is connected: what to do, and the button to do it.
+ *
+ * No 3D cube here, deliberately — drawing one would load three.js before the person has decided to
+ * connect, which is the cost the whole tab is built to avoid.
+ */
+function ConnectHero({ connecting, onConnect }: { connecting: boolean; onConnect: () => void }) {
+  return (
+    <div className="surface relative overflow-hidden rounded-3xl px-6 py-10 text-center">
+      <Box className="pointer-events-none absolute left-1/2 top-1/2 size-56 -translate-x-1/2 -translate-y-1/2 text-token opacity-[0.05]" aria-hidden />
+      <div className="relative">
+        <p className="font-display text-lg font-bold text-token">Connect your smart cube</p>
+        <p className="mx-auto mt-1.5 max-w-xs text-sm text-token-muted">
+          It checks your scramble turn by turn, starts the timer on your first move and stops it
+          the moment the cube is solved.
+        </p>
+        <button
+          onClick={onConnect}
+          disabled={connecting}
+          className="mt-5 inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-full px-6 font-bold text-black disabled:opacity-50"
+          style={{ backgroundColor: "var(--kid-accent)" }}
+        >
+          <Bluetooth className="size-4" />
+          {connecting ? "Choose your cube in the browser…" : "Connect"}
+        </button>
+        <p className="mt-4 text-xs text-token-muted">No smart cube? The Practice tab has a manual timer.</p>
+      </div>
+    </div>
+  );
+}
+
+/** Shown when the cube's own state doesn't look solved on connect — usually drift, not a scramble. */
+function SyncPrompt() {
+  return (
+    <div className="surface rounded-3xl p-5">
+      <p className="font-display text-base font-bold text-token">Is your cube solved?</p>
+      <p className="mt-1 text-sm text-token-muted">
+        Your cube thinks it&apos;s scrambled. Its memory drifts when it&apos;s turned while
+        disconnected, so if it&apos;s actually solved, tell it.
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          onClick={() => void markSolved()}
+          className="min-h-11 cursor-pointer rounded-xl px-4 text-sm font-bold text-black"
+          style={{ backgroundColor: "var(--kid-accent)" }}
+        >
+          It&apos;s solved
+        </button>
+        <button
+          onClick={() => void requestState()}
+          className="min-h-11 cursor-pointer rounded-xl border border-token px-4 text-sm font-bold text-token-muted"
+        >
+          Re-read cube
+        </button>
+      </div>
+      <p className="mt-3 text-xs text-token-muted">
+        Or on the cube itself: turn D four times for solved, U four times to re-read.
+      </p>
     </div>
   );
 }

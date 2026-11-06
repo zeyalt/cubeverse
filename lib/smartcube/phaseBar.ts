@@ -9,11 +9,11 @@
  * answer, so it gets tested rather than eyeballed.
  */
 
-import { PAUSE_MS, type SolveAnalysis, type SolveStep } from "./analysis";
+import { PAUSE_MS, type SolveAnalysis, type SolveStep, type StepName } from "./analysis";
 import type { TimedMove } from "./moveStream";
 
 export interface PhaseSegment {
-  name: string;
+  name: StepName;
   label: string;
   /** Fractions of the whole solve, 0–1. */
   start: number;
@@ -33,46 +33,59 @@ export interface PhaseBarLayout {
 }
 
 /**
- * A label needs roughly this share of the bar's width to sit under its own segment without
- * touching its neighbour. Below it, the label moves to the legend instead of being squeezed,
- * abbreviated, or allowed to overlap.
- *
- * 9% of a 340 px bar is ~30 px, about the width of "4.71" at the size the spec gives for these
- * labels. It is a share rather than a pixel count so the same layout holds on any screen.
+ * Room a label needs, in pixels: "F2L 4" in 9 px caps, or "18.03" in 11 px figures, plus a gap so
+ * neighbouring labels never touch.
  */
-export const MIN_LABEL_FRACTION = 0.09;
+export const LABEL_WIDTH_PX = 44;
 
-/** Build the bar from an analysis and its move stream. Returns null when there's nothing to draw. */
+/** Assumed bar width when the real one isn't known yet: a phone's card, the tightest case. */
+export const DEFAULT_BAR_WIDTH_PX = 320;
+
+/**
+ * Build the bar from an analysis and its move stream. Returns null when there's nothing to draw.
+ *
+ * Labels are placed left to right, each one only if it starts clear of the label before it. A rule
+ * that judged each segment on its own width let "F2L 4" and "OLL" run together: each fitted its own
+ * segment, but a label sits at its segment's start and is wider than a narrow segment, so it spills
+ * into the next. Whether labels collide depends on their neighbours, so that's what gets checked. A
+ * label that doesn't get a place moves to the legend, so no number is ever lost.
+ */
 export function phaseBarLayout(
   analysis: SolveAnalysis | null,
-  moves: readonly TimedMove[]
+  moves: readonly TimedMove[],
+  barWidthPx: number = DEFAULT_BAR_WIDTH_PX
 ): PhaseBarLayout | null {
   if (!analysis || analysis.steps.length === 0 || analysis.totalMs <= 0) return null;
 
   const total = analysis.totalMs;
   const t0 = moves.length ? moves[0].t : 0;
-  // Start of the solve, in the same frame as `step` indices.
+  const labelWidth = LABEL_WIDTH_PX / Math.max(barWidthPx, 1);
   let cursorMs = 0;
+  // Right edge of the last label placed, as a fraction of the bar.
+  let labelsEndAt = -Infinity;
 
   const segments: PhaseSegment[] = analysis.steps.map((step) => {
     const ms = step.recognitionMs + step.executionMs;
-    const segment: PhaseSegment = {
+    const start = cursorMs / total;
+    // Clear of the previous label, and not running off the bar's right end.
+    const fits = start >= labelsEndAt && start + labelWidth <= 1 + 1e-9;
+    if (fits) labelsEndAt = start + labelWidth;
+    cursorMs += ms;
+    return {
       name: step.name,
       label: step.label,
-      start: cursorMs / total,
+      start,
       width: ms / total,
       ms,
-      pauses: pausesIn(step, moves, t0, cursorMs, total),
-      labelPlacement: ms / total >= MIN_LABEL_FRACTION ? "above" : "legend",
+      pauses: pausesIn(step, moves, t0, start * total, total),
+      labelPlacement: fits ? "above" : "legend",
     };
-    cursorMs += ms;
-    return segment;
   });
 
   return {
     segments,
     totalMs: total,
-    legend: segments.filter((s) => s.labelPlacement === "legend"),
+    legend: segments.filter((x) => x.labelPlacement === "legend"),
   };
 }
 

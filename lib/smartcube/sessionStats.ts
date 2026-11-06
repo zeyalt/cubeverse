@@ -94,3 +94,26 @@ export function bestSingleIndex(effectiveTimes: readonly number[]): number | nul
   });
   return bestIndex;
 }
+
+/**
+ * The value of one window after every solve, for the History chart: point `i` is the single, or
+ * the average ending at solve `i`. Null where there weren't yet enough solves, and for a DNF
+ * average — a gap in the line, rather than a spike to an arbitrary "DNF" height.
+ */
+export function rollingSeries(effectiveTimes: readonly number[], n: StatWindow): Array<number | null> {
+  return effectiveTimes.map((_, i) => {
+    const value = windowValue(effectiveTimes.slice(0, i + 1), n);
+    return value === null || value === DNF ? null : value;
+  });
+}
+
+/**
+ * A solve's time as every average sees it: the +2 added, a DNF as `DNF`.
+ *
+ * One definition, because the stats table, the History chart and the solve list all need it, and
+ * three copies of "add 200 for a +2" is how one of them ends up forgetting.
+ */
+export function effectiveCs(solve: { timeCs: number | null; penalty: "none" | "plus2" | "dnf" }): number {
+  if (solve.penalty === "dnf" || solve.timeCs === null) return DNF;
+  return solve.timeCs + (solve.penalty === "plus2" ? 200 : 0);
+}

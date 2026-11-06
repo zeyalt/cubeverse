@@ -489,6 +489,9 @@ body {
   --kid-ink: #0A0A0A;
   --kid-nav: rgba(10, 10, 10, 0.92);
   --kid-heat-empty: rgba(255, 255, 255, 0.07);
+  /* Smart-cube deltas against a goal: worse / better. */
+  --kid-worse: #f87171;
+  --kid-better: #4ade80;
 }
 
 /* Light theme — warm paper canvas, dark ink (mirrors the comp-notebook palette) */
@@ -510,6 +513,9 @@ body {
   --kid-ink: rgba(26, 18, 8, 0.22);
   --kid-nav: rgba(255, 252, 247, 0.92);
   --kid-heat-empty: rgba(26, 18, 8, 0.1);
+  /* Darker on paper: the dark-theme red and green fall to ~2.6:1 here; these clear 4.5:1. */
+  --kid-worse: #b91c1c;
+  --kid-better: #15803d;
 }
 
 /* ── Light-mode retint of legacy hard-coded dark utilities ──────────────────

@@ -2,6 +2,7 @@
 
 import { AlertTriangle } from "lucide-react";
 import type { SmartSolveRecord } from "@/lib/smartcube/solveStore";
+import { htmTurns } from "@/lib/smartcube/analysis";
 
 /**
  * Breakdown of the solve just finished.
@@ -37,6 +38,11 @@ export function ReconstructionCard({ solve }: { solve: SmartSolveRecord }) {
     );
   }
 
+  // HTM per step, like every other turn count in the app: the cube reports R2 as two moves, and
+  // counting those as two turns here contradicted the solve's own total.
+  const stepTurns = (step: (typeof analysis.steps)[number]) =>
+    solve.moves.length ? htmTurns(solve.moves.slice(step.startIndex, step.endIndex + 1)) : step.moveCount;
+
   const longest = Math.max(
     ...analysis.steps.map((s) => s.recognitionMs + s.executionMs),
     1
@@ -44,15 +50,8 @@ export function ReconstructionCard({ solve }: { solve: SmartSolveRecord }) {
 
   return (
     <div className="surface rounded-2xl p-4">
-      <div className="flex items-baseline justify-between">
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-token-muted">
-          This solve
-        </p>
-        <p className="text-xs text-token-muted">
-          {analysis.turns} turns · {analysis.tps.toFixed(2)} TPS ·{" "}
-          {Math.round(analysis.fluency * 100)}% fluency
-        </p>
-      </div>
+      {/* No totals line: the sheet this sits in already leads with time, TPS, turns and fluency. */}
+      <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-token-muted">Step by step</p>
 
       {analysis.confidence === "low" ? (
         <p className="mt-2 flex items-start gap-2 text-xs text-token-muted">
@@ -69,7 +68,7 @@ export function ReconstructionCard({ solve }: { solve: SmartSolveRecord }) {
               <div className="flex items-baseline justify-between gap-2 text-xs">
                 <span className="font-bold text-token">{step.label}</span>
                 <span className="tabular-nums text-token-muted">
-                  {(total / 1000).toFixed(2)}s · {step.moveCount} turns
+                  {(total / 1000).toFixed(2)}s · {stepTurns(step)} turns
                   {step.pauseCount > 0 ? ` · ${step.pauseCount} pause${step.pauseCount === 1 ? "" : "s"}` : ""}
                 </span>
               </div>

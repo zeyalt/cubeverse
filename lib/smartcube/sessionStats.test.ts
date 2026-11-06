@@ -63,3 +63,20 @@ describe("session stats table", () => {
     expect(bestSingleIndex([])).toBeNull();
   });
 });
+
+describe("rolling series", () => {
+  it("has a point per solve, empty until the window fills", async () => {
+    const { rollingSeries } = await import("./sessionStats");
+    const times = [1_000, 1_100, 1_200, 1_300, 1_400, 1_500];
+    const ao5 = rollingSeries(times, 5);
+    expect(ao5).toHaveLength(6);
+    expect(ao5.slice(0, 4)).toEqual([null, null, null, null]);
+    expect(ao5[4]).toBe(1_200);
+    expect(ao5[5]).toBe(1_300);
+  });
+
+  it("leaves a gap for a DNF rather than plotting it", async () => {
+    const { rollingSeries } = await import("./sessionStats");
+    expect(rollingSeries([1_000, DNF, 1_200], 1)).toEqual([1_000, null, 1_200]);
+  });
+});
