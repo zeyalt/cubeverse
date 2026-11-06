@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { KidHeader } from "./KidHeader";
 import { KidBottomNav } from "./KidBottomNav";
+import { useSolveFocus } from "@/lib/smartcube/focusStore";
 import { KidPracticeTab } from "./KidPracticeTab";
 import {
   KidCompetitionTab,
@@ -144,6 +145,9 @@ function KidModeShellContent({
   const [openHistory, setOpenHistory] = useState(initialOpenHistory);
   const [practiceHeader, setPracticeHeader] = useState<PracticeHeaderControls | null>(null);
   const [, startTransition] = useTransition();
+  // Set by the Smart tab while a solve is running. A store rather than a prop, so the Smart tab's
+  // internals don't have to be threaded through TabContent.
+  const solveFocus = useSolveFocus();
 
   // Single source of truth for the selected event, shared by every tab —
   // previously each tab (Practice, Analytics) kept its own local state seeded
@@ -305,7 +309,10 @@ function KidModeShellContent({
           />
         </main>
 
-        <KidBottomNav activeTab={currentTab} onSwitch={switchTab} />
+        {/* Hidden while a smart-cube solve is running (spec §4.4): a row of tab icons in
+            peripheral vision is a distraction mid-solve, and one mis-tap away from navigating out
+            of it. Unmounted rather than hidden, so nothing is reachable by a stray tap. */}
+        {solveFocus ? null : <KidBottomNav activeTab={currentTab} onSwitch={switchTab} />}
       </div>
 
       {switcherOpen && (
