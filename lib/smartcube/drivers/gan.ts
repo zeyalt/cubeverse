@@ -107,13 +107,18 @@ export const ganDriver: CubeDriver = {
       disconnect: () => connection.disconnect(),
     };
 
-    // Ask for hardware/state/battery on the next macrotask, so the caller's `await connect()`
-    // continuation has had a chance to subscribe before the replies arrive.
+    // Ask for hardware/state/battery once the caller's `await connect()` continuation has had a
+    // chance to subscribe. Spaced out rather than fired back-to-back: three writes in the same
+    // tick and the cube answers only the first couple, which is why the battery reading used to
+    // come up blank.
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     setTimeout(() => {
       void (async () => {
         try {
           await connection.sendCubeCommand({ type: "REQUEST_HARDWARE" });
+          await sleep(150);
           await connection.sendCubeCommand({ type: "REQUEST_FACELETS" });
+          await sleep(150);
           await connection.sendCubeCommand({ type: "REQUEST_BATTERY" });
         } catch {
           // The cube may have gone away between connecting and this tick; the disconnect event

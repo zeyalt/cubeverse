@@ -59,6 +59,9 @@ let state: SmartCubeState = INITIAL;
 let cube: SmartCube | null = null;
 let unsubscribeCube: (() => void) | null = null;
 let lastMoveAt = 0;
+let batteryPoll: ReturnType<typeof setInterval> | null = null;
+
+const BATTERY_POLL_MS = 60_000;
 
 const listeners = new Set<() => void>();
 const emit = () => {
@@ -142,6 +145,8 @@ function handleEvent(event: CubeEvent) {
 }
 
 function teardown() {
+  if (batteryPoll) clearInterval(batteryPoll);
+  batteryPoll = null;
   unsubscribeCube?.();
   unsubscribeCube = null;
   cube = null;
@@ -175,6 +180,8 @@ export async function connect({ askMac }: ConnectOptions): Promise<boolean> {
       lastMove: null,
     });
     if (typeof window !== "undefined") window.addEventListener("beforeunload", disconnectSync);
+    // A cube can be on for an hour; one reading at connect time goes stale. Cheap to refresh.
+    batteryPoll = setInterval(() => void cube?.requestBattery().catch(() => {}), BATTERY_POLL_MS);
     return true;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

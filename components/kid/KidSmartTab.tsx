@@ -2,15 +2,18 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bluetooth, BluetoothOff, Download, RotateCcw } from "lucide-react";
+import { Bluetooth, BluetoothOff, Download } from "lucide-react";
 import { TabLoading } from "./lazyTabs";
 import { MacDialog } from "@/components/smartcube/MacDialog";
+import { ReconstructionCard } from "@/components/smartcube/ReconstructionCard";
+import { SessionInsights } from "@/components/smartcube/SessionInsights";
+import { SolveFlow } from "@/components/smartcube/SolveFlow";
+import { useSmartSolve } from "@/lib/smartcube/useSmartSolve";
 import {
   connect,
   disconnect,
   markSolved,
   requestState,
-  resetMoveCount,
   subscribeEvents,
   useSmartCube,
 } from "@/lib/smartcube/useSmartCube";
@@ -35,6 +38,7 @@ const MAX_LOG = 5000;
 
 export function KidSmartTab({ cuberId }: { cuberId: string }) {
   const cube = useSmartCube();
+  const session = useSmartSolve("333");
   const [macRequest, setMacRequest] = useState<{
     name: string;
     resolve: (mac: string | null) => void;
@@ -198,30 +202,31 @@ export function KidSmartTab({ cuberId }: { cuberId: string }) {
 
       {connected ? (
         <>
-          <div className="surface relative overflow-hidden rounded-2xl" style={{ height: "clamp(260px, 45vh, 420px)" }}>
+          {!cube.needsSync ? (
+            <SolveFlow
+              solve={session.solve}
+              inspectionMs={session.inspectionMs}
+              liveMs={session.liveMs}
+              onStartInspection={session.startInspection}
+              onNextScramble={session.nextScramble}
+            />
+          ) : null}
+
+          <div className="surface relative overflow-hidden rounded-2xl" style={{ height: "clamp(230px, 38vh, 360px)" }}>
             <Cube3DView facelets={cube.facelets} className="absolute inset-0" />
             <span className="absolute left-3 top-3 rounded-full bg-black/40 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
               {solved ? "Solved" : "Scrambled"}
             </span>
+            <span className="absolute right-3 top-3 rounded-full bg-black/40 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+              {cube.moveCount} turns{cube.lastMove ? ` · ${cube.lastMove}` : ""}
+            </span>
           </div>
 
-          <div className="surface flex items-center gap-4 rounded-2xl p-4">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-token-muted">Moves</p>
-              <p className="font-display text-2xl font-extrabold text-token">{cube.moveCount}</p>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-token-muted">Last</p>
-              <p className="font-mono text-lg font-bold text-token">{cube.lastMove ?? "–"}</p>
-            </div>
-            <button
-              onClick={resetMoveCount}
-              aria-label="Reset move count"
-              className="rounded-xl border border-token p-2 text-token-muted"
-            >
-              <RotateCcw className="size-4" />
-            </button>
-          </div>
+          {session.latest && session.solve.phase === "solved" ? (
+            <ReconstructionCard solve={session.latest} />
+          ) : null}
+
+          <SessionInsights solves={session.solves} />
 
           {/* Development aid: capture real hardware output as test fixtures. */}
           <div className="surface rounded-2xl p-4">
