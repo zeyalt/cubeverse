@@ -188,51 +188,6 @@ export async function checkActivityBadges(
   return toUnlock;
 }
 
-/**
- * Check which threshold badges should be unlocked for a given time.
- * Inserts new rows into `achievements` (unique per cuber+badge_key).
- * Returns the keys of newly unlocked badges.
- */
-export async function checkAndUnlockBadges(
-  db: SupabaseClient,
-  ownerId: string,
-  cuberId: string,
-  eventId: string,
-  recordType: RecordType,
-  timeCs: number
-): Promise<string[]> {
-  if (timeCs <= 0) return [];
-
-  const applicable = BADGE_TIERS.filter(
-    (b) => b.eventId === eventId && b.recordType === recordType && timeCs < b.thresholdCs
-  );
-  if (!applicable.length) return [];
-
-  // Find which ones are not yet unlocked for this cuber
-  const keys = applicable.map((b) => b.key);
-  const { data: existing } = await db
-    .from("achievements")
-    .select("badge_key")
-    .eq("cuber_id", cuberId)
-    .in("badge_key", keys);
-
-  const alreadyUnlocked = new Set((existing ?? []).map((r) => r.badge_key as string));
-  const toUnlock = applicable.filter((b) => !alreadyUnlocked.has(b.key));
-  if (!toUnlock.length) return [];
-
-  await db.from("achievements").insert(
-    toUnlock.map((b) => ({
-      owner_id: ownerId,
-      cuber_id: cuberId,
-      badge_key: b.key,
-      event_id: eventId,
-      metadata: { time_cs: timeCs },
-    }))
-  );
-
-  return toUnlock.map((b) => b.key);
-}
-
 export interface BadgeInfo {
   key: string;
   label: string;
@@ -269,8 +224,8 @@ export function getBadgeInfo(key: string): BadgeInfo {
  * The time that actually unlocks a tier badge for this event/recordType —
  * whichever is faster of the practice PB and the official (WCA) PB. Practice
  * tier badges unlock server-side in record_practice_solve (see migrations
- * 0011 and 0015); official-result times currently unlock nothing (see note
- * below), so this helper anchors UI progress to whichever PB is faster.
+ * 0011 and 0015); official-result times don't unlock badges, so this only
+ * affects how close the UI shows the next tier to being beaten.
  */
 export function bestTimeForRecord(pb: CurrentPb, recordType: RecordType): number | null {
   const practice = recordType === "single" ? pb.practiceSingle : pb.practiceAo5;
