@@ -14,24 +14,27 @@ with correction hints, auto start/stop on cube timestamps, live 3D, CFOP splits,
 
 ## S2 — Persistence (spec §7, acceptance #7)
 - [x] `supabase/migrations/0016_smart_solves.sql` — own table, `owner_all` RLS per 0014
-- [x] `recordSmartSolve` / `listSmartSolves` / `updateSmartSolve` / `deleteSmartSolve` in `lib/client/actions.ts`
-- [x] Offline outbox: `entityType: "smartSolve"` in `lib/offline/queue.ts` + a flusher in `sync.ts`
+- [x] `recordSmartSolve` / `listSmartSolves` / `updateSmartSolvePenalty` / `deleteSmartSolve` — in their own `lib/client/smartSolves.ts`, not `actions.ts`
+- [x] Offline outbox: `entityType: "smartSolve"` in its own `smartSolveQueue.ts` + a flusher in `sync.ts`
 - [x] **Regression test for the three-place field list** — a field added to the payload but missed in
       `sync.ts`'s explicit arg object is silently dropped (plan §7)
 - [x] `useSmartSolve` loads history from the server and saves on solve
-- [x] Verify: 3 solves appear in the tab and **not** in PBs/badges/Analytics
+- [ ] **Verify on a real database**: migration not yet applied; 3 solves must appear in the tab
+      and **not** in PBs/badges/Analytics. Isolation is structural, but unproven until run
 
 ## S3 — Timer screen parity (spec §4.1–4.4, 4.6, 4.7)
 - [x] Header pill: session name + connection/battery chip (§4.1.1)
 - [x] Scramble navigator `‹ #84 [3x3x3] ›` (§4.1.2)
-- [x] Full scramble text with done-dimmed / next-enlarged / green-flash (§4.3) — replaces the
-      current "next move only" panel, which is less informative than the spec
+- [x] Full scramble text, done-dimmed and next-enlarged (§4.3) — replaces the "next move only"
+      panel. No green flash on each correct turn: a 120 ms flash per move at 5 turns a second is
+      a flicker, not feedback. The position moving along the sequence is the feedback
 - [x] Hide scramble, navigator, stats and bottom nav while solving (§4.4)
 - [x] Phase bar: single proportional pill incl. pause segments, **collision-safe labels** (§4.6 —
       the reference app's own labels overlap; the spec calls that a flaw to avoid)
 - [x] Metrics line `TPS │ turns │ fluency` (§4.6)
 - [x] Stats table, two columns, PB highlight in accent (§4.7)
-- [x] `+2` / DNF / delete on the finished solve (§4.6, §9)
+- [x] `+2` / DNF on the finished solve (§4.6, §9). Delete exists in the store but has no
+      button yet — it belongs on the solve detail, with the replay
 - [x] `U×4` confirm / `D×4` mark-as-solved cube gestures (§4.5)
 - [x] Solve detail (tap a solve in the stats table to see its reconstruction)
 - [ ] **Move-by-move replay animation** — not built; the move stream is stored, so it is the
