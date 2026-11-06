@@ -1,7 +1,8 @@
 "use client";
 
-import { Check, RefreshCw } from "lucide-react";
+import { Check, RefreshCw, Undo2 } from "lucide-react";
 import { formatCs } from "@/lib/cubing";
+import { toQuarterTurns } from "@/lib/smartcube/facelets";
 import { INSPECTION_LIMIT_MS } from "@/lib/smartcube/solveMachine";
 import type { SolveState } from "@/lib/smartcube/solveMachine";
 
@@ -25,10 +26,9 @@ export function SolveFlow({
   onStartInspection: () => void;
   onNextScramble: () => void;
 }) {
-  const applied = solve.scramble
-    ? solve.scramble.split(/\s+/).length - solve.remaining.length
-    : 0;
-  const total = solve.scramble ? solve.scramble.split(/\s+/).length : 0;
+  // Counted in quarter turns, matching what the cube reports and what `remaining` holds.
+  const total = solve.scramble ? toQuarterTurns(solve.scramble).length : 0;
+  const applied = total - solve.remaining.length;
 
   if (solve.phase === "scrambling") {
     return (
@@ -46,17 +46,33 @@ export function SolveFlow({
         </div>
 
         <p className="mt-2 font-mono text-sm leading-relaxed text-token-muted">
-          {solve.scramble?.split(/\s+/).map((move, i) => (
+          {toQuarterTurns(solve.scramble ?? "").map((move, i) => (
             <span key={i} className={i < applied ? "opacity-30" : undefined}>
               {move}{" "}
             </span>
           ))}
         </p>
 
+        {solve.wrongTurn ? (
+          <div className="mt-3 rounded-xl border-l-4 border-red-500 bg-surface-strong p-3">
+            <p className="flex items-center gap-2 text-sm font-bold text-token">
+              <Undo2 className="size-4 shrink-0" />
+              You turned {solve.wrongTurn.move} — turn{" "}
+              <span className="font-mono" style={{ color: "var(--kid-accent)" }}>
+                {solve.wrongTurn.undo}
+              </span>{" "}
+              to put it back.
+            </p>
+          </div>
+        ) : null}
+
         <div className="mt-3 flex items-center gap-3">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-token-muted">Next</p>
-            <p className="font-display text-3xl font-extrabold" style={{ color: "var(--kid-accent)" }}>
+            <p
+              className="font-display text-3xl font-extrabold"
+              style={{ color: solve.wrongTurn ? "var(--kid-fg-muted)" : "var(--kid-accent)" }}
+            >
               {solve.remaining[0] ?? "—"}
             </p>
           </div>
@@ -70,12 +86,10 @@ export function SolveFlow({
                 }}
               />
             </div>
-            {solve.wrongTurns > 0 ? (
-              <p className="mt-1.5 text-xs text-token-muted">
-                {solve.wrongTurns} turn{solve.wrongTurns === 1 ? "" : "s"} off the scramble — keep
-                going, it only matters that the cube ends up right.
-              </p>
-            ) : null}
+            <p className="mt-1.5 text-xs text-token-muted">
+              {applied} of {total} turns
+              {solve.wrongTurns > 0 ? ` · ${solve.wrongTurns} to fix` : ""}
+            </p>
           </div>
         </div>
       </div>
@@ -88,14 +102,13 @@ export function SolveFlow({
         <Check className="mx-auto size-7" style={{ color: "var(--kid-accent)" }} />
         <p className="font-display mt-2 text-lg font-bold text-token">Scrambled and ready</p>
         <p className="mt-1 text-sm text-token-muted">
-          Start inspection when you are. The timer starts on your first turn and stops by itself.
+          Just solve — the timer starts on your first turn and stops the moment the cube is solved.
         </p>
         <button
           onClick={onStartInspection}
-          className="mt-3 rounded-xl px-5 py-2.5 font-bold text-black"
-          style={{ backgroundColor: "var(--kid-accent)" }}
+          className="mt-3 rounded-xl border border-token px-5 py-2.5 text-sm font-bold text-token-muted"
         >
-          Start inspection
+          Inspection first
         </button>
       </div>
     );

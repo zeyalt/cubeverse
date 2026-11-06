@@ -10,7 +10,7 @@
  * honest source for splits, and the only one worth basing "where did the time go" on.
  */
 
-import { isSolved, splitMoves } from "./facelets";
+import { invertMove, isSolved, toQuarterTurns } from "./facelets";
 import type { TimedMove } from "./moveStream";
 
 export type SolvePhase =
@@ -35,6 +35,8 @@ export interface SolveState {
   remaining: string[];
   /** Turns that didn't match the hint. Counted, never blocking. */
   wrongTurns: number;
+  /** The most recent off-scramble turn and how to undo it, so the UI can offer a way back. */
+  wrongTurn: { move: string; undo: string } | null;
   /** Solve moves, timestamped from the first move of the solve. */
   moves: TimedMove[];
   /** Wall-clock ms when inspection began; null outside inspection. */
@@ -57,6 +59,7 @@ export const INITIAL_SOLVE: SolveState = {
   target: null,
   remaining: [],
   wrongTurns: 0,
+  wrongTurn: null,
   moves: [],
   inspectionStartedAt: null,
   startTs: null,
@@ -91,7 +94,8 @@ export function reduceSolve(state: SolveState, event: SolveEvent): SolveState {
         ...INITIAL_SOLVE,
         scramble: event.scramble,
         target: event.target,
-        remaining: splitMoves(event.scramble),
+        // Expanded so the hint lines up with what the cube reports, one event per 90°.
+        remaining: toQuarterTurns(event.scramble),
         // Handing out a scramble the cube already matches (it happens) skips straight to ready.
         phase: event.facelets === event.target ? "ready" : "scrambling",
       };
@@ -116,29 +120,29 @@ export function reduceSolve(state: SolveState, event: SolveEvent): SolveState {
         case "scrambling": {
           // The target is a *state*, not a sequence: someone who turns wrongly and recovers by any
           // route still ends up ready. The pointer only drives the next-move hint.
-          const expected = state.remaining[0];
-          const matched = expected === event.move;
+          if (event.after === state.target) {
+            return { ...state, phase: "ready", remaining: [], wrongTurn: null };
+          }
+          const matched = state.remaining[0] === event.move;
+          // Undoing the mistake clears the warning and leaves the pointer where it was.
+          const corrected = state.wrongTurn?.undo === event.move;
           return {
             ...state,
             remaining: matched ? state.remaining.slice(1) : state.remaining,
-            wrongTurns: matched ? state.wrongTurns : state.wrongTurns + 1,
-            phase: event.after === state.target ? "ready" : "scrambling",
-            // Reaching the target clears the hint list however it was reached.
-            ...(event.after === state.target ? { remaining: [] } : {}),
+            wrongTurns: matched || corrected ? state.wrongTurns : state.wrongTurns + 1,
+            wrongTurn:
+              matched || corrected
+                ? null
+                : { move: event.move, undo: invertMove(event.move) },
           };
         }
 
         case "ready":
-          // Turning again after reaching the target means the scramble is being disturbed.
-          return event.after === state.target
-            ? state
-            : { ...state, phase: "scrambling", remaining: [], wrongTurns: state.wrongTurns + 1 };
-
         case "inspecting":
         case "solving": {
           const usingCube = event.cubeTs !== null;
           const ts = event.cubeTs ?? event.localTs;
-          const starting = state.phase === "inspecting";
+          const starting = state.phase !== "solving";
           const start = starting ? ts : state.startTs;
           const t = starting ? 0 : ts - (start ?? ts);
           const moves = [...state.moves, { move: event.move, t }];

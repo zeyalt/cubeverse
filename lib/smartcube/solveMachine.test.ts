@@ -53,14 +53,15 @@ describe("solve machine", () => {
 
     it("counts a wrong turn without blocking, and still becomes ready after recovery", () => {
       const state = run([scrambleEvent]);
-      // Turn D, undo it, then apply the scramble properly.
+      // Turn D, undo it, then apply the scramble properly. Undoing a mistake is a correction, not
+      // a second mistake, so this counts once.
       const detour = turn(state, SOLVED, ["D", "D'"]);
       expect(detour.state.phase).toBe("scrambling");
-      expect(detour.state.wrongTurns).toBe(2);
+      expect(detour.state.wrongTurns).toBe(1);
 
       const recovered = turn(detour.state, detour.model, splitMoves(SCRAMBLE));
       expect(recovered.state.phase).toBe("ready");
-      expect(recovered.state.wrongTurns).toBe(2);
+      expect(recovered.state.wrongTurns).toBe(1);
     });
 
     it("tracks the next expected move while the solver is on track", () => {
@@ -71,16 +72,65 @@ describe("solve machine", () => {
       expect(state.remaining[0]).toBe("U");
     });
 
-    it("drops back to scrambling if the cube is disturbed after being ready", () => {
+    it("treats the first turn after the scramble as the start of the solve", () => {
+      // There is no way to tell "disturbing the scramble" from "starting to solve", and every
+      // timer in the hobby treats the first turn as the start. Reading it as a disturbance meant
+      // anyone who skipped inspection never got a timer.
       const ready = turn(run([scrambleEvent]), SOLVED, splitMoves(SCRAMBLE));
       expect(ready.state.phase).toBe("ready");
-      const disturbed = turn(ready.state, ready.model, ["D"]);
-      expect(disturbed.state.phase).toBe("scrambling");
+      const started = turn(ready.state, ready.model, ["D"]);
+      expect(started.state.phase).toBe("solving");
+      expect(started.state.moves).toHaveLength(1);
     });
 
     it("skips straight to ready if the cube already matches", () => {
       const state = run([{ ...scrambleEvent, facelets: TARGET }]);
       expect(state.phase).toBe("ready");
+    });
+  });
+
+  describe("against a real WCA scramble", () => {
+    // Every real scramble has half turns, and a cube can only report quarter turns — R2 arrives
+    // as R, R. Comparing against the unexpanded scramble made all 19 moves of this one look
+    // wrong, which is exactly what it did on real hardware.
+    const WCA = "R2 U' F2 D2 L2 B' R U2 F' L D2 R2 U2 B2 L2 F2 D' B2 U'";
+    const quarterTurns = (scramble: string) =>
+      splitMoves(scramble).flatMap((m) => (m.endsWith("2") ? [m[0], m[0]] : [m]));
+
+    it("tracks it turn by turn without crying wolf", () => {
+      const target = applyMoves(SOLVED, WCA);
+      const start = run([{ type: "scramble", scramble: WCA, target, facelets: SOLVED }]);
+      const done = turn(start, SOLVED, quarterTurns(WCA));
+
+      expect(done.state.phase).toBe("ready");
+      expect(done.state.wrongTurns).toBe(0);
+      expect(done.state.remaining).toEqual([]);
+    });
+
+    it("expands half turns in the hint", () => {
+      const target = applyMoves(SOLVED, WCA);
+      const state = run([{ type: "scramble", scramble: WCA, target, facelets: SOLVED }]);
+      // First scramble move is R2, so the cube is asked for R, then R again.
+      expect(state.remaining.slice(0, 3)).toEqual(["R", "R", "U'"]);
+    });
+  });
+
+  describe("correcting a mistake", () => {
+    it("names the turn that was wrong and how to undo it", () => {
+      const state = run([scrambleEvent]);
+      const wrong = turn(state, SOLVED, ["D"]);
+      expect(wrong.state.wrongTurn).toEqual({ move: "D", undo: "D'" });
+      expect(wrong.state.wrongTurns).toBe(1);
+    });
+
+    it("clears the warning once the mistake is undone, without counting it twice", () => {
+      const state = run([scrambleEvent]);
+      const wrong = turn(state, SOLVED, ["D"]);
+      const fixed = turn(wrong.state, wrong.model, ["D'"]);
+      expect(fixed.state.wrongTurn).toBeNull();
+      expect(fixed.state.wrongTurns).toBe(1);
+      // The hint picks up exactly where it was.
+      expect(fixed.state.remaining[0]).toBe("R");
     });
   });
 
@@ -109,6 +159,18 @@ describe("solve machine", () => {
       expect(solved.state.moves.at(-1)!.t).toBe(800);
       expect(solveTimeCs(solved.state)).toBe(80);
       expect(solveTps(solved.state)).toBeCloseTo(6.25, 5);
+    });
+
+    it("starts on the first turn even when inspection was skipped", () => {
+      // Reaching the scrambled state used to only arm a button, and turning from there was read
+      // as disturbing the scramble — so someone who just started solving got no timer at all.
+      const ready = turn(run([scrambleEvent]), SOLVED, splitMoves(SCRAMBLE));
+      expect(ready.state.phase).toBe("ready");
+
+      const solved = turn(ready.state, ready.model, splitMoves("F2 U R U' R'"), 7_000, 200);
+      expect(solved.state.phase).toBe("solved");
+      expect(solved.state.moves).toHaveLength(5);
+      expect(solveTimeCs(solved.state)).toBe(80);
     });
 
     it("prefers the cube's clock and records when it had to fall back", () => {

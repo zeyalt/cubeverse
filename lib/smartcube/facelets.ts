@@ -130,6 +130,25 @@ export function applyMove(facelets: string, move: string): string {
 export const splitMoves = (moves: string | string[]): string[] =>
   typeof moves === "string" ? moves.split(/\s+/).filter(Boolean) : moves;
 
+/**
+ * Rewrite a sequence into the quarter turns a cube actually reports: `R2` becomes `R R`.
+ *
+ * Smart cubes have no concept of a half turn — they send one event per 90°. Comparing a scramble
+ * move-for-move against what the cube reports therefore requires expanding it first, or every
+ * half turn in the scramble reads as a mistake.
+ */
+export const toQuarterTurns = (moves: string | string[]): string[] =>
+  splitMoves(moves).flatMap((move) => {
+    const parsed = parseMove(move);
+    return parsed.turns === 2 ? [parsed.face, parsed.face] : [move];
+  });
+
+/** The move that undoes `move` — what to tell someone who turned the wrong way. */
+export const invertMove = (move: string): string => {
+  const parsed = parseMove(move);
+  return parsed.turns === 2 ? move : parsed.turns === -1 ? parsed.face : `${parsed.face}'`;
+};
+
 export const applyMoves = (facelets: string, moves: string | string[]): string =>
   splitMoves(moves).reduce(applyMove, facelets);
 
