@@ -143,23 +143,19 @@ export async function checkActivityBadges(
 
   // all_events_in_one_comp: check lazily if compCount >= 1
   if (compCount && compCount >= 1) {
-    const { data: comps } = await db
-      .from("competitions")
-      .select("id")
+    const { data: results } = await db
+      .from("results")
+      .select("competition_id, event_id")
       .eq("cuber_id", cuberId);
 
-    for (const comp of comps ?? []) {
-      const { data: events } = await db
-        .from("results")
-        .select("event_id")
-        .eq("competition_id", comp.id)
-        .eq("cuber_id", cuberId);
-
-      const eventSet = new Set((events ?? []).map((r) => r.event_id as string));
-      if (ACTIVE_EVENTS.every((e) => eventSet.has(e))) {
-        candidates.push("all_events_in_one_comp");
-        break;
-      }
+    const eventsByComp = new Map<string, Set<string>>();
+    for (const r of results ?? []) {
+      const events = eventsByComp.get(r.competition_id) ?? new Set<string>();
+      events.add(r.event_id);
+      eventsByComp.set(r.competition_id, events);
+    }
+    if ([...eventsByComp.values()].some((events) => ACTIVE_EVENTS.every((e) => events.has(e)))) {
+      candidates.push("all_events_in_one_comp");
     }
   }
 
@@ -178,13 +174,16 @@ export async function checkActivityBadges(
   const toUnlock = candidates.filter((k) => !alreadyUnlocked.has(k));
   if (!toUnlock.length) return [];
 
-  await db.from("achievements").insert(
+  // Two tabs can race here; the (cuber_id, badge_key) constraint keeps one row.
+  const { error } = await db.from("achievements").upsert(
     toUnlock.map((k) => ({
       owner_id: ownerId,
       cuber_id: cuberId,
       badge_key: k,
-    }))
+    })),
+    { onConflict: "cuber_id,badge_key", ignoreDuplicates: true }
   );
+  if (error) throw error;
 
   return toUnlock;
 }

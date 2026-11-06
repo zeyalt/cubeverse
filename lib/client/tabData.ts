@@ -21,6 +21,7 @@ import {
 } from "@/lib/analytics";
 import { CLL_TRAINER_KEY, normalizeProgress } from "@/lib/trainer/cll";
 import { ACTIVE_EVENTS } from "@/lib/event-theme";
+import { ACTIVITY_BADGES, BADGE_TIERS, checkActivityBadges } from "@/lib/badges";
 
 export interface AnalyticsPayload {
   solvesOverTime: SolvesOverTimeData;
@@ -179,7 +180,7 @@ async function analytics(cuberId: string, eventId: string, eventRows: EventRow[]
 }
 
 async function fetchClientTabData(tab: Tab, cuberId: string, eventId: string): Promise<ClientTabDataResult> {
-  const { db } = await requireUser();
+  const { db, ownerId } = await requireUser();
   const eventRows = await events();
   if (tab === "practice") return { tab, data: await practice(cuberId, eventId, eventRows) };
   if (tab === "analytics") return { tab, data: await analytics(cuberId, eventId, eventRows) };
@@ -214,15 +215,20 @@ async function fetchClientTabData(tab: Tab, cuberId: string, eventId: string): P
     if (error) throw error;
     return { tab, data: { cuberId, progress: normalizeProgress(data?.progress) } };
   }
-  const [{ data: achievements }, solveCount, compCount] = await Promise.all([
-    db.from("achievements").select("badge_key, unlocked_at, metadata").eq("cuber_id", cuberId),
+  const [solveCount, compCount] = await Promise.all([
     db.from("solves").select("id", { count: "exact", head: true }).eq("cuber_id", cuberId).eq("context", "practice"),
     db.from("competitions").select("id", { count: "exact", head: true }).eq("cuber_id", cuberId),
   ]);
+  // Competition badges have no unlock of their own on the server (practice
+  // badges unlock in record_practice_solve), so catch them up here.
+  await checkActivityBadges(db, ownerId, cuberId, { compCount: compCount.count ?? 0 })
+    .catch((err) => console.error("Competition badge check failed:", err));
+  const { data: achievements } = await db
+    .from("achievements").select("badge_key, unlocked_at, metadata").eq("cuber_id", cuberId);
   return { tab, data: {
     achievements: achievements ?? [],
     unlockedCount: achievements?.length ?? 0,
-    totalCount: 24,
+    totalCount: BADGE_TIERS.length + ACTIVITY_BADGES.length,
     pbs: await currentPbs(cuberId),
     solveCount: solveCount.count ?? 0,
     compCount: compCount.count ?? 0,
