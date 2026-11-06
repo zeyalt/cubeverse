@@ -9,6 +9,7 @@ import {
   KidAnalyticsTab,
   KidBadgesTab,
   KidTrainerTab,
+  KidSmartTab,
   TabLoading,
   type Tab,
 } from "./lazyTabs";
@@ -24,6 +25,7 @@ import type {
   AnalyticsTabData,
   BadgesTabData,
   TrainerTabData,
+  ServerBackedTab,
 } from "@/lib/kid/tabData";
 
 interface Cuber {
@@ -53,17 +55,20 @@ interface KidModeShellProps {
   initialOpenHistory?: boolean;
 }
 
-interface TabDataCache {
+type TabDataCache = {
   practice?: PracticeTabData;
   competitions?: CompetitionTabData;
   analytics?: AnalyticsTabData;
   badges?: BadgesTabData;
   trainer?: TrainerTabData;
-}
+  /** Smart has no server data; keeping the key present makes `cache[tab]` total. */
+  smart?: undefined;
+};
 
 function TabContent({
   tab,
   cache,
+  cuberId,
   initialSubTab,
   selectedEventId,
   onEventChange,
@@ -71,6 +76,7 @@ function TabContent({
 }: {
   tab: Tab;
   cache: TabDataCache;
+  cuberId: string;
   initialSubTab: "practice" | "competition";
   selectedEventId: string;
   onEventChange: (id: string) => void;
@@ -111,6 +117,9 @@ function TabContent({
       ) : (
         <TabLoading />
       );
+    // Smart has no server-side data to wait for: everything it shows comes from the cube itself.
+    case "smart":
+      return <KidSmartTab cuberId={cuberId} />;
     default:
       return null;
   }
@@ -193,7 +202,7 @@ function KidModeShellContent({
   const [stale, setStale] = useState<ReadonlySet<Tab>>(() => new Set());
 
   const loadTab = useCallback(
-    (tab: Tab) => {
+    (tab: ServerBackedTab) => {
       const gen = ++fetchGen.current;
       startTransition(async () => {
         try {
@@ -226,7 +235,7 @@ function KidModeShellContent({
 
   // Refetch a tab that was invalidated while the user was looking at it.
   useEffect(() => {
-    if (stale.has(currentTab)) loadTab(currentTab);
+    if (currentTab !== "smart" && stale.has(currentTab)) loadTab(currentTab);
   }, [stale, currentTab, loadTab]);
 
   function switchTab(tab: Tab, opts?: { openHistory?: boolean }) {
@@ -250,7 +259,7 @@ function KidModeShellContent({
           : `/?tab=${tab}`;
     window.history.replaceState(null, "", url);
 
-    if (!cache[tab] || stale.has(tab)) loadTab(tab);
+    if (tab !== "smart" && (!cache[tab] || stale.has(tab))) loadTab(tab);
   }
 
   // A solve that fails to save (network hiccup, transient server error, or
@@ -288,6 +297,7 @@ function KidModeShellContent({
           <TabContent
             tab={currentTab}
             cache={cache}
+            cuberId={currentCuberId}
             initialSubTab={initialSubTab}
             selectedEventId={selectedEventId}
             onEventChange={handleEventChange}

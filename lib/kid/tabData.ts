@@ -3,7 +3,14 @@ import type { CurrentPb } from "@/lib/analytics";
 import type { HistoricalSolve } from "@/lib/client/actions";
 import type { CllTrainerProgress } from "@/lib/trainer/cll";
 
-export type Tab = "practice" | "competitions" | "analytics" | "badges" | "trainer";
+export type Tab = "practice" | "competitions" | "analytics" | "badges" | "trainer" | "smart";
+
+/**
+ * Tabs that load data from Supabase. "smart" is excluded on purpose: everything it shows comes
+ * live from the cube over Bluetooth, so asking the server for it is a type error rather than a
+ * silent no-op.
+ */
+export type ServerBackedTab = Exclude<Tab, "smart">;
 
 export interface EventRow {
   id: string;

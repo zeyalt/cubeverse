@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { Loader2 } from "lucide-react";
 
-export type Tab = "practice" | "competitions" | "analytics" | "badges" | "trainer";
+export type Tab = "practice" | "competitions" | "analytics" | "badges" | "trainer" | "smart";
 
 export function TabLoading() {
   return (
@@ -42,6 +42,14 @@ export const KidTrainerTab = dynamic(
   { loading: TabLoading }
 );
 
+// Smart is the heaviest tab by far — three.js and the Bluetooth stack sit behind a second
+// dynamic import inside it, so even opening this tab only costs its own few KB until the
+// person actually connects a cube.
+export const KidSmartTab = dynamic(
+  () => import("./KidSmartTab").then((m) => m.KidSmartTab),
+  { loading: TabLoading }
+);
+
 const prefetched = new Set<Tab>();
 
 /**
@@ -64,6 +72,9 @@ export function prefetchTab(tab: Tab): void {
       break;
     case "trainer":
       void import("./KidTrainerTab");
+      break;
+    case "smart":
+      void import("./KidSmartTab");
       break;
   }
 }

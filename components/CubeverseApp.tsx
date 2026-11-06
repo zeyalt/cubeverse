@@ -41,7 +41,11 @@ export function CubeverseApp() {
         const params = new URLSearchParams(window.location.search);
         const requested = params.get("tab") === "cubes" ? "trainer" : params.get("tab");
         const activeTab: Tab =
-          requested === "competitions" || requested === "analytics" || requested === "badges" || requested === "trainer"
+          requested === "competitions" ||
+          requested === "analytics" ||
+          requested === "badges" ||
+          requested === "trainer" ||
+          requested === "smart"
             ? requested
             : "practice";
         const initialOpenHistory = activeTab === "analytics" && params.get("history") === "1";
@@ -59,9 +63,13 @@ export function CubeverseApp() {
           return;
         }
         const selectedEventId = localStorage.getItem("cubeverse_event") ?? "333";
+        // Smart has no server data to prefetch — it opens straight to its own connect screen,
+        // so seed the shell with Practice's data instead of blocking on a request that
+        // doesn't exist.
+        const dataTab = activeTab === "smart" ? "practice" : activeTab;
         const [shell, tab] = await Promise.all([
           loadClientShell(cuberId),
-          getClientTabData(activeTab, cuberId, selectedEventId),
+          getClientTabData(dataTab, cuberId, selectedEventId),
         ]);
         if (cancelled) return;
         const next: Ready = {

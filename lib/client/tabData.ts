@@ -6,8 +6,8 @@ import type {
   CompetitionTabData,
   EventRow,
   PracticeTabData,
+  ServerBackedTab,
   ShellData,
-  Tab,
   TrainerTabData,
 } from "@/lib/kid/tabData";
 import {
@@ -179,7 +179,7 @@ async function analytics(cuberId: string, eventId: string, eventRows: EventRow[]
   };
 }
 
-async function fetchClientTabData(tab: Tab, cuberId: string, eventId: string): Promise<ClientTabDataResult> {
+async function fetchClientTabData(tab: ServerBackedTab, cuberId: string, eventId: string): Promise<ClientTabDataResult> {
   const { db, ownerId } = await requireUser();
   const eventRows = await events();
   if (tab === "practice") return { tab, data: await practice(cuberId, eventId, eventRows) };
@@ -236,7 +236,7 @@ async function fetchClientTabData(tab: Tab, cuberId: string, eventId: string): P
   } as BadgesTabData };
 }
 
-export async function getClientTabData(tab: Tab, cuberId: string, eventId: string): Promise<ClientTabDataResult> {
+export async function getClientTabData(tab: ServerBackedTab, cuberId: string, eventId: string): Promise<ClientTabDataResult> {
   const { ownerId } = await requireUser();
   const scope = `owner:${ownerId}`;
   const entityId = `${cuberId}:${eventId}:${tab}`;
