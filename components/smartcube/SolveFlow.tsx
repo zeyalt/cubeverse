@@ -8,6 +8,7 @@ import { INSPECTION_LIMIT_MS } from "@/lib/smartcube/solveMachine";
 import type { SolveState } from "@/lib/smartcube/solveMachine";
 import type { SmartSolveRecord } from "@/lib/smartcube/solveStore";
 import { PhaseBar } from "./PhaseBar";
+import { scrambleProgress } from "@/lib/smartcube/scrambleProgress";
 
 /**
  * The timer card: one card that holds the scramble, the live cube and the time, and changes with
@@ -17,10 +18,10 @@ import { PhaseBar } from "./PhaseBar";
  * at the scramble, turn the cube, watch it follow — and drawing them as separate panels made the
  * screen read as a stack of unrelated widgets.
  *
- * The scramble is shown whole, with completed turns dimmed and the next one picked out, so you can
- * read ahead as you would on paper. Turns are quarter turns because that is what the cube reports:
- * `R2` appears as `R R`. Showing `R2` and lighting it halfway through was the bug that made the
- * scramble checker useless, so the slightly unusual notation is deliberate.
+ * The scramble is shown whole and as written — `R2`, not `R R` — with completed moves dimmed and
+ * the next one picked out, so you can read ahead as you would on paper. The checker underneath
+ * still counts quarter turns, because that is all the cube reports; `scrambleProgress` folds them
+ * back into the scramble's own moves, and a half turn that is half done stays current, marked ½.
  */
 export function SolveFlow({
   solve,
@@ -47,8 +48,9 @@ export function SolveFlow({
   onNextScramble: () => void;
   onPenalty?: (penalty: "none" | "plus2" | "dnf") => void;
 }) {
-  const turns = solve.scramble ? toQuarterTurns(solve.scramble) : [];
-  const applied = turns.length - solve.remaining.length;
+  const quarterTurns = solve.scramble ? toQuarterTurns(solve.scramble).length : 0;
+  const steps = scrambleProgress(solve.scramble ?? "", quarterTurns - solve.remaining.length);
+  const movesDone = steps.filter((step) => step.state === "done").length;
   const cubeFrame = (
     <div className="mb-3">
       <div className="relative h-[clamp(190px,32vh,300px)]">{cube}</div>
@@ -94,19 +96,30 @@ export function SolveFlow({
         <>
           {/* Done turns dim; the next is larger and bold, so its state doesn't rest on colour. */}
           <p className="mt-2 text-center font-mono text-lg leading-loose" aria-live="polite">
-            {turns.map((move, i) => (
-              <span
-                key={i}
-                className={
-                  i < applied
-                    ? "text-token-muted opacity-35"
-                    : i === applied
-                      ? "text-[1.3em] font-bold"
-                      : "text-token"
-                }
-                style={i === applied ? { color: solve.wrongTurn ? "#f87171" : "var(--kid-accent)" } : undefined}
-              >
-                {move}{" "}
+            {steps.map((step, i) => (
+              <span key={i}>
+                <span
+                  className={
+                    step.state === "done"
+                      ? "text-token-muted opacity-35"
+                      : step.state === "current"
+                        ? "text-[1.3em] font-bold"
+                        : "text-token"
+                  }
+                  style={
+                    step.state === "current"
+                      ? { color: solve.wrongTurn ? "#f87171" : "var(--kid-accent)" }
+                      : undefined
+                  }
+                >
+                  {step.move}
+                  {/* Half of a half turn made: one more quarter of the same face to go. */}
+                  {step.halfDone ? (
+                    <sup className="ml-0.5 text-[0.55em] font-bold" aria-label="half done">
+                      ½
+                    </sup>
+                  ) : null}
+                </span>{" "}
               </span>
             ))}
           </p>
@@ -130,13 +143,13 @@ export function SolveFlow({
             <div
               className="h-full rounded-full transition-[width] duration-200"
               style={{
-                width: `${turns.length ? (applied / turns.length) * 100 : 0}%`,
+                width: `${steps.length ? (movesDone / steps.length) * 100 : 0}%`,
                 backgroundColor: "var(--kid-accent)",
               }}
             />
           </div>
           <p className="mt-1.5 text-center text-xs text-token-muted">
-            Scrambling: {applied} of {turns.length} turns
+            Scrambling: {movesDone} of {steps.length} moves
           </p>
         </>
       ) : null}
@@ -262,7 +275,7 @@ function ResultPanel({
         <button
           onClick={onNextScramble}
           className="min-h-11 flex-1 cursor-pointer rounded-xl px-5 font-bold text-black"
-          style={{ backgroundColor: "var(--kid-accent)" }}
+          style={{ backgroundColor: "var(--kid-cta)", color: "var(--kid-on-cta)" }}
         >
           Next scramble
         </button>
