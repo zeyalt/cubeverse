@@ -429,12 +429,27 @@ const SKEWB_CENTER_POS: Record<Face, Vec3> = {
   R: [1, 0, 0],
 };
 
-/** WCA / Sarah: U L R B are the four U-face vertices. */
+/**
+ * WCA Skewb notation (Regulation 12h), with the puzzle held white on top, green front-left and red
+ * front-right (4d5) — so it's viewed corner-on, three faces visible:
+ *
+ * - R: the farthest visible bottom-right vertex — down-back-right
+ * - U: the farthest visible upper vertex — up-back-left
+ * - L: the farthest visible bottom-left vertex — down-front-left
+ * - B: the farthest non-visible back vertex — down-back-left
+ *
+ * These used to be the four *top* corners ("Sarah's" notation, an older community convention).
+ * Only U coincided, so three of the four moves turned the wrong corner and no Skewb scramble ever
+ * matched a puzzle scrambled to WCA rules. The two sets aren't even the same shape — one corner
+ * plus its three neighbours, against the four corners of a face — so the mismatch showed up in
+ * the group structure itself: repeating "R U" restores a real Skewb after 45 times, and the old
+ * model after 15. `scrambleCube.test.ts` checks this against the WCA-lineage reference.
+ */
 const SKEWB_MOVE_AXIS: Record<"U" | "L" | "R" | "B", Vec3> = {
-  R: [1, 1, 1],
-  L: [-1, 1, 1],
+  R: [1, -1, -1],
   U: [-1, 1, -1],
-  B: [1, 1, -1],
+  L: [-1, -1, 1],
+  B: [-1, -1, -1],
 };
 
 function solvedSkewbStickers(): Sticker3D[] {
@@ -462,7 +477,10 @@ function turnSkewbVertex(stickers: Sticker3D[], axis: Vec3, turns: number) {
   const radians = vertexTurnsToRadians(turns);
   const unit = norm3(axis);
   for (const sticker of stickers) {
-    if (dot3(sticker.pos, unit) <= 0.15) continue;
+    // A Skewb's cut passes through its centre, so the moving half is everything on the corner's
+    // side of zero. The threshold used to be 0.15, which left behind one sticker of each
+    // neighbouring corner — those sit at ±0.058 — and tore three corners apart on every turn.
+    if (dot3(sticker.pos, unit) <= 0) continue;
     sticker.pos = rotateAround(sticker.pos, axis, radians);
   }
 }
@@ -583,6 +601,25 @@ function sq1Pieces(slots: Sq1Slot[]): Square1Piece[] {
     offset += width;
   }
   return pieces;
+}
+
+/**
+ * Where a Square-1 slot angle lands on screen, as a unit vector (x right, y down).
+ *
+ * `deg` is measured clockwise from the back, viewed from the top — the frame every slot index uses.
+ *
+ * - **Top** is drawn looking down on it, back at the top of the picture.
+ * - **Bottom** is drawn the way you look at it: tip the puzzle towards you, so the *front* edge is
+ *   at the top of the picture and right stays on the right. That is also how the WCA's scramble
+ *   images draw it. It used to be drawn as if the puzzle were rolled over sideways (back at the
+ *   top, left and right swapped) — a valid view, but rotated 180° from both of those, so the
+ *   bottom never matched a puzzle someone had just scrambled.
+ */
+export function square1ScreenDirection(view: "top" | "bottom", deg: number): { x: number; y: number } {
+  const rad = (deg * Math.PI) / 180;
+  return view === "top"
+    ? { x: Math.sin(rad), y: -Math.cos(rad) }
+    : { x: Math.sin(rad), y: Math.cos(rad) };
 }
 
 /** WCA Square-1 notation: `(x, y)` turns U and D clockwise (each seen from its own face); `/` turns the right half. */

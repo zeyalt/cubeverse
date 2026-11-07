@@ -1,6 +1,7 @@
 import {
   FACE_COLORS,
   previewFor,
+  square1ScreenDirection,
   type ClockPreview,
   type CubePreview,
   type Face,
@@ -178,56 +179,64 @@ function PyraminxNet({ preview }: { preview: PyraminxPreview }) {
   );
 }
 
-function skewbRhombus(
-  pts: [Pt, Pt, Pt, Pt],
+/**
+ * One Skewb face as it really looks: a diamond centre joining the edge midpoints, and a triangle at
+ * each corner. Corners are given as [top-left, top-right, bottom-right, bottom-left].
+ *
+ * This used to draw four wedges along the face's *edges* and paint corner colours on them — not a
+ * shape a Skewb has — and the faces disagreed about which wedge meant which corner, so the picture
+ * couldn't be compared with a puzzle even when the state behind it was right.
+ */
+function skewbFace(
+  [tl, tr, br, bl]: [Pt, Pt, Pt, Pt],
   center: string,
   corners: [string, string, string, string],
   key: string,
 ) {
-  const [tl, tr, br, bl] = pts;
-  const mid = {
-    x: (tl.x + tr.x + br.x + bl.x) / 4,
-    y: (tl.y + tr.y + br.y + bl.y) / 4,
-  };
+  const top = lerp(tl, tr, 0.5);
+  const right = lerp(tr, br, 0.5);
+  const bottom = lerp(br, bl, 0.5);
+  const left = lerp(bl, tl, 0.5);
   return [
-    poly([tl, tr, mid], corners[0], `${key}-n`),
-    poly([tr, br, mid], corners[1], `${key}-e`),
-    poly([br, bl, mid], corners[2], `${key}-s`),
-    poly([bl, tl, mid], corners[3], `${key}-w`),
-    poly(
-      [lerp(tl, mid, 0.38), lerp(tr, mid, 0.38), lerp(br, mid, 0.38), lerp(bl, mid, 0.38)],
-      center,
-      `${key}-c`,
-    ),
+    poly([tl, top, left], corners[0], `${key}-tl`),
+    poly([tr, right, top], corners[1], `${key}-tr`),
+    poly([br, bottom, right], corners[2], `${key}-br`),
+    poly([bl, left, bottom], corners[3], `${key}-bl`),
+    poly([top, right, bottom, left], center, `${key}-c`),
   ];
 }
 
 /**
- * Flattened skewb net (same cross as the NxN cubes) so all six faces show
- * at once. Each face is the skewb cut: four corner triangles around a center.
+ * Flattened skewb net (same cross as the NxN cubes) so all six faces show at once, each face seen
+ * from outside the puzzle with U above F and D below it — the layout the WCA's images use:
  *       U
  *     L F R B
  *       D
+ *
+ * Which corner sits at each position of each face comes from one table, `SKEWB_NET_CORNERS`, so
+ * the faces can't disagree. Each corner's stickers are [U/D, F/B, R/L] in the model, so a face
+ * reads index 0, 1 or 2 by which axis it lies on.
  */
+const SKEWB_NET_CORNERS: Record<Face, { corners: [string, string, string, string]; sticker: 0 | 1 | 2 }> = {
+  U: { corners: ["UBL", "UBR", "UFR", "UFL"], sticker: 0 },
+  L: { corners: ["UBL", "UFL", "DFL", "DBL"], sticker: 2 },
+  F: { corners: ["UFL", "UFR", "DFR", "DFL"], sticker: 1 },
+  R: { corners: ["UFR", "UBR", "DBR", "DFR"], sticker: 2 },
+  B: { corners: ["UBR", "UBL", "DBL", "DBR"], sticker: 1 },
+  D: { corners: ["DFL", "DFR", "DBR", "DBL"], sticker: 0 },
+};
+
 function SkewbNet({ preview }: { preview: SkewbPreview }) {
-  const c = preview.corners;
-  const face = (
-    origin: Pt,
-    center: string,
-    corners: [string, string, string, string],
-    key: string,
-  ) => {
-    const [tl, tr, br, bl] = square(origin.x, origin.y, FACE);
-    return skewbRhombus([tl, tr, br, bl], center, corners, key);
-  };
   return (
     <>
-      {face(NET.U, preview.centers.U, [c.UBR[0], c.UFR[0], c.UFL[0], c.UBL[0]], "U")}
-      {face(NET.L, preview.centers.L, [c.UBL[2], c.UFL[2], c.DFL[2], c.DBL[2]], "L")}
-      {face(NET.F, preview.centers.F, [c.UFL[1], c.UFR[1], c.DFR[1], c.DFL[1]], "F")}
-      {face(NET.R, preview.centers.R, [c.UFR[2], c.UBR[2], c.DBR[2], c.DFR[2]], "R")}
-      {face(NET.B, preview.centers.B, [c.UBR[1], c.UBL[1], c.DBL[1], c.DBR[1]], "B")}
-      {face(NET.D, preview.centers.D, [c.DFL[0], c.DFR[0], c.DBR[0], c.DBL[0]], "D")}
+      {(Object.keys(SKEWB_NET_CORNERS) as Face[]).flatMap((face) => {
+        const { corners, sticker } = SKEWB_NET_CORNERS[face];
+        const colors = corners.map(
+          (id) => preview.corners[id as keyof SkewbPreview["corners"]][sticker]
+        ) as [string, string, string, string];
+        const [tl, tr, br, bl] = square(NET[face].x, NET[face].y, FACE);
+        return skewbFace([tl, tr, br, bl], preview.centers[face], colors, face);
+      })}
     </>
   );
 }
@@ -309,24 +318,25 @@ const SQ1_BAND = 1.2;
 const SQ1_SLICE_DEG = 15;
 
 /**
- * One Square-1 layer seen face-on, back at the top. Pieces sit at their
- * 30° slots; the outer band shows each slot's side sticker. The bottom layer
- * is mirrored left–right, as if the puzzle were rolled over to look at it.
+ * One Square-1 layer seen face-on. Pieces sit at their 30° slots; the outer band shows each slot's
+ * side sticker. The top is seen from above with the back at the top of the picture; the bottom as
+ * you'd look at it by tipping the puzzle towards you, front edge at the top — see
+ * `square1ScreenDirection`, where that choice is made and tested.
  */
 function Square1Layer({
   pieces,
   center,
-  mirror,
+  view,
   keyPrefix,
 }: {
   pieces: Square1Piece[];
   center: Pt;
-  mirror: boolean;
+  view: "top" | "bottom";
   keyPrefix: string;
 }) {
   const at = (deg: number, r: number): Pt => {
-    const rad = (deg * Math.PI) / 180;
-    return { x: center.x + (mirror ? -1 : 1) * r * Math.sin(rad), y: center.y - r * Math.cos(rad) };
+    const d = square1ScreenDirection(view, deg);
+    return { x: center.x + r * d.x, y: center.y + r * d.y };
   };
   const band = (a: Pt, b: Pt): Pt[] => [a, b, lerp(center, b, SQ1_BAND), lerp(center, a, SQ1_BAND)];
   const sliceEnd = SQ1_EDGE_R * SQ1_BAND + 1;
@@ -390,11 +400,11 @@ function Square1Net({ preview }: { preview: Square1Preview }) {
       <text x="24" y="5" textAnchor="middle" fill="#888" fontSize="4.2" fontWeight="700">
         Top
       </text>
-      <Square1Layer pieces={preview.top} center={{ x: 24, y: 29 }} mirror={false} keyPrefix="sq1-u" />
+      <Square1Layer pieces={preview.top} center={{ x: 24, y: 29 }} view="top" keyPrefix="sq1-u" />
       <text x="72" y="5" textAnchor="middle" fill="#888" fontSize="4.2" fontWeight="700">
         Bottom
       </text>
-      <Square1Layer pieces={preview.bottom} center={{ x: 72, y: 29 }} mirror keyPrefix="sq1-d" />
+      <Square1Layer pieces={preview.bottom} center={{ x: 72, y: 29 }} view="bottom" keyPrefix="sq1-d" />
       <Square1Middle flipped={preview.middleFlipped} origin={{ x: 28, y: 55 }} />
     </>
   );

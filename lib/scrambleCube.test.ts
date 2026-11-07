@@ -8,6 +8,7 @@ import {
   parseNxnMoves,
   previewFor,
   solvedCube,
+  square1ScreenDirection,
 } from "./scrambleCube";
 
 function col(cube: ReturnType<typeof applyNxnScramble>, face: "U" | "F" | "R" | "D" | "L" | "B", c: number) {
@@ -192,16 +193,77 @@ describe("skewb", () => {
     expect(applySkewbScramble("R R R")).toEqual(applySkewbScramble(""));
   });
 
-  it("moves the U center on R", () => {
-    const solved = applySkewbScramble("");
+  it("turns R about the down-back-right corner, leaving the top centre alone", () => {
+    // This test used to assert that R moves the U centre — true of the old top-corners notation,
+    // false under WCA rules, so it was holding the bug in place. Per the WCA reference, R cycles
+    // the right, back and bottom centres and white stays on top.
     const turned = applySkewbScramble("R");
-    expect(turned.centers.U).not.toBe(solved.centers.U);
+    expect(turned.centers.U).toBe(FACE_COLORS.U);
+    expect(turned.centers.R).toBe(FACE_COLORS.D);
+    expect(turned.centers.B).toBe(FACE_COLORS.R);
+    expect(turned.centers.D).toBe(FACE_COLORS.B);
   });
 
   it("returns to solved after a scramble and its inverse", () => {
     const scramble = "R U L' B R'";
     const inverse = "R B' L U' R'";
     expect(applySkewbScramble(`${scramble} ${inverse}`)).toEqual(applySkewbScramble(""));
+  });
+
+  /** Times `word` must be repeated to look solved again. */
+  const visibleOrder = (word: string) => {
+    const solved = JSON.stringify(applySkewbScramble(""));
+    for (let n = 1; n <= 100; n++) {
+      if (JSON.stringify(applySkewbScramble(Array(n).fill(word).join(" "))) === solved) return n;
+    }
+    return -1;
+  };
+
+  it("turns the corners WCA notation names, not the four top corners", () => {
+    // Regulation 12h: R, U, L, B turn about down-back-right, up-back-left, down-front-left and
+    // down-back-left. The model used the four top corners (an older community notation), and the
+    // two sets aren't even the same shape, so the difference shows in how long a sequence takes to
+    // come back round. These counts are from cubing.js (WCA lineage), compared on visible state
+    // across all 336 two- and three-move sequences on 2026-11-08; the old model got 54 right.
+    expect(visibleOrder("R U")).toBe(45); // the old model said 15
+    expect(visibleOrder("R L")).toBe(45);
+    expect(visibleOrder("R U'")).toBe(30);
+    expect(visibleOrder("L B'")).toBe(18);
+    expect(visibleOrder("R B")).toBe(9);
+  });
+
+  it("moves every sticker of a corner together", () => {
+    // Each turn used to leave one sticker of each neighbouring corner behind: the cut was placed
+    // at 0.15 instead of through the centre. A corner's three stickers must always be three
+    // different colours.
+    const state = applySkewbScramble("R U' B L' U R' B' L U' B");
+    for (const stickers of Object.values(state.corners)) {
+      expect(new Set(stickers).size).toBe(3);
+    }
+  });
+
+  it("matches the WCA reference sticker for sticker", () => {
+    // Verified against cubing.js 0.66.1's picture of the same scramble, every face, then frozen.
+    const letter = Object.fromEntries(Object.entries(FACE_COLORS).map(([k, v]) => [v, k]));
+    const state = applySkewbScramble("R U' B L' U R' B' L U' B");
+    const centers = Object.fromEntries(Object.entries(state.centers).map(([f, c]) => [f, letter[c]]));
+    expect(centers).toEqual({ U: "U", L: "B", F: "D", R: "F", B: "R", D: "L" });
+    const corners = Object.fromEntries(
+      Object.entries(state.corners).map(([id, stickers]) => [id, stickers.map((c) => letter[c]).join("")])
+    );
+    // [U/D sticker, F/B sticker, R/L sticker] for each corner position.
+    expect(corners).toMatchInlineSnapshot(`
+      {
+        "DBL": "BLD",
+        "DBR": "LDF",
+        "DFL": "LUB",
+        "DFR": "FLU",
+        "UBL": "BRD",
+        "UBR": "FRD",
+        "UFL": "RUB",
+        "UFR": "UFR",
+      }
+    `);
   });
 });
 
@@ -247,4 +309,56 @@ describe("square-1", () => {
       expect(applySquare1Scramble(`${scramble} ${invert(scramble)}`)).toEqual(solved);
     }
   }, 20_000); // random-state sq1 scrambles are slow to generate
+
+  it("matches the WCA reference implementation on a real scramble", () => {
+    // Verified wedge for wedge against cubing.js 0.66.1 (the WCA-lineage reference) on 2026-11-08,
+    // along with 28 other scrambles, then frozen here. Each slot is face sticker + side sticker,
+    // clockwise from the slice's back end viewed from the top.
+    const letter = Object.fromEntries(Object.entries(FACE_COLORS).map(([k, v]) => [v, k]));
+    const encode = (pieces: ReturnType<typeof applySquare1Scramble>["top"]) => {
+      const out = new Array<string>(12);
+      for (const p of pieces) p.sides.forEach((side, k) => (out[(p.start + k) % 12] = letter[p.face] + letter[side]));
+      return out.join(" ");
+    };
+    const state = applySquare1Scramble(
+      "(0, 5) / (3, 0) / (-2, 1) / (6, 0) / (-4, -4) / (-2, -5) / (-4, 0) / (3, 0) / (1, 2) / (0, 3) / (-2, 1) / (0, -2)"
+    );
+    expect(encode(state.top)).toBe("UL UL UB DR DB DF DB DL UB UR DL DF");
+    expect(encode(state.bottom)).toBe("UR DL DR UF UL UF UB DB DR DF UF UR");
+    expect(state.middleFlipped).toBe(true);
+  });
+});
+
+describe("square-1 picture", () => {
+  // Angles are clockwise from the back, viewed from the top. Screen y points down.
+  const BACK = 0;
+  const RIGHT = 90;
+  const FRONT = 180;
+
+  it("draws the top from above, back at the top of the picture", () => {
+    expect(square1ScreenDirection("top", BACK).y).toBeCloseTo(-1);
+    expect(square1ScreenDirection("top", RIGHT).x).toBeCloseTo(1);
+  });
+
+  it("draws the bottom as seen by tipping the puzzle towards you: front up, right still right", () => {
+    // It used to be drawn rolled over sideways — back up, left and right swapped — which is a
+    // valid view but rotated 180° from how anyone checks the bottom of their puzzle, and from the
+    // WCA's own scramble images.
+    expect(square1ScreenDirection("bottom", FRONT).y).toBeCloseTo(-1);
+    expect(square1ScreenDirection("bottom", BACK).y).toBeCloseTo(1);
+    expect(square1ScreenDirection("bottom", RIGHT).x).toBeCloseTo(1);
+  });
+
+  it("puts the half turned by / on the right of both layers", () => {
+    // "/" turns the right half. On the puzzle in your hands the turned pieces are on the right of
+    // the top *and* of the bottom; the picture showed them on the left of the bottom.
+    const slashed = applySquare1Scramble("/");
+    const midAngle = (p: (typeof slashed.top)[number]) => 15 + (p.start + p.sides.length / 2) * 30;
+    for (const piece of slashed.bottom.filter((p) => p.face === FACE_COLORS.U)) {
+      expect(square1ScreenDirection("bottom", midAngle(piece)).x).toBeGreaterThan(0);
+    }
+    for (const piece of slashed.top.filter((p) => p.face === FACE_COLORS.D)) {
+      expect(square1ScreenDirection("top", midAngle(piece)).x).toBeGreaterThan(0);
+    }
+  });
 });
