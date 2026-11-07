@@ -10,7 +10,7 @@
  * honest source for splits, and the only one worth basing "where did the time go" on.
  */
 
-import { invertMove, isSolved, toQuarterTurns } from "./facelets";
+import { SOLVED, applyMove, isSolved, parseMove, toQuarterTurns } from "./facelets";
 import type { TimedMove } from "./moveStream";
 
 export type SolvePhase =
@@ -33,7 +33,17 @@ export interface SolveState {
   target: string | null;
   /** Scramble moves still to apply, for the "next move" hint. */
   remaining: string[];
-  /** Turns that didn't match the hint. Counted, never blocking. */
+  /**
+   * The cube state after each quarter turn of the scramble: `path[k]` is where the cube should be
+   * after `k` turns. Where the solver is is read off this by state, never tracked by counting moves.
+   */
+  path: string[];
+  /**
+   * Turns made since the cube left the path, merged per face (`R R` is one R2 entry), newest last.
+   * Undoing them last-first walks back onto the path.
+   */
+  detour: Array<{ face: string; quarters: 1 | 2 | 3 }>;
+  /** Times the solver left the path. Counted, never blocking. */
   wrongTurns: number;
   /** The most recent off-scramble turn and how to undo it, so the UI can offer a way back. */
   wrongTurn: { move: string; undo: string } | null;
@@ -62,6 +72,8 @@ export const INITIAL_SOLVE: SolveState = {
   scramble: null,
   target: null,
   remaining: [],
+  path: [],
+  detour: [],
   wrongTurns: 0,
   wrongTurn: null,
   moves: [],
@@ -109,6 +121,10 @@ export function reduceSolve(state: SolveState, event: SolveEvent): SolveState {
         target: event.target,
         // Expanded so the hint lines up with what the cube reports, one event per 90°.
         remaining: toQuarterTurns(event.scramble),
+        path: scramblePath(event.scramble),
+        detour: [],
+        wrongTurns: 0,
+        wrongTurn: null,
         // Handing out a scramble the cube already matches (it happens) skips straight to ready.
         phase: event.facelets === event.target ? "ready" : "scrambling",
       };
@@ -132,21 +148,35 @@ export function reduceSolve(state: SolveState, event: SolveEvent): SolveState {
       switch (state.phase) {
         case "scrambling": {
           // The target is a *state*, not a sequence: someone who turns wrongly and recovers by any
-          // route still ends up ready. The pointer only drives the next-move hint.
+          // route still ends up ready.
           if (event.after === state.target) {
-            return { ...state, phase: "ready", remaining: [], wrongTurn: null };
+            return { ...state, phase: "ready", remaining: [], detour: [], wrongTurn: null };
           }
-          const matched = state.remaining[0] === event.move;
-          // Undoing the mistake clears the warning and leaves the pointer where it was.
-          const corrected = state.wrongTurn?.undo === event.move;
+
+          // Where the solver is comes from the cube's state, never from matching moves against the
+          // hint. Move matching was wrong whenever the undo of a mistake was also the next scramble
+          // move — turn U' where U was wanted, undo it with U, and the U counted as progress too.
+          // The hint then ran one turn ahead of the cube, and a solver who obeyed it to the end
+          // was one turn short of the scramble with no way to reach "ready". Reading position off
+          // the state can't drift from the cube, and it also accepts any route back: R' R' where
+          // the scramble said R2 lands on the path and is simply on track.
+          const turns = toQuarterTurns(state.scramble ?? "");
+          const at = state.path.lastIndexOf(event.after);
+          if (at >= 0) {
+            return { ...state, remaining: turns.slice(at), detour: [], wrongTurn: null };
+          }
+
+          // Off the path. Leaving it is one mistake however many turns the detour takes.
+          const leaving = state.detour.length === 0;
+          const detour = extendDetour(state.detour, event.move);
+          const top = detour[detour.length - 1];
           return {
             ...state,
-            remaining: matched ? state.remaining.slice(1) : state.remaining,
-            wrongTurns: matched || corrected ? state.wrongTurns : state.wrongTurns + 1,
-            wrongTurn:
-              matched || corrected
-                ? null
-                : { move: event.move, undo: invertMove(event.move) },
+            detour,
+            wrongTurns: leaving ? state.wrongTurns + 1 : state.wrongTurns,
+            wrongTurn: top
+              ? { move: notate(top.face, top.quarters), undo: notate(top.face, 4 - top.quarters) }
+              : null,
           };
         }
 
@@ -238,3 +268,36 @@ export function solveTps(state: SolveState): number | null {
   if (!ms || state.moves.length < 2) return null;
   return (state.moves.length / ms) * 1000;
 }
+
+/** `path[k]`: the state after the first `k` quarter turns of the scramble, from solved. */
+function scramblePath(scramble: string): string[] {
+  const path = [SOLVED];
+  for (const move of toQuarterTurns(scramble)) path.push(applyMove(path[path.length - 1], move));
+  return path;
+}
+
+/**
+ * Add a turn to the detour. A turn of the same face as the newest entry merges into it, so the
+ * hint asks for one undo per face rather than one per quarter turn, and a turn that cancels the
+ * entry out removes it.
+ */
+function extendDetour(
+  detour: SolveState["detour"],
+  move: string
+): SolveState["detour"] {
+  const { face, turns } = parseMove(move);
+  const quarters = ((turns % 4) + 4) % 4;
+  const top = detour[detour.length - 1];
+  if (top && top.face === face) {
+    const merged = (top.quarters + quarters) % 4;
+    const rest = detour.slice(0, -1);
+    return merged === 0 ? rest : [...rest, { face, quarters: merged as 1 | 2 | 3 }];
+  }
+  return [...detour, { face, quarters: quarters as 1 | 2 | 3 }];
+}
+
+/** Quarter turns clockwise, as notation: 1 is R, 2 is R2, 3 is R'. */
+const notate = (face: string, quarters: number): string => {
+  const q = ((quarters % 4) + 4) % 4;
+  return q === 1 ? face : q === 2 ? `${face}2` : `${face}'`;
+};

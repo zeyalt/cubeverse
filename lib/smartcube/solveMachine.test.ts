@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SOLVED, applyMove, applyMoves, splitMoves } from "./facelets";
+import { SOLVED, applyMove, applyMoves, invertMove, splitMoves, toQuarterTurns } from "./facelets";
 import {
   INITIAL_SOLVE,
   INSPECTION_DNF_MS,
@@ -131,6 +131,113 @@ describe("solve machine", () => {
       expect(fixed.state.wrongTurns).toBe(1);
       // The hint picks up exactly where it was.
       expect(fixed.state.remaining[0]).toBe("R");
+    });
+  });
+
+  describe("a solver who does what the app says", () => {
+    // The property that matters: whatever mistakes are made, obeying every hint reaches "ready".
+    // It failed for ~4.5% of random single mistakes, and for almost every instance of the most
+    // common real one — turning the right face the wrong way — because undoing that mistake also
+    // matched the next scramble move and was counted as progress.
+    const FACES = ["U", "R", "F", "D", "L", "B"];
+    let seed = 7;
+    const rand = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
+    const pick = <T,>(xs: readonly T[]) => xs[Math.floor(rand() * xs.length)];
+    const randomScramble = () => {
+      const out: string[] = [];
+      while (out.length < 19) {
+        const face = pick(FACES);
+        if (out.length && out[out.length - 1][0] === face) continue;
+        out.push(face + pick(["", "'", "2"]));
+      }
+      return out.join(" ");
+    };
+
+    /**
+     * Run a scramble, making a mistake at each step in `mistakes` and otherwise obeying the app.
+     * Every turn is sent as quarter turns, as the cube sends them — including undo hints like R2.
+     */
+    function obey(scramble: string, mistakes: Map<number, (expected: string) => string>) {
+      const target = applyMoves(SOLVED, scramble);
+      let state = run([{ type: "scramble", scramble, target, facelets: SOLVED }]);
+      let model = SOLVED;
+      for (let step = 0; step < 120 && state.phase === "scrambling"; step++) {
+        const mistake = mistakes.get(step);
+        const hint = state.wrongTurn ? state.wrongTurn.undo : state.remaining[0];
+        const move = mistake ? mistake(state.remaining[0] ?? "U") : hint;
+        if (!move) break;
+        for (const quarter of toQuarterTurns(move)) {
+          model = applyMove(model, quarter);
+          state = reduceSolve(state, { type: "move", move: quarter, cubeTs: step, localTs: step, after: model });
+        }
+      }
+      return state;
+    }
+
+    it("always gets there after random mistakes, up to three per scramble", () => {
+      let stuck = 0;
+      for (let trial = 0; trial < 1500; trial++) {
+        const mistakes = new Map<number, () => string>();
+        const count = 1 + Math.floor(rand() * 3);
+        for (let i = 0; i < count; i++) {
+          mistakes.set(Math.floor(rand() * 25), () => pick(FACES) + pick(["", "'"]));
+        }
+        if (obey(randomScramble(), mistakes).phase !== "ready") stuck++;
+      }
+      expect(stuck).toBe(0);
+    });
+
+    it("always gets there after turning the right face the wrong way, at any point", () => {
+      const scramble = "R2 U' F2 D2 L2 B' R U2 F' L D2 R2 U2 B2 L2 F2 D' B2 U'";
+      const quarterTurns = toQuarterTurns(scramble).length;
+      for (let at = 0; at < quarterTurns; at++) {
+        const wrongWay = new Map([[at, (expected: string) => invertMove(expected)]]);
+        expect(obey(scramble, wrongWay).phase, `wrong way at turn ${at}`).toBe("ready");
+      }
+    });
+
+    it("counts undoing a mistake as a correction, not progress", () => {
+      // The exact sequence that got stuck: the scramble wants U next, the solver turns U', then
+      // undoes it with U. The hint must still be asking for that U afterwards.
+      let state = run([scrambleEvent]); // R U R' U' F2
+      let model = SOLVED;
+      for (const move of ["R", "U'", "U"]) {
+        model = applyMove(model, move);
+        state = reduceSolve(state, { type: "move", move, cubeTs: 0, localTs: 0, after: model });
+      }
+      expect(state.remaining[0]).toBe("U");
+      expect(state.wrongTurn).toBeNull();
+      expect(state.wrongTurns).toBe(1);
+    });
+
+    it("accepts a different route to the same place", () => {
+      // R' R' is R2. Going round the other way is not a mistake to correct.
+      const scramble = "R2 U";
+      const target = applyMoves(SOLVED, scramble);
+      let state = run([{ type: "scramble", scramble, target, facelets: SOLVED }]);
+      let model = SOLVED;
+      for (const move of ["R'", "R'"]) {
+        model = applyMove(model, move);
+        state = reduceSolve(state, { type: "move", move, cubeTs: 0, localTs: 0, after: model });
+      }
+      expect(state.remaining).toEqual(["U"]);
+      expect(state.wrongTurn).toBeNull();
+    });
+
+    it("asks for one undo per face, newest first", () => {
+      let state = run([scrambleEvent]); // wants R first
+      let model = SOLVED;
+      for (const move of ["D", "D", "L"]) {
+        model = applyMove(model, move);
+        state = reduceSolve(state, { type: "move", move, cubeTs: 0, localTs: 0, after: model });
+      }
+      // Two D turns merge into D2; L is newest, so it's undone first.
+      expect(state.wrongTurn).toEqual({ move: "L", undo: "L'" });
+      model = applyMove(model, "L'");
+      state = reduceSolve(state, { type: "move", move: "L'", cubeTs: 0, localTs: 0, after: model });
+      expect(state.wrongTurn).toEqual({ move: "D2", undo: "D2" });
+      // A detour of three turns is still one mistake.
+      expect(state.wrongTurns).toBe(1);
     });
   });
 
