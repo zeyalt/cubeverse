@@ -173,7 +173,7 @@ export function KidTrainerTab({ data }: KidTrainerTabProps) {
             <EventIcon event="222" className="text-sm" />
             2×2 cube
           </p>
-          <h2 className="font-display text-2xl font-extrabold tracking-tight text-token">CLL Trainer</h2>
+          <h1 className="font-display text-2xl font-extrabold tracking-tight text-token">CLL Trainer</h1>
         </div>
         <div className="flex gap-2">
           <button
@@ -214,7 +214,7 @@ export function KidTrainerTab({ data }: KidTrainerTabProps) {
       )}
 
       <section className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" aria-label="Filters">
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Case family">
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Case family">
           {[...CLL_FAMILIES, "all" as const].map((family) => {
             const active = family === activeFamily;
             return (
@@ -222,7 +222,9 @@ export function KidTrainerTab({ data }: KidTrainerTabProps) {
                 key={family}
                 type="button"
                 onClick={() => setActiveFamily(family)}
-                className={`min-h-9 rounded-full px-3 text-xs font-bold [touch-action:manipulation] ${
+                // The selected family was shown by colour alone.
+                aria-pressed={active}
+                className={`min-h-10 min-w-9 rounded-full px-2.5 text-xs font-bold [touch-action:manipulation] ${
                   active ? "btn-accent" : "btn-neutral"
                 }`}
               >
@@ -287,7 +289,7 @@ export function KidTrainerTab({ data }: KidTrainerTabProps) {
                 {info && (
                   <div className="col-span-full flex items-center gap-3 pt-2 first:pt-0">
                     <CllSubcaseDiagram info={info} />
-                    <h3 className="font-display text-base font-bold text-token">{info.title}</h3>
+                    <h2 className="font-display text-base font-bold text-token">{info.title}</h2>
                   </div>
                 )}
                 {group.map((cubeCase) => (

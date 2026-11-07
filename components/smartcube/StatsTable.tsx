@@ -22,10 +22,14 @@ const show = (cs: number | null) => (cs === null ? "–" : formatCs(cs));
 
 export function StatsTable({
   solves,
-  onSelect,
+  onOpenHistory,
 }: {
   solves: readonly SmartSolveRecord[];
-  onSelect?: (solve: SmartSolveRecord) => void;
+  /**
+   * One button under the table rather than a button per row: the rows were 15 px tall — far
+   * below a usable tap target — and every one of them did the same thing anyway.
+   */
+  onOpenHistory?: () => void;
 }) {
   if (solves.length === 0) return null;
 
@@ -37,7 +41,8 @@ export function StatsTable({
   const recent = solves.slice(0, RECENT);
 
   return (
-    <div className="surface grid grid-cols-2 gap-4 rounded-2xl p-4 font-mono text-xs tabular-nums">
+    <div className="surface rounded-2xl p-4">
+    <div className="grid grid-cols-2 gap-4 font-mono text-xs tabular-nums">
       <div>
         <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-token-muted">
           <span>TPS</span>
@@ -48,10 +53,8 @@ export function StatsTable({
             const isBest = solve.id === bestSolveId;
             return (
               <li key={solve.id}>
-                <button
-                  onClick={() => onSelect?.(solve)}
-                  disabled={!onSelect}
-                  className="flex w-full justify-between disabled:cursor-default"
+                <div
+                  className="flex w-full justify-between"
                   style={{ color: isBest ? "var(--kid-accent)" : undefined }}
                 >
                   <span>{solve.analysis ? solve.analysis.tps.toFixed(2) : "–"}</span>
@@ -61,7 +64,7 @@ export function StatsTable({
                     {/* A solve still in the outbox is marked, not implied to be saved. */}
                     {solve.pending ? <span className="text-token-muted"> ·</span> : null}
                   </span>
-                </button>
+                </div>
               </li>
             );
           })}
@@ -88,6 +91,15 @@ export function StatsTable({
           ))}
         </div>
       </div>
+    </div>
+    {onOpenHistory ? (
+      <button
+        onClick={onOpenHistory}
+        className="mt-3 flex min-h-11 w-full cursor-pointer items-center justify-center rounded-xl border border-token text-sm font-bold text-token-muted hover:text-token"
+      >
+        See all in History
+      </button>
+    ) : null}
     </div>
   );
 }

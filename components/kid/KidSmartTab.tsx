@@ -154,11 +154,16 @@ export function KidSmartTab({ cuberId }: { cuberId: string }) {
         />
       ) : null}
 
+      {/* The page heading, for screen readers: the tab has no visible title. */}
+      <h1 className="sr-only">Smart cube</h1>
+
       <CubePill
         status={cube.status}
         name={connected ? `${cube.brand} ${cube.name}` : null}
         battery={cube.battery}
-        onConnect={() => void onConnect()}
+        // On the Timer view the big Connect card below is the one call to action; a second Connect
+        // in the pill above it split the screen's attention between two identical buttons.
+        onConnect={section === "timer" ? undefined : () => void onConnect()}
         onDisconnect={() => void disconnect()}
       />
 
@@ -200,7 +205,7 @@ export function KidSmartTab({ cuberId }: { cuberId: string }) {
             <ConnectHero connecting={cube.status === "connecting"} onConnect={() => void onConnect()} />
           ) : null}
 
-          <StatsTable solves={session.solves} onSelect={() => setSection("history")} />
+            <StatsTable solves={session.solves} onOpenHistory={() => setSection("history")} />
         </>
       ) : null}
 
@@ -228,7 +233,8 @@ function CubePill({
   status: "disconnected" | "connecting" | "connected";
   name: string | null;
   battery: number | null;
-  onConnect: () => void;
+  /** Omitted where another Connect button is already on screen. */
+  onConnect?: () => void;
   onDisconnect: () => void;
 }) {
   const connected = status === "connected";
@@ -262,11 +268,11 @@ function CubePill({
         >
           Disconnect
         </button>
-      ) : status === "disconnected" ? (
+      ) : status === "disconnected" && onConnect ? (
         <button
           onClick={onConnect}
           className="min-h-10 shrink-0 cursor-pointer rounded-full px-4 text-sm font-bold text-black"
-          style={{ backgroundColor: "var(--kid-accent)" }}
+          style={{ backgroundColor: "var(--kid-cta)", color: "var(--kid-on-cta)" }}
         >
           Connect
         </button>
@@ -295,7 +301,7 @@ function ConnectHero({ connecting, onConnect }: { connecting: boolean; onConnect
           onClick={onConnect}
           disabled={connecting}
           className="mt-5 inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-full px-6 font-bold text-black disabled:opacity-50"
-          style={{ backgroundColor: "var(--kid-accent)" }}
+          style={{ backgroundColor: "var(--kid-cta)", color: "var(--kid-on-cta)" }}
         >
           <Bluetooth className="size-4" />
           {connecting ? "Choose your cube in the browser…" : "Connect"}
@@ -319,7 +325,7 @@ function SyncPrompt() {
         <button
           onClick={() => void markSolved()}
           className="min-h-11 cursor-pointer rounded-xl px-4 text-sm font-bold text-black"
-          style={{ backgroundColor: "var(--kid-accent)" }}
+          style={{ backgroundColor: "var(--kid-cta)", color: "var(--kid-on-cta)" }}
         >
           It&apos;s solved
         </button>

@@ -37,8 +37,8 @@ export function Segmented<T extends string>({
             onClick={() => onChange(option.value)}
             className={`flex-1 cursor-pointer rounded-lg font-bold transition-colors duration-150 [touch-action:manipulation] focus-visible:outline-2 focus-visible:outline-offset-2 ${
               size === "sm" ? "min-h-9 px-2 text-xs" : "min-h-10 px-3 text-sm"
-            } ${selected ? "text-black" : "text-token-muted hover:text-token"}`}
-            style={selected ? { backgroundColor: "var(--kid-accent)" } : undefined}
+            } ${selected ? "" : "text-token-muted hover:text-token"}`}
+            style={selected ? { backgroundColor: "var(--kid-cta)", color: "var(--kid-on-cta)" } : undefined}
           >
             {option.label}
           </button>

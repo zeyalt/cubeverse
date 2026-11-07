@@ -674,6 +674,8 @@ export function KidPracticeTab({
 
   return (
     <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden text-white">
+      {/* The page heading, for screen readers: the timer screen has no visible title. */}
+      <h1 className="sr-only">Practice</h1>
 
       {/* Save-error banner — surfaces why a solve wasn't recorded. */}
       {saveError && (
@@ -735,7 +737,7 @@ export function KidPracticeTab({
                     saveTarget(Math.max(TARGET_MIN_CS, Math.round(currentCs - 100)));
                   }
                 }}
-                className="flex items-center justify-center w-8 h-8 shrink-0 rounded-md bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors [touch-action:manipulation]"
+                className="flex items-center justify-center size-10 shrink-0 rounded-md bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors [touch-action:manipulation]"
                 aria-label="Decrease target by 1s"
                 title="−1s"
               >
@@ -749,7 +751,7 @@ export function KidPracticeTab({
                 onChange={(e) => setTargetDraft(e.target.value)}
                 onBlur={commitTargetDraft}
                 onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                className="min-w-0 flex-1 bg-transparent text-center text-[11px] font-mono-time font-bold text-white placeholder-white/30 focus:outline-none"
+                className="h-10 min-w-0 flex-1 bg-transparent text-center text-[11px] font-mono-time font-bold text-white placeholder-white/30 focus:outline-none rounded-md focus-visible:ring-2 focus-visible:ring-[#FFD500]/70"
                 placeholder="10.00"
               />
               <button
@@ -759,7 +761,7 @@ export function KidPracticeTab({
                     saveTarget(Math.min(TARGET_MAX_CS, Math.round(currentCs + 100)));
                   }
                 }}
-                className="flex items-center justify-center w-8 h-8 shrink-0 rounded-md bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors [touch-action:manipulation]"
+                className="flex items-center justify-center size-10 shrink-0 rounded-md bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors [touch-action:manipulation]"
                 aria-label="Increase target by 1s"
                 title="+1s"
               >
@@ -933,16 +935,19 @@ export function KidPracticeTab({
                   return (
                     <div
                       key={index}
-                      className="flex min-w-0 flex-1 flex-col items-center justify-center rounded-md border-2 py-1.5"
+                      className="flex min-h-9 min-w-0 flex-1 flex-col items-center justify-center rounded-md border-2 py-1.5"
+                      // Theme tokens, not hard-coded dark: these were the one black element left
+                      // on the light theme's paper. In dark mode the tokens resolve to the same
+                      // colours as before.
                       style={{
-                        borderColor: newest ? "#FFD500" : "rgba(255,255,255,0.18)",
-                        backgroundColor: newest ? "rgba(255,213,0,0.14)" : "#1C1916",
-                        boxShadow: newest ? "2px 2px 0 #0A0A0A" : "2px 2px 0 rgba(0,0,0,0.35)",
+                        borderColor: newest ? "#FFD500" : "var(--kid-border-strong)",
+                        backgroundColor: newest ? "rgba(255,213,0,0.14)" : "var(--kid-sheet)",
+                        boxShadow: newest ? "2px 2px 0 #0A0A0A" : "2px 2px 0 var(--kid-shadow)",
                       }}
                     >
                       <p
                         className="font-mono-time text-[11px] font-bold leading-none"
-                        style={{ color: newest ? "var(--kid-accent)" : "rgba(255,255,255,0.88)" }}
+                        style={{ color: newest ? "var(--kid-accent)" : "var(--kid-fg)" }}
                       >
                         {time == null ? "—" : formatCs(time)}
                       </p>
@@ -953,10 +958,10 @@ export function KidPracticeTab({
                   type="button"
                   onClick={() => openTab("analytics", { openHistory: true })}
                   aria-label={`View full solve history (${count} times)`}
-                  className="flex min-w-0 flex-[1.2] items-center justify-center gap-0.5 rounded-md border-2 border-[#FFD500] bg-[#FFD500] px-1 py-1.5 [touch-action:manipulation]"
+                  className="flex min-h-9 min-w-0 flex-[1.2] items-center justify-center gap-0.5 rounded-md border-2 border-[#FFD500] bg-[#FFD500] px-1 py-1.5 [touch-action:manipulation]"
                   style={{ color: "#1A1208" }}
                 >
-                  <span className="text-center text-[9px] font-bold leading-tight">
+                  <span className="text-center text-[10px] font-bold leading-tight">
                     View More
                   </span>
                   <ArrowRight className="size-3 shrink-0" />

@@ -492,6 +492,12 @@ body {
   /* Smart-cube deltas against a goal: worse / better. */
   --kid-worse: #f87171;
   --kid-better: #4ade80;
+  /* Filled call-to-action: background and the text on it. The same in both themes — every tab
+     fills primary buttons yellow with dark text. Distinct from --kid-accent, which turns orange on
+     the light theme because yellow *text* is unreadable on paper; as a fill under black text it is
+     the yellow that is readable (≈14:1), and the orange that fails (4.05:1). */
+  --kid-cta: #FFD500;
+  --kid-on-cta: #1A1208;
 }
 
 /* Light theme — warm paper canvas, dark ink (mirrors the comp-notebook palette) */
@@ -516,6 +522,8 @@ body {
   /* Darker on paper: the dark-theme red and green fall to ~2.6:1 here; these clear 4.5:1. */
   --kid-worse: #b91c1c;
   --kid-better: #15803d;
+  --kid-cta: #FFD500;
+  --kid-on-cta: #1A1208;
 }
 
 /* ── Light-mode retint of legacy hard-coded dark utilities ──────────────────

@@ -48,13 +48,13 @@ export function CllCaseCard({
     >
       <PassHoldButton passed={entry.passed} caseId={cubeCase.id} onToggle={onTogglePassed} />
 
-      <div className="mb-3 flex items-center justify-between gap-2 pr-8">
-        <h2 className="font-display text-lg font-extrabold text-token">{cubeCase.id}</h2>
+      <div className="mb-3 flex items-center justify-between gap-2 pr-11">
+        <h3 className="font-display text-lg font-extrabold text-token">{cubeCase.id}</h3>
         <button
           type="button"
           onClick={onToggleEasy}
           aria-pressed={entry.easy}
-          className={`inline-flex min-h-8 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-wide [touch-action:manipulation] ${
+          className={`inline-flex min-h-10 items-center gap-1 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wide [touch-action:manipulation] ${
             entry.easy
               ? "border-[#FFD500] bg-[#FFD500] text-[#1A1208]"
               : "border-token text-token-muted"
@@ -149,7 +149,7 @@ function AlgBlock({
           <button
             type="button"
             onClick={onEditNote}
-            className={`max-w-[55%] truncate rounded-full border px-2 py-0.5 text-[10px] font-bold [touch-action:manipulation] ${
+            className={`max-w-[55%] truncate rounded-full border px-2.5 py-1.5 text-[10px] font-bold [touch-action:manipulation] ${
               note
                 ? "border-[#0046AD]/40 bg-[#0046AD]/15 text-[#8BB6FF]"
                 : "border-dashed border-token text-token-muted"
@@ -178,7 +178,16 @@ function PassHoldButton({
       type="button"
       data-pass-hold={caseId}
       title="Press and hold for 2 seconds to toggle pass"
+      aria-label={`${caseId} passed. Press and hold to change`}
       aria-pressed={passed}
+      // Hold-to-toggle guards against accidental taps, which a keyboard press can't be — so Enter
+      // and Space toggle at once. Without this the button couldn't be operated from a keyboard.
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onToggle();
+        }
+      }}
       onPointerDown={(event) => {
         const button = event.currentTarget;
         button.classList.add("holding");
@@ -197,7 +206,7 @@ function PassHoldButton({
         button.addEventListener("pointerleave", cancel);
         button.addEventListener("pointercancel", cancel);
       }}
-      className={`cll-pass-toggle absolute top-3 right-3 z-[2] grid size-8 place-items-center overflow-hidden rounded-full border-2 [touch-action:none] select-none ${
+      className={`cll-pass-toggle absolute top-2.5 right-2.5 z-[2] grid size-10 place-items-center overflow-hidden rounded-full border-2 [touch-action:none] select-none ${
         passed
           ? "border-[#009B48] bg-[#009B48] text-white"
           : "border-token bg-surface text-token-muted"

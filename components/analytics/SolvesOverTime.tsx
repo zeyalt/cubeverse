@@ -143,7 +143,8 @@ export function SolvesOverTime({ data, targetCs, prCs }: Props) {
 
   const CHART_H = 380;
   const X_AXIS_H = 26;
-  const Y_AXIS_W = 40;
+  // Wide enough for times over a minute ("1:03.10" at 10 px). At 40 it clipped them to ":03.10".
+  const Y_AXIS_W = 52;
   const yVals: number[] = [];
   for (const p of valid) {
     if (p.timeCs > 0) yVals.push(p.timeCs);
@@ -175,7 +176,9 @@ export function SolvesOverTime({ data, targetCs, prCs }: Props) {
             { key: "ao50", label: "Ao50", val: showAo50, set: setShowAo50, active: "bg-[#009B48] text-white" },
           ] as const).map(({ key, label, val, set, active }) => (
             <button key={key} onClick={() => set((v: boolean) => !v)}
-              className={`${segBtn} ${val ? active : "text-token-muted"}`}
+              // On/off was shown by colour alone; aria-pressed says it to a screen reader too.
+              aria-pressed={val}
+              className={`${segBtn} min-h-9 ${val ? active : "text-token-muted"}`}
             >{label}</button>
           ))}
         </div>
@@ -191,7 +194,9 @@ export function SolvesOverTime({ data, targetCs, prCs }: Props) {
             step={0.5}
             value={sliderPos}
             onChange={onSliderChange}
-            className="min-w-0 flex-1 accent-[#FFD500] [touch-action:manipulation]"
+            // h-8 gives the thumb a finger-sized strip to land on; the track still draws at its
+            // native thickness in the middle.
+            className="h-8 min-w-0 flex-1 cursor-pointer accent-[#FFD500] [touch-action:manipulation]"
             aria-label="Zoom solves over time chart"
           />
           <span className="shrink-0 text-token-muted font-bold">Spread</span>
@@ -202,6 +207,10 @@ export function SolvesOverTime({ data, targetCs, prCs }: Props) {
           solely to freeze the Y axis. */}
       <div
         ref={scrollRef}
+        // A scrolling region keyboard users can reach and scroll with the arrow keys.
+        tabIndex={0}
+        role="region"
+        aria-label="Solves over time chart, scrollable"
         className="w-full overflow-x-auto"
         style={{ touchAction: "pan-x pan-y" }}
       >

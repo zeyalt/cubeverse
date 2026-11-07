@@ -182,7 +182,7 @@ export function KidBadgesTab({
     <div className="space-y-5 px-3 pt-2 pb-4">
       {/* Header + rank */}
       <div>
-        <h2 className="font-display text-2xl font-extrabold tracking-tight text-white">Badges</h2>
+        <h1 className="font-display text-2xl font-extrabold tracking-tight text-white">Badges</h1>
         <div className="mt-2 flex items-center justify-between">
           <span className="font-display text-lg font-bold" style={{ color: rank.color }}>
             {rank.label}
@@ -355,7 +355,7 @@ function BadgeLadder({
       {hiddenCount > 0 && (
         <button
           onClick={() => setExpanded(true)}
-          className="flex w-full items-center justify-center gap-1 pt-1 text-[10px] font-bold text-white/40 hover:text-white/70"
+          className="mt-1 flex min-h-10 w-full cursor-pointer items-center justify-center gap-1 rounded-lg text-xs font-bold text-white/55 hover:text-white/80"
         >
           Show {hiddenCount} more
           <ChevronDown className="size-3" />

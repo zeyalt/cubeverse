@@ -147,7 +147,7 @@ export function ManageCompetitorsSheet({ cuberId, myWcaId, saved, colorFor, onCh
                     if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                   }}
                   placeholder={c.name}
-                  className="w-full bg-transparent text-sm font-bold text-white placeholder:text-white/40 focus:outline-none"
+                  className="w-full bg-transparent text-sm font-bold text-white placeholder:text-white/40 focus:outline-none rounded-md focus-visible:ring-2 focus-visible:ring-[#FFD500]/70"
                 />
               </div>
               <button

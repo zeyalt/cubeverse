@@ -116,7 +116,7 @@ export function PracticeHeatmap({ counts, weeks = 52, startDate, endDate }: Prop
   const monthByColumn = new Map(monthLabels.map((month) => [month.col, month.label]));
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Practice calendar, scrollable">
       <div className="inline-flex flex-col gap-0.5 min-w-max">
         {/* Year label */}
         {yearLabel && (

@@ -259,7 +259,7 @@ export function KidAnalyticsTab({
   return (
     <div className="px-3 pt-2 pb-4 space-y-4" style={{ touchAction: "manipulation" }}>
       {/* Page title */}
-      <h2 className="font-display text-2xl font-extrabold tracking-tight text-white">Analytics</h2>
+      <h1 className="font-display text-2xl font-extrabold tracking-tight text-white">Analytics</h1>
 
       {/* Sub-tab switcher — segmented control */}
       <div className="flex gap-1 rounded-xl border border-white/10 bg-white/5 p-1">

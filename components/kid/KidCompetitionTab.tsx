@@ -51,7 +51,7 @@ export function KidCompetitionTab({ data: { competitions, cuberId, wcaId } }: Ki
     <div className="space-y-4 px-3 pt-2 pb-4">
       {/* Header */}
       <div>
-        <h2 className="font-display text-2xl font-extrabold tracking-tight text-white">Competitions</h2>
+        <h1 className="font-display text-2xl font-extrabold tracking-tight text-white">Competitions</h1>
         <p className="mt-0.5 text-sm text-white/50">{competitions.length} on the record</p>
       </div>
 
