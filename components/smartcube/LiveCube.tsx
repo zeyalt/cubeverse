@@ -25,7 +25,7 @@ const Cube3DView = dynamic(() => import("./Cube3DView"), {
  */
 const NO_GYRO_AFTER_MS = 6_000;
 
-export function LiveCube({ controls = true }: { controls?: boolean }) {
+export function LiveCube() {
   const cube = useSmartCube();
   return (
     <>
@@ -36,11 +36,19 @@ export function LiveCube({ controls = true }: { controls?: boolean }) {
         className="pointer-events-none absolute bottom-[6%] left-1/2 h-[12%] w-[46%] -translate-x-1/2 rounded-[50%] bg-black/35 blur-xl"
       />
       <Cube3DView facelets={cube.facelets} calibration={cube.calibration} className="absolute inset-0" />
-      {controls && cube.status === "connected" ? (
-        <OrientationStatus live={cube.orientationLive} />
-      ) : null}
     </>
   );
+}
+
+/**
+ * The orientation hint and Recalibrate, shown *below* the cube rather than over it. A cube steered
+ * by the gyro can reach any part of its frame, so anything drawn inside the frame ends up on top of
+ * it at some angle — it did, on the first real phone, sitting over the bottom row of stickers.
+ */
+export function CubeOrientationControls() {
+  const cube = useSmartCube();
+  if (cube.status !== "connected") return null;
+  return <OrientationStatus live={cube.orientationLive} />;
 }
 
 function OrientationStatus({ live }: { live: boolean }) {
@@ -53,16 +61,16 @@ function OrientationStatus({ live }: { live: boolean }) {
 
   if (live) {
     return (
-      <div className="absolute right-2 bottom-2 left-2 flex items-end justify-between gap-2">
+      <div className="mt-2 flex items-center justify-between gap-3">
         {/* The gyro has no compass, so "which way is the screen?" has to be answered once: the
             instruction sits beside the button it explains. */}
-        <p id="recalibrate-hint" className="rounded-full bg-black/40 px-2.5 py-1 text-[10px] font-bold text-white/85">
-          Hold white up, green to you, then
+        <p id="recalibrate-hint" className="min-w-0 text-xs leading-snug text-token-muted">
+          Hold white up, green facing you, then recalibrate.
         </p>
         <button
           onClick={recalibrateOrientation}
           aria-describedby="recalibrate-hint"
-          className="flex min-h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-black/50 px-3 text-xs font-bold text-white hover:bg-black/65"
+          className="flex min-h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-token px-3.5 text-xs font-bold text-token hover:bg-surface-strong"
         >
           <Crosshair className="size-3.5" />
           Recalibrate
@@ -73,7 +81,7 @@ function OrientationStatus({ live }: { live: boolean }) {
 
   if (!waitedOut) return null;
   return (
-    <p className="absolute right-2 bottom-2 left-2 rounded-xl bg-black/45 px-3 py-2 text-center text-[11px] text-white/85">
+    <p className="mt-2 text-center text-xs text-token-muted">
       This cube isn&apos;t sending its orientation, so the view stays put. Drag it to look around.
     </p>
   );

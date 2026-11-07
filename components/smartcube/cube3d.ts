@@ -79,6 +79,18 @@ export class Cube3D {
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // The canvas draws at up to 2× the container's pixels for sharpness (`setSize(..., false)`
+    // below sets only its drawing buffer), so its *displayed* size must be pinned to the container
+    // here. Without this a phone at 2-3× density showed the canvas at its buffer size — twice the
+    // frame, anchored top-left — and the cube spilled off the card. The prototype had this in a
+    // stylesheet that didn't survive the port, which is why it lives in the renderer now.
+    Object.assign(this.renderer.domElement.style, {
+      position: "absolute",
+      inset: "0",
+      width: "100%",
+      height: "100%",
+      display: "block",
+    });
     container.appendChild(this.renderer.domElement);
 
     this.scene.add(new THREE.AmbientLight(0xffffff, 1.6));

@@ -26,6 +26,7 @@ export function SolveFlow({
   solve,
   solveNumber,
   cube,
+  cubeControls,
   inspectionMs,
   liveMs,
   latest,
@@ -37,6 +38,8 @@ export function SolveFlow({
   solveNumber: number;
   /** The live 3D cube, rendered inside the card. */
   cube: ReactNode;
+  /** Shown just under the cube (orientation controls). Left out while solving. */
+  cubeControls?: ReactNode;
   inspectionMs: number;
   liveMs: number;
   latest: SmartSolveRecord | null;
@@ -46,13 +49,19 @@ export function SolveFlow({
 }) {
   const turns = solve.scramble ? toQuarterTurns(solve.scramble) : [];
   const applied = turns.length - solve.remaining.length;
-  const cubeFrame = <div className="relative -mx-1 h-[clamp(190px,32vh,300px)]">{cube}</div>;
+  const cubeFrame = (
+    <div className="mb-3">
+      <div className="relative h-[clamp(190px,32vh,300px)]">{cube}</div>
+      {cubeControls}
+    </div>
+  );
+  const bareCube = <div className="relative h-[clamp(190px,32vh,300px)]">{cube}</div>;
 
   if (solve.phase === "solving") {
     // Nothing but the cube and the time; the tab hides everything else around it.
     return (
       <div className="surface rounded-3xl p-4">
-        {cubeFrame}
+        {bareCube}
         <p className="font-display text-center text-6xl font-extrabold tabular-nums text-token">
           {(liveMs / 1000).toFixed(1)}
         </p>

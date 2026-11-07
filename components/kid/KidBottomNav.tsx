@@ -13,11 +13,14 @@ interface KidBottomNavProps {
 const TABS: Array<{
   id: Tab;
   label: string;
+  /** What's shown under the icon. Kept short so six tabs fit a 360 px phone; `label` stays the
+   *  accessible name, so a screen reader still says "Competitions". */
+  short?: string;
   icon: typeof Timer;
   requiresBluetooth?: boolean;
 }> = [
   { id: "practice" as const, label: "Practice", icon: Timer },
-  { id: "competitions" as const, label: "Competitions", icon: Trophy },
+  { id: "competitions" as const, label: "Competitions", short: "Comps", icon: Trophy },
   { id: "analytics" as const, label: "Analytics", icon: BarChart2 },
   { id: "badges" as const, label: "Badges", icon: Star },
   { id: "trainer" as const, label: "Trainer", icon: Dumbbell },
@@ -46,7 +49,7 @@ export function KidBottomNav({ activeTab, onSwitch }: KidBottomNavProps) {
         paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
-      {tabs.map(({ id, label, icon: Icon }) => {
+      {tabs.map(({ id, label, short, icon: Icon }) => {
         const active = id === activeTab;
         return (
           <button
@@ -57,7 +60,9 @@ export function KidBottomNav({ activeTab, onSwitch }: KidBottomNavProps) {
             onPointerDown={() => prefetchTab(id)}
             aria-label={label}
             aria-current={active ? "page" : undefined}
-            className="flex min-h-14 flex-1 cursor-pointer flex-col items-center justify-center gap-1 py-3 px-2 transition-transform active:scale-90 [touch-action:manipulation]"
+            // `min-w-0` lets a tab shrink below its label's natural width; without it, flex items
+            // refuse to, and six of them pushed the last tab off the right edge of a phone.
+            className="flex min-h-14 min-w-0 flex-1 cursor-pointer flex-col items-center justify-center gap-1 px-0.5 py-3 transition-transform active:scale-90 [touch-action:manipulation]"
           >
             {/* Always reserve the indicator's height so switching tabs never
                 nudges the icon/label up or down. */}
@@ -70,10 +75,10 @@ export function KidBottomNav({ activeTab, onSwitch }: KidBottomNavProps) {
               style={active ? { color: "var(--kid-accent)" } : undefined}
             />
             <span
-              className={`text-[10px] font-bold uppercase tracking-wider transition-colors ${active ? "" : "text-token-muted"}`}
+              className={`max-w-full truncate text-[10px] font-bold uppercase tracking-wide transition-colors ${active ? "" : "text-token-muted"}`}
               style={active ? { color: "var(--kid-accent)" } : undefined}
             >
-              {label}
+              {short ?? label}
             </span>
           </button>
         );

@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { Bluetooth, BluetoothOff, Box } from "lucide-react";
 import { TabLoading } from "./lazyTabs";
-import { LiveCube } from "@/components/smartcube/LiveCube";
+import { CubeOrientationControls, LiveCube } from "@/components/smartcube/LiveCube";
 import { MacDialog } from "@/components/smartcube/MacDialog";
 import { Segmented } from "@/components/smartcube/Segmented";
 import { SolveFlow } from "@/components/smartcube/SolveFlow";
@@ -133,7 +133,7 @@ export function KidSmartTab({ cuberId }: { cuberId: string }) {
         <SolveFlow
           solve={session.solve}
           solveNumber={solveNumber}
-          cube={<LiveCube controls={false} />}
+          cube={<LiveCube />}
           inspectionMs={session.inspectionMs}
           liveMs={session.liveMs}
           latest={session.latest}
@@ -186,6 +186,7 @@ export function KidSmartTab({ cuberId }: { cuberId: string }) {
               solve={session.solve}
               solveNumber={solveNumber}
               cube={<LiveCube />}
+              cubeControls={<CubeOrientationControls />}
               inspectionMs={session.inspectionMs}
               liveMs={session.liveMs}
               latest={session.latest}
