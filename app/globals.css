@@ -211,6 +211,22 @@ body {
   }
   body {
     @apply bg-background text-foreground antialiased;
+    /* App-wide: text can't be selected or copied, and iOS's long-press callout (the "Copy" /
+       "Look Up" menu) is suppressed — the app should feel like a native one, not a web page you
+       can drag-select. One rule here rather than per page, so new screens inherit it. */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  /* Text boxes opt back in. They must: you can't edit or paste what you can't select, and in
+     Safari an inherited user-select: none can stop a field accepting typing at all. */
+  input,
+  textarea,
+  select,
+  [contenteditable]:not([contenteditable="false"]) {
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
   }
   html {
     @apply font-sans;
