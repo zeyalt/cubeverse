@@ -40,7 +40,7 @@ export function CompetitionImprovements({ data }: CompetitionImprovementsProps) 
       {data.map((comp, idx) => (
         <Link
           key={idx}
-          href={`/competitions/${comp.competitionId}?from=analytics`}
+          href={`/competition?id=${comp.competitionId}&from=analytics`}
           className="surface surface-hover flex items-center gap-3 rounded-lg px-3 py-2"
         >
           {/* Name + meta */}
